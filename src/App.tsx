@@ -1283,14 +1283,24 @@ function Faltas({user,db,setDb,showToast}){
 function Auxiliar({user,db,setDb,showToast}){
   const h=gD(),k="aux-"+h;
   const regs=(db.auxHig&&db.auxHig[k])?db.auxHig[k].registos:{};
+  const notas=(db.auxHig&&db.auxHig[k])?db.auxHig[k].notas||{}:{};
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
+  const [notaEdit,setNotaEdit]=useState("");
+  const [showNota,setShowNota]=useState(false);
   const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
 
   const mk=item=>{
     if(regs[item]){showToast("Ja marcado");return;}
     const n={...regs,[item]:{aluno:user.id,time:gT()}};
-    setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,date:h};return{...p,auxHig:ah};});
+    setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,notas,date:h};return{...p,auxHig:ah};});
     showToast("Verificado!");
+  };
+
+  const guardarNota=()=>{
+    const n={...notas,[zona]:notaEdit};
+    setDb(p=>{const ah={...p.auxHig};ah[k]={registos:regs,notas:n,date:h};return{...p,auxHig:ah};});
+    setShowNota(false);
+    showToast("Nota guardada!");
   };
 
   return(
@@ -1306,11 +1316,40 @@ function Auxiliar({user,db,setDb,showToast}){
         </div>
         <Pg val={tF} max={tI}/>
         <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-          {Object.keys(ZONAS).map(z=>{const f=ZONAS[z].filter(i=>regs[i]).length,ok=f===ZONAS[z].length;return <button key={z} onClick={()=>setZona(z)} style={{padding:"5px 9px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(zona===z?V:ok?"#b8dfc8":BE),background:zona===z?V:ok?"#e8f5e9":LC,color:zona===z?W:ok?V:GR,fontFamily:"inherit"}}>{z}{ok?" ok":" "+f+"/"+ZONAS[z].length}</button>;})}
+          {Object.keys(ZONAS).map(z=>{
+            const f=ZONAS[z].filter(i=>regs[i]).length,ok=f===ZONAS[z].length;
+            const temNota=!!(notas[z]&&notas[z].trim());
+            return(
+              <button key={z} onClick={()=>{setZona(z);setNotaEdit(notas[z]||"");setShowNota(false);}} style={{padding:"5px 9px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(zona===z?V:ok?"#b8dfc8":BE),background:zona===z?V:ok?"#e8f5e9":LC,color:zona===z?W:ok?V:GR,fontFamily:"inherit",position:"relative"}}>
+                {z}{ok?" ok":" "+f+"/"+ZONAS[z].length}
+                {temNota&&<span style={{position:"absolute",top:-4,right:-4,width:8,height:8,borderRadius:"50%",background:"#f59e0b"}}></span>}
+              </button>
+            );
+          })}
         </div>
       </Cd>
       <Cd>
-        <div style={{fontWeight:700,fontSize:14,color:V,marginBottom:10}}>{zona} — {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontWeight:700,fontSize:14,color:V}}>{zona} — {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length}</div>
+          <button onClick={()=>{setNotaEdit(notas[zona]||"");setShowNota(!showNota);}} style={{padding:"5px 12px",borderRadius:7,border:"1.5px solid "+(notas[zona]?"#f59e0b":BE),background:notas[zona]?"#fef3c7":"transparent",color:notas[zona]?"#92400e":GR,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+            {notas[zona]?"Nota ✎":"+ Nota"}
+          </button>
+        </div>
+        {showNota&&(
+          <div style={{marginBottom:12,background:"#fef3c7",borderRadius:9,padding:10}}>
+            <div style={{fontSize:10,fontWeight:700,color:"#92400e",marginBottom:6,textTransform:"uppercase"}}>Nota para a zona {zona}</div>
+            <textarea value={notaEdit} onChange={e=>setNotaEdit(e.target.value)} placeholder="Ex: Produto acabou, não foi possível higienizar..." rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #f59e0b",fontSize:13,background:W,color:"#92400e",outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+            <div style={{display:"flex",gap:6,marginTop:6}}>
+              <button onClick={()=>setShowNota(false)} style={{flex:1,padding:"7px",borderRadius:7,border:"1.5px solid "+BE,background:"transparent",color:GR,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
+              <button onClick={guardarNota} style={{flex:2,padding:"7px",borderRadius:7,border:"none",background:"#f59e0b",color:W,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Nota</button>
+            </div>
+          </div>
+        )}
+        {notas[zona]&&!showNota&&(
+          <div style={{marginBottom:10,background:"#fef3c7",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#92400e"}}>
+            <span style={{fontWeight:700}}>Nota: </span>{notas[zona]}
+          </div>
+        )}
         {ZONAS[zona].map(item=>{const reg=regs[item];return(
           <div key={item} style={{borderBottom:"1px solid "+LC,paddingBottom:10,marginBottom:10}}>
             <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
