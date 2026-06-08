@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 
+// Load Barlow Condensed font
+const fontLink = document.createElement("link");
+fontLink.rel = "stylesheet";
+fontLink.href = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@400;500;600&display=swap";
+document.head.appendChild(fontLink);
+
+const fontStyle = document.createElement("style");
+fontStyle.textContent = "* { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif !important; } input, textarea, select { font-family: 'Barlow', sans-serif !important; }";
+document.head.appendChild(fontStyle);
+
 
 
 const SHEET_URL="https://script.google.com/a/macros/eclisboa.net/s/AKfycbx61h1YIvODQaH_DJ-jhzx6zHSd2tux2LZuPOpOIvVFfOyK9J8gfzJIbjiEH6WE7xX6iQ/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
-const V="#1a3d2b",V2="#4a7c5e",CR="#f5f0e8",BE="#e8dfc8",CA="#7c5c3a",W="#ffffff",R="#c0392b",GR="#8a8a8a",LC="#f0ede6";
+const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
 const FRIOS=["Congelador 1","Congelador 2","Congelador 3","Frig. Vert. 1","Frig. Vert. 2","Frig. Vert. 3","Frig. Vert. 4","Frig. Banc. 1","Frig. Banc. 2","Frig. Banc. 3","Frig. Banc. 4","Frig. Banc. 5"];
 const CATS=["Legumes frescos","Carne","Peixe","Mercearia seca","Laticinios","Congelados","Outros"];
@@ -19,27 +29,27 @@ const ZONAS={
 "Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"]
 };
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
-const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Produção"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
-const MODS=[{id:"temperaturas",lb:"Temperaturas",cor:"#2d5a3d"},{id:"recepcao",lb:"Receção Matérias-Primas",cor:V2},{id:"producao",lb:"Prod. Confeccionados",cor:CA},{id:"testemunho",lb:"Amostra Testemunho",cor:"#6d3b8e"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#1a6b4a"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção",cor:"#2c5f8a"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios",cor:"#a67c52"},{id:"naoConf",lb:"Não Conformidades",cor:R},{id:"encerramento",lb:"Encerramento",cor:V}];
+const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
+const MODS=[{id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},{id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0369a1"},{id:"producao",lb:"Prod. Confeccionados",cor:"#0891b2"},{id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#059669"},{id:"manutencao",lb:"Manutenção e Avarias",cor:"#0284c7"},{id:"higienizacao",lb:"Higienização",cor:"#0e7490"},{id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#0f766e"},{id:"naoConf",lb:"Não Conformidades",cor:"#dc2626"},{id:"encerramento",lb:"Encerramento da Aula",cor:"#0369a1"}];
 
 const gD=()=>new Date().toLocaleDateString("pt-PT");
 const gT=()=>new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});
 const fD=s=>{if(!s)return"?";if(s.includes("/"))return s;const p=s.split("-");return p[2]+"/"+p[1]+"/"+p[0];};
 const nD=s=>s?(s.includes("/")?s.split("/").reverse().join("-"):s):"";
-const iC=(nm,t)=>{const v=parseFloat(t);if(isNaN(v))return null;return nm.includes("congeladora")?v<=-18:v>=0&&v<=5;};
+const iC=(nm,t)=>{const v=parseFloat(t);if(isNaN(v))return null;const cg=nm.toLowerCase().includes("congelador")||nm.toLowerCase().includes("congel");return cg?v<=-18:v>=0&&v<=5;};
 
 function B({lb,onClick,cor,dis,sm,out,st}){
   const bg=dis?"#ccc":out?"transparent":(cor||V);
   return <button onClick={onClick} disabled={dis} style={{background:bg,color:out?(cor||V):W,border:out?"2px solid "+(cor||V):"none",borderRadius:sm?8:11,padding:sm?"8px 14px":"13px 18px",fontSize:sm?13:15,fontWeight:600,cursor:dis?"not-allowed":"pointer",width:sm?"auto":"100%",fontFamily:"inherit",...st}}>{lb}</button>;
 }
-function Cd({children,st}){return <div style={{background:W,borderRadius:14,padding:18,marginBottom:14,boxShadow:"0 2px 8px rgba(26,61,43,.08)",...st}}>{children}</div>;}
-function Ip({lb,val,onChange,type,ph,min,max}){return <div style={{marginBottom:11}}>{lb&&<div style={{fontSize:11,fontWeight:600,color:CA,marginBottom:3,textTransform:"uppercase"}}>{lb}</div>}<input type={type||"text"} value={val} onChange={e=>onChange(e.target.value)} placeholder={ph||""} min={min} max={max} style={{width:"100%",padding:"11px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,outline:"none",color:V,fontFamily:"inherit"}}/></div>;}
-function Sl({lb,val,onChange,opts}){return <div style={{marginBottom:11}}>{lb&&<div style={{fontSize:11,fontWeight:600,color:CA,marginBottom:3,textTransform:"uppercase"}}>{lb}</div>}<select value={val} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"11px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}><option value="">-- Selecionar --</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;}
+function Cd({children,st}){return <div style={{background:W,borderRadius:16,padding:18,marginBottom:14,boxShadow:"0 4px 16px rgba(14,116,144,.1)",border:"1px solid #e0f2fe",...st}}>{children}</div>;}
+function Ip({lb,val,onChange,type,ph,min,max}){return <div style={{marginBottom:12}}>{lb&&<div style={{fontSize:10,fontWeight:700,color:CA,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>{lb}</div>}<input type={type||"text"} value={val} onChange={e=>onChange(e.target.value)} placeholder={ph||""} min={min} max={max} style={{width:"100%",padding:"12px 14px",borderRadius:10,border:"1.5px solid #bae6fd",fontSize:14,background:"#f0f9ff",outline:"none",color:"#0c4a6e",fontFamily:"inherit",boxSizing:"border-box"}}/></div>;}
+function Sl({lb,val,onChange,opts}){return <div style={{marginBottom:12}}>{lb&&<div style={{fontSize:10,fontWeight:700,color:CA,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>{lb}</div>}<select value={val} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"12px 14px",borderRadius:10,border:"1.5px solid #bae6fd",fontSize:14,background:"#f0f9ff",color:"#0c4a6e",outline:"none",fontFamily:"inherit"}}><option value="">-- Selecionar --</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;}
 function Ta({lb,val,onChange,ph}){return <div style={{marginBottom:11}}>{lb&&<div style={{fontSize:11,fontWeight:600,color:CA,marginBottom:3,textTransform:"uppercase"}}>{lb}</div>}<textarea value={val} onChange={e=>onChange(e.target.value)} placeholder={ph||""} rows={3} style={{width:"100%",padding:"11px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,outline:"none",resize:"vertical",fontFamily:"inherit"}}/></div>;}
 function Ck({lb,chk,onChange}){return <div onClick={()=>onChange(!chk)} style={{display:"flex",alignItems:"center",gap:11,padding:"10px 0",borderBottom:"1px solid "+LC,cursor:"pointer"}}><div style={{width:25,height:25,borderRadius:7,border:"2px solid "+(chk?V:BE),background:chk?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{chk&&<span style={{color:W,fontSize:13,fontWeight:700}}>v</span>}</div><span style={{fontSize:13,color:chk?V:GR}}>{lb}</span></div>;}
-function Pg({val,max}){return <div style={{background:LC,borderRadius:7,height:7,marginBottom:12}}><div style={{background:V,height:7,borderRadius:7,width:(val/Math.max(max,1)*100)+"%"}}/></div>;}
+function Pg({val,max}){const pct=val/Math.max(max,1)*100;return <div style={{background:"#e0f2fe",borderRadius:7,height:8,marginBottom:12}}><div style={{background:"linear-gradient(90deg,#0e7490,#0891b2)",height:8,borderRadius:7,width:pct+"%",transition:"width .3s"}}/></div>;}
 function Tt({msg,onClose}){useEffect(()=>{const t=setTimeout(onClose,2800);return()=>clearTimeout(t);},[onClose]);return <div style={{position:"fixed",bottom:22,left:"50%",transform:"translateX(-50%)",background:V,color:W,borderRadius:11,padding:"11px 22px",fontSize:13,fontWeight:500,zIndex:9999}}>{msg}</div>;}
-function Hd({user,onOut}){return <div style={{background:V,color:W,padding:"13px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:99,boxShadow:"0 2px 10px rgba(0,0,0,.2)"}}><div><div style={{fontFamily:"Georgia,serif",fontSize:17,fontWeight:700}}>KitchenFlow ECL</div>{user&&<div style={{fontSize:10,opacity:.65}}>{user.id} - {gD()}</div>}</div>{user&&<button onClick={onOut} style={{background:"rgba(255,255,255,.15)",border:"none",color:W,borderRadius:8,padding:"6px 13px",fontSize:13,cursor:"pointer"}}>Sair</button>}</div>;}
+function Hd({user,onOut}){return <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:99,boxShadow:"0 4px 20px rgba(14,116,144,.4)"}}><div><div style={{fontSize:20,fontWeight:800,letterSpacing:1,textTransform:"uppercase"}}>KitchenFlow <span style={{color:"#bae6fd"}}>ECL</span></div>{user&&<div style={{fontSize:10,opacity:.7,letterSpacing:.5,marginTop:1}}>{user.id} — {gD()}</div>}</div>{user&&<button onClick={onOut} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",letterSpacing:.5}}>SAIR</button>}</div>;}
 
 function Login({onLogin}){
   const [tipo,setTipo]=useState("aluno");
@@ -66,14 +76,14 @@ function Login({onLogin}){
     }
   };
   return(
-    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,"+V+","+V2+")",display:"flex",alignItems:"center",justifyContent:"center",padding:22}}>
+    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0c4a6e,#0e7490,#0891b2)",display:"flex",alignItems:"center",justifyContent:"center",padding:22}}>
       <div style={{width:"100%",maxWidth:380}}>
         <div style={{textAlign:"center",marginBottom:24}}>
           <div style={{fontFamily:"Georgia,serif",fontSize:36,fontWeight:700,color:W,marginBottom:6}}>ECL</div>
           <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:W}}>KitchenFlow ECL</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}}>ESCOLA DE COMÉRCIO DE LISBOA</div>
         </div>
-        <div style={{background:W,borderRadius:16,padding:24,boxShadow:"0 16px 40px rgba(0,0,0,.25)"}}>
+        <div style={{background:W,borderRadius:20,padding:28,boxShadow:"0 20px 60px rgba(14,116,144,.3)",border:"1px solid rgba(186,230,253,.3)"}}>
           <div style={{display:"flex",gap:6,marginBottom:16}}>
             {[["aluno","Aluno"],["professor","Prof."],["coord","Coord."]].map(([t,lb])=>(
               <button key={t} onClick={()=>{setTipo(t);setErr("");setPin("");}} style={{flex:1,padding:"9px 3px",borderRadius:8,border:"2px solid "+(tipo===t?V:BE),background:tipo===t?V:LC,color:tipo===t?W:GR,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
@@ -93,31 +103,78 @@ function Login({onLogin}){
 
 function DashAluno({user,db,setModule}){
   const h=gD();
+  const [aba,setAba]=useState("modulos");
   const ncs=(db.ncs||[]).filter(n=>n.turma===user.turma&&n.date===h).length;
   const tempI=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"]);
   const tempF=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"]);
   const avisos=[];
-  if(!tempI)avisos.push({msg:"Falta registo de temperaturas — Início de Aula",mod:"temperaturas"});
+  if(!tempI)avisos.push({msg:"Falta registo de temperaturas — Início de aula",mod:"temperaturas"});
   if(!tempF)avisos.push({msg:"Falta registo de temperaturas — Final de aula",mod:"temperaturas"});
+
+  const historico=[
+    {id:"ti",lb:"Temperaturas Início",ok:tempI,detalhe:tempI?db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"].time:""},
+    {id:"tf",lb:"Temperaturas Final",ok:tempF,detalhe:tempF?db.temperaturas["temp-"+user.turma+"-"+h+"-final"].time:""},
+    {id:"rec",lb:"Receção Matérias-Primas",ok:!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h),detalhe:(db.recepcao||[]).filter(r=>r.turma===user.turma&&r.date===h).length+" registo(s)"},
+    {id:"prod",lb:"Prod. Confeccionados",ok:!!(db.producao||[]).find(p=>p.turma===user.turma&&p.date===h),detalhe:(db.producao||[]).filter(p=>p.turma===user.turma&&p.date===h).length+" produto(s)"},
+    {id:"test",lb:"Amostra Testemunho",ok:!!(db.testemunho||[]).find(t=>t.turma===user.turma&&t.date===h),detalhe:(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===h).length+" amostra(s)"},
+    {id:"des",lb:"Desinfeção Alimentos Cru",ok:!!(db.desinfecao||[]).find(d=>d.turma===user.turma&&d.date===h),detalhe:(db.desinfecao||[]).filter(d=>d.turma===user.turma&&d.date===h).length+" registo(s)"},
+    {id:"hig",lb:"Higienização",ok:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]),detalhe:db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]?Object.keys(db.higienizacao["hig-"+user.turma+"-"+h].registos||{}).length+" tarefas":""},
+    {id:"man",lb:"Manutenção",ok:!!(db.manutencao||[]).find(m=>m.turma===user.turma&&m.date===h),detalhe:(db.manutencao||[]).filter(m=>m.turma===user.turma&&m.date===h).length+" ocorrência(s)"},
+    {id:"nc",lb:"Não Conformidades",ok:ncs>0,detalhe:ncs+" NC(s)"},
+    {id:"enc",lb:"Encerramento",ok:!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]),detalhe:db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]?db.encerramento["enc-"+user.turma+"-"+h].time:""},
+    {id:"val",lb:"Validação Professor",ok:!!(db.validacoes&&db.validacoes["val-"+user.turma+"-"+h]),detalhe:""},
+  ];
+
+  const feitos=historico.filter(x=>x.ok).length;
+
   return(
     <div style={{padding:15}}>
       {avisos.length>0&&<div style={{marginBottom:12}}>
         {avisos.map((av,i)=>(
           <div key={i} onClick={()=>setModule(av.mod)} style={{background:"#fdecea",border:"2px solid "+R,borderRadius:10,padding:"10px 13px",marginBottom:7,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:14,color:R}}>(!)</span>
+            <span style={{fontSize:14,color:R,fontWeight:700}}>(!)</span>
             <span style={{fontSize:12,fontWeight:600,color:R,flex:1}}>{av.msg}</span>
             <span style={{fontSize:11,color:R}}>Registar</span>
           </div>
         ))}
       </div>}
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Ola, {user.id}</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {user.id}</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} - {h}</div>
-        <div style={{fontSize:11,opacity:.65,marginTop:4}}>{ncs} não conformidades hoje</div>
+        <div style={{fontSize:11,opacity:.65,marginTop:4}}>{feitos}/{historico.length} tarefas concluídas hoje</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-        {MODS.map(m=>(<button key={m.id} onClick={()=>setModule(m.id)} style={{background:W,border:"none",borderRadius:13,padding:14,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(26,61,43,.07)",borderLeft:"4px solid "+m.cor}}><div style={{fontSize:12,fontWeight:600,color:m.cor,lineHeight:1.3}}>{m.lb}</div></button>))}
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["modulos","Módulos"],["historico","Histórico do Dia"]].map(([id,lb])=>(
+          <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?V:BE),background:aba===id?V:LC,color:aba===id?W:GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
+        ))}
       </div>
+      {aba==="modulos"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
+        {MODS.map(m=>(<button key={m.id} onClick={()=>setModule(m.id)} style={{background:W,border:"none",borderRadius:14,padding:"14px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(14,116,144,.12)",borderLeft:"4px solid "+m.cor,borderTop:"1px solid #e0f2fe",transition:"transform .1s"}}><div style={{fontSize:11,fontWeight:700,color:m.cor,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.5}}>{m.lb}</div></button>))}
+      </div>}
+      {aba==="historico"&&<div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:V,marginBottom:12}}>Histórico — {h}</div>
+        <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <span style={{fontSize:12,fontWeight:600,color:V}}>Progresso do dia</span>
+            <span style={{fontSize:12,fontWeight:700,color:feitos===historico.length?V:CA}}>{feitos}/{historico.length}</span>
+          </div>
+          <Pg val={feitos} max={historico.length}/>
+        </div>
+        {historico.map(item=>(
+          <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid "+LC}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:22,height:22,borderRadius:6,background:item.ok?V:"transparent",border:"2px solid "+(item.ok?V:BE),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {item.ok&&<span style={{color:W,fontSize:11,fontWeight:700}}>v</span>}
+              </div>
+              <div>
+                <div style={{fontSize:13,fontWeight:item.ok?600:400,color:item.ok?V:GR}}>{item.lb}</div>
+                {item.ok&&item.detalhe&&<div style={{fontSize:10,color:GR}}>{item.detalhe}</div>}
+              </div>
+            </div>
+            <span style={{fontSize:12,fontWeight:700,color:item.ok?V:R}}>{item.ok?"OK":"Por fazer"}</span>
+          </div>
+        ))}
+      </div>}
     </div>
   );
 }
@@ -166,13 +223,24 @@ function Temperaturas({user,db,setDb,showToast}){
       </div>
       {done&&<div style={{background:"#e8f5e9",borderRadius:9,padding:10,marginBottom:10,color:V,fontSize:13}}>Já registado — {sv.aluno} {sv.time}</div>}
       {FRIOS.map(eq=>{
-        const cg=eq.includes("Congel"),cf=iC(eq,temps[eq]);
+        const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel"),cf=iC(eq,temps[eq]);
         return(
           <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(cf===false?R:cf===true?V:BE)}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:V}}>{eq}</div><div style={{fontSize:10,color:GR}}>{cg?"max -18C":"0 a 5C"}</div></div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
+                <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>
+                  {cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 5°C"}
+                </div>
+                <div style={{fontSize:9,color:GR,marginTop:1}}>
+                  {cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 2°C a 4°C"}
+                </div>
+              </div>
               <div style={{display:"flex",alignItems:"center",gap:3}}>
-                {cg&&<button onClick={()=>{if(!done){const cur=String(temps[eq]||"");setTemps(p=>({...p,[eq]:cur[0]==="-"?cur.slice(1):"-"+cur}));}}} style={{width:26,height:34,borderRadius:6,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?V:BE),background:temps[eq]&&String(temps[eq])[0]==="-"?V:LC,color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:18,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>-</button>}
+                {cg&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
+                  <button onClick={()=>{if(!done){const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:"-"+abs}));}}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":BE),background:temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":"transparent",color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>−</button>
+                  <button onClick={()=>{if(!done){const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:abs}));}}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":BE),background:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":"transparent",color:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>+</button>
+                </div>}
                 <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{if(!done){const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
                 <span style={{fontSize:10,fontWeight:700,color:cf===false?R:cf===true?V:GR,minWidth:20}}>{cf===false?"NC":cf===true?"OK":""}</span>
               </div>
@@ -273,7 +341,7 @@ function Producao({user,db,setDb,showToast}){
   const save=()=>{if(!form.nome||!form.dataLimite)return;const prod={...form,lote:nL,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,producao:[...(p.producao||[]),prod]}));setShow(false);enviar("Produção",[gD(),user.turma,user.id,form.nome,nL,form.conservacao,form.dataProducao,form.dataLimite,form.local,form.professor]);showToast("Produto registado! Lote: "+nL);};
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Produtos Produzidos</div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Prod. Confeccionados e Conservação</div>
       <B lb="+ Registar Produto" onClick={()=>setShow(!show)}/>
       {show&&<Cd st={{marginTop:10}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><span style={{fontWeight:600,color:CA}}>Novo Produto</span><span style={{background:CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>Lote {nL}</span></div>
@@ -446,6 +514,8 @@ function Encerramento({user,db,setDb,showToast}){
     {id:"fog",l:"Fogões todos desligados"},
     {id:"arc",l:"Ar condicionado desligado"},
     {id:"fri",l:"Frigoríficos verificados"},
+    {id:"equip_limp",l:"Equipamentos de preparacao limpos e higienizados"},
+    {id:"proc_limp",l:"Processadores limpos e protegidos"},
     {id:"loi",l:"Loiça lavada e arrumada"},
     {id:"ml1",l:"Máq. lavagem 1 drenada e porta aberta"},
     {id:"ml2",l:"Máq. lavagem 2 drenada e porta aberta"},
@@ -833,17 +903,305 @@ function Coordenadora({user,db}){
   );
 }
 
+const EQUIP_LISTA=[
+  {id:"cong_vert",nome:"Arca Congeladora Vertical",tipo:"Frio",icone:"C",desc:"Arcas congeladoras verticais (x3)"},
+  {id:"cong_horiz",nome:"Arca Congeladora Horizontal",tipo:"Frio",icone:"C",desc:"Arcas congeladoras horizontais"},
+  {id:"frig_vert",nome:"Frigorifico Vertical",tipo:"Frio",icone:"F",desc:"Frigorificos verticais (x4)"},
+  {id:"frig_banc",nome:"Frigorifico de Bancada",tipo:"Frio",icone:"F",desc:"Frigorificos de bancada (x5)"},
+  {id:"abatedor",nome:"Abatedor de Temperatura",tipo:"Frio",icone:"A",desc:"Abatedores (x2)"},
+  {id:"forno",nome:"Forno",tipo:"Calor",icone:"F",desc:"Fornos (x2)"},
+  {id:"vacuo",nome:"Maquina de Vacuo",tipo:"Preparacao",icone:"V",desc:"Maquinas de vacuo (x2)"},
+  {id:"picadora",nome:"Picadora de Carne",tipo:"Preparacao",icone:"P",desc:"Picadora"},
+  {id:"batedeira",nome:"Batedeira",tipo:"Preparacao",icone:"B",desc:"Batedeira"},
+  {id:"amassadeira",nome:"Amassadeira",tipo:"Preparacao",icone:"A",desc:"Amassadeiras (x2)"},
+  {id:"desidratador",nome:"Desidratador",tipo:"Preparacao",icone:"D",desc:"Desidratador"},
+  {id:"bimby",nome:"Bimby",tipo:"Preparacao",icone:"B",desc:"Bimby"},
+  {id:"pacojet",nome:"Pacojet",tipo:"Preparacao",icone:"P",desc:"Pacojet"},
+  {id:"processador",nome:"Processador de Alimentos",tipo:"Preparacao",icone:"P",desc:"Processadores (x2)"},
+  {id:"mlav",nome:"Maquina de Lavagem",tipo:"Copa",icone:"L",desc:"Maquinas de lavagem (x2)"},
+];
+
+const PROD_HIGIENE_LISTA=[
+  {id:"deterg_loica",nome:"Detergente Loia / Copa",tipo:"Detergente"},
+  {id:"deterg_bancada",nome:"Detergente Superficies / Bancadas",tipo:"Detergente"},
+  {id:"desinfetante",nome:"Desinfetante Superficies",tipo:"Desinfetante"},
+  {id:"desinfetante_alim",nome:"Desinfetante Alimentos",tipo:"Desinfetante"},
+  {id:"deterg_chao",nome:"Detergente Chao",tipo:"Detergente"},
+  {id:"desengordurante",nome:"Desengordurante",tipo:"Detergente"},
+  {id:"prod_forno",nome:"Produto Limpeza Forno",tipo:"Especifico"},
+  {id:"prod_inox",nome:"Produto Limpeza Inox",tipo:"Especifico"},
+  {id:"clorado",nome:"Produto Clorado",tipo:"Desinfetante"},
+  {id:"alcool",nome:"Alcool / Gel Desinfetante Maos",tipo:"Higiene Pessoal"},
+];
+
+const PLANO_HIG={
+  diario:[
+    "Bancadas de trabalho — lavar e desinfetar apos cada utilizacao",
+    "Equipamentos utilizados — limpar e higienizar no final da aula",
+    "Chao da cozinha — varrer e lavar",
+    "Cuba e ralos — limpar e desinfetar",
+    "Caixotes do lixo — esvaziar, lavar e desinfetar",
+    "Copa — maquinas de lavagem, loica e bancadas",
+    "Frigorifico — verificar temperaturas e limpeza exterior",
+  ],
+  semanal:[
+    "Frigorificos — limpeza interior completa",
+    "Congeladores — verificar acumulacao de gelo",
+    "Prateleiras e armarios — limpeza completa",
+    "Paredes e azulejos — limpeza e desinfecao",
+    "Exaustores e filtros — limpeza",
+    "Carrinhos de transporte — lavagem completa",
+    "Economatos — organizacao e limpeza",
+  ],
+  mensal:[
+    "Congeladores — descongelacao e limpeza profunda",
+    "Fornos — limpeza profunda interior e exterior",
+    "Equipamentos de preparacao — desmontagem e limpeza profunda",
+    "Tetos e iluminacao — limpeza",
+    "Portas e janelas — limpeza completa",
+    "Limpeza geral profunda da cozinha",
+    "Verificacao e registo de todos os equipamentos",
+  ],
+};
+
+function Equipamentos({user,db,setDb,showToast}){
+  const [sel,setSel]=useState(null);
+  const [edit,setEdit]=useState(false);
+  const [aba,setAba]=useState("equip");
+  const [selProd,setSelProd]=useState(null);
+  const [editProd,setEditProd]=useState(false);
+  const [form,setForm]=useState({marca:"",modelo:"",ano:"",tempTrabalho:"",capacidade:"",instrucoes:"",limpeza:"",seguranca:"",notas:"",linkPDF:"",linkImg:""});
+  const [formProd,setFormProd]=useState({fabricante:"",referencia:"",instrucoes:"",seguranca:"",dosagem:"",linkPDF:"",linkImg:""});
+  const [filtro,setFiltro]=useState("Todos");
+  const podeEditar=user.tipo==="professor"||user.tipo==="coord";
+  const fichas=db.fichasEquip||{};
+  const fichasProd=db.fichasProd||{};
+  const tipos=["Todos","Frio","Calor","Preparacao","Copa"];
+  const lista=filtro==="Todos"?EQUIP_LISTA:EQUIP_LISTA.filter(e=>e.tipo===filtro);
+  const corTipo={Frio:"#0369a1",Calor:"#dc2626",Preparacao:"#0891b2",Copa:"#059669",Detergente:"#0891b2",Desinfetante:"#6d28d9",Especifico:"#0f766e","Higiene Pessoal":"#059669"};
+
+  const abrirEdit=(eq)=>{
+    const f=fichas[eq.id]||{};
+    setForm({marca:f.marca||"",modelo:f.modelo||"",ano:f.ano||"",tempTrabalho:f.tempTrabalho||"",capacidade:f.capacidade||"",instrucoes:f.instrucoes||"",limpeza:f.limpeza||"",seguranca:f.seguranca||"",notas:f.notas||"",linkPDF:f.linkPDF||"",linkImg:f.linkImg||""});
+    setEdit(true);
+  };
+
+  const guardar=()=>{
+    setDb(p=>({...p,fichasEquip:{...(p.fichasEquip||{}),[sel.id]:{...form,atualizadoPor:user.id,atualizadoEm:gD()+" "+gT()}}}));
+    setEdit(false);
+    showToast("Ficha guardada!");
+  };
+
+  const abrirEditProd=(prod)=>{
+    const f=fichasProd[prod.id]||{};
+    setFormProd({fabricante:f.fabricante||"",referencia:f.referencia||"",instrucoes:f.instrucoes||"",seguranca:f.seguranca||"",dosagem:f.dosagem||"",linkPDF:f.linkPDF||"",linkImg:f.linkImg||""});
+    setEditProd(true);
+  };
+
+  const guardarProd=()=>{
+    setDb(p=>({...p,fichasProd:{...(p.fichasProd||{}),[selProd.id]:{...formProd,atualizadoPor:user.id,atualizadoEm:gD()+" "+gT()}}}));
+    setEditProd(false);
+    showToast("Ficha do produto guardada!");
+  };
+
+  // Equipment detail view
+  if(sel){
+    const f=fichas[sel.id]||{};
+    return(
+      <div style={{padding:15}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+          <div style={{width:44,height:44,borderRadius:12,background:corTipo[sel.tipo]||V,display:"flex",alignItems:"center",justifyContent:"center",color:W,fontSize:18,fontWeight:800,flexShrink:0}}>{sel.icone}</div>
+          <div>
+            <div style={{fontFamily:"Georgia,serif",fontSize:17,fontWeight:700,color:"#0c4a6e"}}>{sel.nome}</div>
+            <div style={{fontSize:10,color:GR,marginTop:2}}>{sel.desc}</div>
+          </div>
+        </div>
+        {!edit?(
+          <div>
+            {[
+              {lb:"Marca / Modelo",val:f.marca?(f.marca+(f.modelo?" — "+f.modelo:"")):"Nao definido"},
+              {lb:"Ano de aquisicao",val:f.ano||"Nao definido"},
+              {lb:"Temperatura de trabalho",val:f.tempTrabalho||"Nao definido"},
+              {lb:"Capacidade",val:f.capacidade||"Nao definido"},
+              {lb:"Instrucoes de utilizacao",val:f.instrucoes||"Nao definido"},
+              {lb:"Limpeza e higienizacao",val:f.limpeza||"Nao definido"},
+              {lb:"Notas de seguranca",val:f.seguranca||"Nao definido"},
+              {lb:"Notas adicionais",val:f.notas||"Nao definido"},
+            ].map(item=>(
+              <div key={item.lb} style={{marginBottom:10,padding:"11px 13px",background:W,borderRadius:11,border:"1px solid #bae6fd"}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#0369a1",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{item.lb}</div>
+                <div style={{fontSize:13,color:"#0c4a6e",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{item.val}</div>
+              </div>
+            ))}
+            {f.linkImg&&<div style={{marginBottom:10}}><div style={{fontSize:10,fontWeight:700,color:"#0369a1",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Imagem / Ficha</div><img src={f.linkImg} alt="Ficha" style={{width:"100%",borderRadius:10,border:"1px solid #bae6fd"}}/></div>}
+            {f.linkPDF&&<div style={{marginBottom:10}}><a href={f.linkPDF} target="_blank" rel="noreferrer" style={{display:"block",padding:"12px 16px",background:"#0369a1",color:W,borderRadius:10,textAlign:"center",fontSize:13,fontWeight:700,textDecoration:"none",letterSpacing:.5}}>Abrir PDF / Ficha de Seguranca</a></div>}
+            {f.atualizadoPor&&<div style={{fontSize:10,color:GR,textAlign:"center",marginTop:4}}>Atualizado: {f.atualizadoEm} por {f.atualizadoPor}</div>}
+            {podeEditar&&<div style={{marginTop:12}}><B lb="Editar Ficha" onClick={()=>abrirEdit(sel)} cor="#0369a1"/></div>}
+            <div style={{marginTop:8}}><B lb="Voltar" onClick={()=>{setSel(null);setEdit(false);}} out cor={GR}/></div>
+          </div>
+        ):(
+          <div>
+            <div style={{fontWeight:700,color:"#0369a1",marginBottom:12,fontSize:14}}>Editar — {sel.nome}</div>
+            <Ip lb="Marca" val={form.marca} onChange={v=>setForm(p=>({...p,marca:v}))} ph="Ex: Liebherr"/>
+            <Ip lb="Modelo" val={form.modelo} onChange={v=>setForm(p=>({...p,modelo:v}))} ph="Ex: GNP 2366"/>
+            <Ip lb="Ano" val={form.ano} onChange={v=>setForm(p=>({...p,ano:v}))} ph="Ex: 2020"/>
+            <Ip lb="Temperatura de Trabalho" val={form.tempTrabalho} onChange={v=>setForm(p=>({...p,tempTrabalho:v}))} ph="Ex: -18°C a -22°C"/>
+            <Ip lb="Capacidade" val={form.capacidade} onChange={v=>setForm(p=>({...p,capacidade:v}))} ph="Ex: 346 litros"/>
+            <Ta lb="Instrucoes de Utilizacao" val={form.instrucoes} onChange={v=>setForm(p=>({...p,instrucoes:v}))} ph="Como utilizar..."/>
+            <Ta lb="Limpeza e Higienizacao" val={form.limpeza} onChange={v=>setForm(p=>({...p,limpeza:v}))} ph="Como limpar..."/>
+            <Ta lb="Notas de Seguranca" val={form.seguranca} onChange={v=>setForm(p=>({...p,seguranca:v}))} ph="Avisos de seguranca..."/>
+            <Ta lb="Notas Adicionais" val={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} ph="Outras informacoes..."/>
+            <Ip lb="Link PDF / Google Drive (ficha de seguranca)" val={form.linkPDF} onChange={v=>setForm(p=>({...p,linkPDF:v}))} ph="https://drive.google.com/..."/>
+            <Ip lb="Link de Imagem (URL)" val={form.linkImg} onChange={v=>setForm(p=>({...p,linkImg:v}))} ph="https://..."/>
+            <div style={{display:"flex",gap:8,marginTop:6}}>
+              <B lb="Cancelar" sm out cor={GR} onClick={()=>setEdit(false)} st={{flex:1}}/>
+              <B lb="Guardar" sm onClick={guardar} cor="#0369a1" st={{flex:2}}/>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Product detail view
+  if(selProd){
+    const f=fichasProd[selProd.id]||{};
+    return(
+      <div style={{padding:15}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+          <div style={{width:44,height:44,borderRadius:12,background:corTipo[selProd.tipo]||V,display:"flex",alignItems:"center",justifyContent:"center",color:W,fontSize:18,fontWeight:800,flexShrink:0}}>H</div>
+          <div>
+            <div style={{fontFamily:"Georgia,serif",fontSize:17,fontWeight:700,color:"#0c4a6e"}}>{selProd.nome}</div>
+            <div style={{fontSize:10,color:corTipo[selProd.tipo],fontWeight:600,textTransform:"uppercase",letterSpacing:1,marginTop:2}}>{selProd.tipo}</div>
+          </div>
+        </div>
+        {!editProd?(
+          <div>
+            {[
+              {lb:"Fabricante",val:f.fabricante||"Nao definido"},
+              {lb:"Referencia / EAN",val:f.referencia||"Nao definido"},
+              {lb:"Dosagem / Concentracao",val:f.dosagem||"Nao definido"},
+              {lb:"Instrucoes de utilizacao",val:f.instrucoes||"Nao definido"},
+              {lb:"Seguranca / EPI necessario",val:f.seguranca||"Nao definido"},
+            ].map(item=>(
+              <div key={item.lb} style={{marginBottom:10,padding:"11px 13px",background:W,borderRadius:11,border:"1px solid #bae6fd"}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#6d28d9",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{item.lb}</div>
+                <div style={{fontSize:13,color:"#0c4a6e",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{item.val}</div>
+              </div>
+            ))}
+            {f.linkImg&&<div style={{marginBottom:10}}><img src={f.linkImg} alt="Ficha" style={{width:"100%",borderRadius:10,border:"1px solid #bae6fd"}}/></div>}
+            {f.linkPDF&&<div style={{marginBottom:10}}><a href={f.linkPDF} target="_blank" rel="noreferrer" style={{display:"block",padding:"12px 16px",background:"#6d28d9",color:W,borderRadius:10,textAlign:"center",fontSize:13,fontWeight:700,textDecoration:"none",letterSpacing:.5}}>Abrir Ficha de Seguranca (PDF)</a></div>}
+            {podeEditar&&<div style={{marginTop:12}}><B lb="Editar Ficha" onClick={()=>abrirEditProd(selProd)} cor="#6d28d9"/></div>}
+            <div style={{marginTop:8}}><B lb="Voltar" onClick={()=>{setSelProd(null);setEditProd(false);}} out cor={GR}/></div>
+          </div>
+        ):(
+          <div>
+            <div style={{fontWeight:700,color:"#6d28d9",marginBottom:12,fontSize:14}}>Editar — {selProd.nome}</div>
+            <Ip lb="Fabricante" val={formProd.fabricante} onChange={v=>setFormProd(p=>({...p,fabricante:v}))} ph="Ex: Diversey"/>
+            <Ip lb="Referencia / EAN" val={formProd.referencia} onChange={v=>setFormProd(p=>({...p,referencia:v}))} ph="Ex: 123456789"/>
+            <Ip lb="Dosagem / Concentracao" val={formProd.dosagem} onChange={v=>setFormProd(p=>({...p,dosagem:v}))} ph="Ex: 2ml por litro de agua"/>
+            <Ta lb="Instrucoes de Utilizacao" val={formProd.instrucoes} onChange={v=>setFormProd(p=>({...p,instrucoes:v}))} ph="Como usar o produto..."/>
+            <Ta lb="Seguranca / EPI Necessario" val={formProd.seguranca} onChange={v=>setFormProd(p=>({...p,seguranca:v}))} ph="Luvas, avental, oculos..."/>
+            <Ip lb="Link PDF Ficha de Seguranca (Google Drive)" val={formProd.linkPDF} onChange={v=>setFormProd(p=>({...p,linkPDF:v}))} ph="https://drive.google.com/..."/>
+            <Ip lb="Link Imagem (URL)" val={formProd.linkImg} onChange={v=>setFormProd(p=>({...p,linkImg:v}))} ph="https://..."/>
+            <div style={{display:"flex",gap:8,marginTop:6}}>
+              <B lb="Cancelar" sm out cor={GR} onClick={()=>setEditProd(false)} st={{flex:1}}/>
+              <B lb="Guardar" sm onClick={guardarProd} cor="#6d28d9" st={{flex:2}}/>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e",marginBottom:14}}>Fichas e Planos</div>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["equip","Equipamentos"],["produtos","Prod. Higiene"],["plano","Plano Higienizacao"]].map(([id,lb])=>(
+          <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:"9px 4px",borderRadius:9,border:"2px solid "+(aba===id?"#0e7490":"#bae6fd"),background:aba===id?"#0e7490":"#f0f9ff",color:aba===id?W:"#0369a1",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",letterSpacing:.3}}>{lb}</button>
+        ))}
+      </div>
+
+      {aba==="equip"&&<div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
+          {tipos.map(t=>(
+            <button key={t} onClick={()=>setFiltro(t)} style={{padding:"5px 10px",borderRadius:7,fontSize:10,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(filtro===t?"#0e7490":"#bae6fd"),background:filtro===t?"#0e7490":"#f0f9ff",color:filtro===t?W:"#0369a1",fontFamily:"inherit",textTransform:"uppercase",letterSpacing:.5}}>{t}</button>
+          ))}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {lista.map(eq=>{
+            const temFicha=!!(fichas[eq.id]&&fichas[eq.id].marca);
+            return(
+              <button key={eq.id} onClick={()=>setSel(eq)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:13,border:"1px solid "+(temFicha?"#bae6fd":"#e2e8f0"),background:W,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(14,116,144,.08)"}}>
+                <div style={{width:36,height:36,borderRadius:10,background:temFicha?corTipo[eq.tipo]||V:"#e2e8f0",display:"flex",alignItems:"center",justifyContent:"center",color:temFicha?W:GR,fontSize:14,fontWeight:800,flexShrink:0}}>{eq.icone}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e"}}>{eq.nome}</div>
+                  <div style={{fontSize:10,color:GR,marginTop:1}}>{eq.desc}</div>
+                  <div style={{fontSize:9,color:temFicha?corTipo[eq.tipo]:GR,fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginTop:2}}>{temFicha?"Ficha preenchida":"Sem ficha"}</div>
+                </div>
+                <div style={{fontSize:18,color:"#bae6fd"}}>›</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>}
+
+      {aba==="produtos"&&<div>
+        <div style={{fontSize:12,color:GR,marginBottom:12}}>Fichas de seguranca dos produtos de higiene utilizados na cozinha</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {PROD_HIGIENE_LISTA.map(prod=>{
+            const temFicha=!!(fichasProd[prod.id]&&fichasProd[prod.id].fabricante);
+            return(
+              <button key={prod.id} onClick={()=>setSelProd(prod)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:13,border:"1px solid "+(temFicha?"#ddd6fe":"#e2e8f0"),background:W,cursor:"pointer",textAlign:"left",boxShadow:"0 2px 8px rgba(109,40,217,.06)"}}>
+                <div style={{width:36,height:36,borderRadius:10,background:temFicha?corTipo[prod.tipo]||"#6d28d9":"#e2e8f0",display:"flex",alignItems:"center",justifyContent:"center",color:temFicha?W:GR,fontSize:14,fontWeight:800,flexShrink:0}}>H</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e"}}>{prod.nome}</div>
+                  <div style={{fontSize:9,color:temFicha?corTipo[prod.tipo]:"#ccc",fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginTop:2}}>{prod.tipo} — {temFicha?"Ficha preenchida":"Sem ficha"}</div>
+                </div>
+                <div style={{fontSize:18,color:"#ddd6fe"}}>›</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>}
+
+      {aba==="plano"&&<div>
+        <div style={{fontSize:12,color:GR,marginBottom:12}}>Plano de higienizacao da cozinha pedagogica ECL</div>
+        {[
+          {freq:"Diario",cor:"#0891b2",items:PLANO_HIG.diario},
+          {freq:"Semanal",cor:"#0369a1",items:PLANO_HIG.semanal},
+          {freq:"Mensal",cor:"#6d28d9",items:PLANO_HIG.mensal},
+        ].map(grupo=>(
+          <div key={grupo.freq} style={{marginBottom:14}}>
+            <div style={{background:grupo.cor,color:W,borderRadius:"10px 10px 0 0",padding:"8px 14px",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>{grupo.freq}</div>
+            <div style={{background:W,borderRadius:"0 0 10px 10px",border:"1px solid #bae6fd",borderTop:"none"}}>
+              {grupo.items.map((item,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",borderBottom:i<grupo.items.length-1?"1px solid #f0f9ff":"none"}}>
+                  <div style={{width:6,height:6,borderRadius:"50%",background:grupo.cor,flexShrink:0,marginTop:5}}></div>
+                  <span style={{fontSize:12,color:"#0c4a6e",lineHeight:1.5}}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
 export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
-  const [db,setDb]=useState({});
+  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");return s?JSON.parse(s):{}}catch{return{}}});
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
+  useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
   const logout=()=>{setUser(null);setMod(null);};
   const back=()=>setMod(null);
   if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}}/>;
   if(user.tipo==="aluno"&&!(db.assinaturas&&db.assinaturas[user.id])){
-    return(<div style={{minHeight:"100vh",background:CR,maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><AssinaturaDigital userId={user.id} onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
+    return(<div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><AssinaturaDigital userId={user.id} onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
   }
   const p={user,db,setDb,showToast,setModule:setMod};
   let page;
@@ -854,13 +1212,14 @@ export default function App(){
   else if(mod==="desinfecao")page=<Desinfecao {...p}/>;
   else if(mod==="manutencao")page=<Manutencao {...p}/>;
   else if(mod==="higienizacao")page=<Higienizacao {...p}/>;
+  else if(mod==="equipamentos")page=<Equipamentos {...p}/>;
   else if(mod==="naoConf")page=<NaoConf {...p}/>;
   else if(mod==="encerramento")page=<Encerramento {...p}/>;
   else if(user.tipo==="professor")page=<Professor {...p}/>;
   else if(user.tipo==="coord")page=<Coordenadora {...p}/>;
   else page=<DashAluno {...p}/>;
   return(
-    <div style={{minHeight:"100vh",background:CR,maxWidth:600,margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}>
       <Hd user={user} onOut={logout}/>
       <div style={{paddingBottom:36}}>
         {mod&&<div style={{padding:"11px 15px 3px"}}><button onClick={back} style={{background:"none",border:"1.5px solid "+BE,color:V,fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:7,padding:"5px 13px",fontFamily:"inherit"}}>Voltar</button></div>}
