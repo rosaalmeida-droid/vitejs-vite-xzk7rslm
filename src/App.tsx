@@ -23,14 +23,14 @@ const ZONAS={
 "Bancadas":["Bancada 1 limpa e higienizada (cima e baixo)","Bancada 2 limpa e higienizada (cima e baixo)","Bancada 3 limpa e higienizada (cima e baixo)","Bancada 4 limpa e higienizada (cima e baixo)","Bancada 5 limpa e higienizada (cima e baixo)","Ralo cuba bancada 1 limpo","Ralo cuba bancada 2 limpo","Ralo cuba bancada 3 limpo","Ralo cuba bancada 4 limpo","Ralo cuba bancada 5 limpo","Bancadas laterais limpas e higienizadas"],
 "Equipamentos":["Abatedor 1 desligado e higienizado","Abatedor 2 desligado e higienizado","Maq. vacuo 1 limpa e desligada","Maq. vacuo 2 limpa e desligada","Amassadeira 1 desligada e protegida c/pelicula","Amassadeira 2 desligada e protegida c/pelicula","Batedeira desligada e protegida c/pelicula","Picadora limpa e protegida c/pelicula","Processadores limpos e protegidos","Fogoes todos desligados","Ar condicionado desligado"],
 "Frio":["Frigorifico vertical 1 verificado","Frigorifico vertical 2 verificado","Frigorifico vertical 3 verificado","Frigorifico vertical 4 verificado","Frigorifico bancada 1 verificado","Frigorifico bancada 2 verificado","Frigorifico bancada 3 verificado","Frigorifico bancada 4 verificado","Frigorifico bancada 5 verificado","Congelador 1 verificado","Congelador 2 verificado","Congelador 3 verificado","Temperaturas registadas"],
-"Copa":["Loica lavada e arrumada","Sem utensilios por lavar","Cuba higienizada","Maq. lavagem 1 drenada, porta aberta e higienizada","Maq. lavagem 2 drenada, porta aberta e higienizada","Inoxes em condicoes"],
+"Copa":["Loica lavada e arrumada","Sem utensilios por lavar","Cuba higienizada","Maq. lavagem 1 drenada, porta aberta e higienizada","Maq. lavagem 2 drenada, porta aberta e higienizada","Inoxes em condicoes","Panos em solucao desinfetante"],
 "Economatos":["Economato mat.-primas organizado","Mat.-primas devidamente armazenadas","Sem mat.-primas no chao","Economato material organizado","Material arrumado (nao no chao)","Chao economato em condicoes"],
 "Residuos":["Lixo organico despejado no local correto","Lixo reciclavel separado corretamente","Caixotes lavados e higienizados","Sacos novos colocados"],
 "Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"]
 };
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
 const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
-const MODS=[{id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},{id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0369a1"},{id:"producao",lb:"Prod. Confeccionados",cor:"#0891b2"},{id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#059669"},{id:"manutencao",lb:"Manutenção e Avarias",cor:"#0284c7"},{id:"higienizacao",lb:"Higienização",cor:"#0e7490"},{id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#0f766e"},{id:"naoConf",lb:"Não Conformidades",cor:"#dc2626"},{id:"encerramento",lb:"Encerramento da Aula",cor:"#0369a1"}];
+const MODS=[{id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},{id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0369a1"},{id:"producao",lb:"Prod. Confeccionados",cor:"#0891b2"},{id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#059669"},{id:"manutencao",lb:"Manutenção e Avarias",cor:"#0284c7"},{id:"higienizacao",lb:"Higienização",cor:"#0e7490"},{id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#0f766e"},{id:"naoConf",lb:"Não Conformidades",cor:"#dc2626"},{id:"encerramento",lb:"Encerramento da Aula",cor:"#0369a1"},{id:"faltas",lb:"Faltas e Necessidades",cor:"#b45309"}];
 
 const gD=()=>new Date().toLocaleDateString("pt-PT");
 const gT=()=>new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});
@@ -70,9 +70,12 @@ function Login({onLogin}){
       if(!prof||!pin){setErr("Preenche todos os campos.");return;}
       if(pin!=="1111"){setErr("PIN incorreto: 1111");return;}
       onLogin({tipo:"professor",id:prof});
-    } else {
+    } else if(tipo==="coord") {
       if(pin!=="1006"){setErr("PIN incorreto: 1006");return;}
       onLogin({tipo:"coord",id:"Coord."});
+    } else {
+      if(pin!=="2222"){setErr("PIN incorreto: 2222");return;}
+      onLogin({tipo:"auxiliar",id:"Auxiliar"});
     }
   };
   return(
@@ -85,13 +88,14 @@ function Login({onLogin}){
         </div>
         <div style={{background:W,borderRadius:20,padding:28,boxShadow:"0 20px 60px rgba(14,116,144,.3)",border:"1px solid rgba(186,230,253,.3)"}}>
           <div style={{display:"flex",gap:6,marginBottom:16}}>
-            {[["aluno","Aluno"],["professor","Prof."],["coord","Coord."]].map(([t,lb])=>(
-              <button key={t} onClick={()=>{setTipo(t);setErr("");setPin("");}} style={{flex:1,padding:"9px 3px",borderRadius:8,border:"2px solid "+(tipo===t?V:BE),background:tipo===t?V:LC,color:tipo===t?W:GR,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
+            {[["aluno","Aluno"],["professor","Prof."],["coord","Coord."],["auxiliar","Aux."]].map(([t,lb])=>(
+              <button key={t} onClick={()=>{setTipo(t);setErr("");setPin("");}} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(tipo===t?V:BE),background:tipo===t?V:LC,color:tipo===t?W:GR,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
             ))}
           </div>
           {tipo==="aluno"&&<><Sl lb="Turma" val={turma} onChange={setTurma} opts={["T1","T2","T3"]}/><Ip lb="Número (1-24)" type="number" val={num} onChange={setNum} min="1" max="24"/></>}
           {tipo==="professor"&&<Sl lb="Professor" val={prof} onChange={setProf} opts={["P01","P02","P03"]}/>}
-          {tipo==="coord"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Coordenadora - PIN: 1006</div>}
+          {tipo==="coord"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Coordenadora — PIN: 1006</div>}
+          {tipo==="auxiliar"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Auxiliar de Apoio — PIN: 2222</div>}
           <Ip lb="PIN" type="text" val={pin} onChange={setPin} ph={tipo==="aluno"?"PIN: 1234":"PIN: 1111"}/>
           {err&&<div style={{color:R,fontSize:12,marginBottom:8,textAlign:"center"}}>{err}</div>}
           <B lb="Entrar" onClick={go}/>
@@ -214,41 +218,67 @@ function Temperaturas({user,db,setDb,showToast}){
         {["inicio","final"].map(m=>{
           const feito=m==="inicio"?!!svI:!!svF;
           return(
-            <button key={m} onClick={()=>{setMomento(m);setTemps({});}} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#2d5a3d":BE),background:momento===m?"#2d5a3d":feito?"#e8f5e9":LC,color:momento===m?W:feito?"#2d5a3d":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+            <button key={m} onClick={()=>{setMomento(m);setTemps({});}} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#0e7490":BE),background:momento===m?"#0e7490":feito?"#e0f2fe":LC,color:momento===m?W:feito?"#0e7490":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
               {m==="inicio"?"Início de Aula":"Final de Aula"}
               {feito&&<span style={{fontSize:10,display:"block",opacity:.8}}>Registado {m==="inicio"?svI.time:svF.time}</span>}
             </button>
           );
         })}
       </div>
-      {done&&<div style={{background:"#e8f5e9",borderRadius:9,padding:10,marginBottom:10,color:V,fontSize:13}}>Já registado — {sv.aluno} {sv.time}</div>}
-      {FRIOS.map(eq=>{
-        const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel"),cf=iC(eq,temps[eq]);
-        return(
-          <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(cf===false?R:cf===true?V:BE)}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
-                <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>
-                  {cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 5°C"}
+
+      {done?(
+        <div>
+          <div style={{background:"#e0f2fe",borderRadius:11,padding:"10px 14px",marginBottom:12,color:"#0e7490",fontSize:13,fontWeight:600}}>
+            Registado por {sv.aluno} às {sv.time}
+          </div>
+          {FRIOS.map(eq=>{
+            const r=sv.records?sv.records.find(x=>x.equipamento===eq):null;
+            const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel");
+            const nc=r&&r.conforme===false;
+            const ok=r&&r.conforme===true;
+            return(
+              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(nc?R:ok?V:BE)}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
+                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 5°C"}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:20,fontWeight:800,color:nc?R:ok?V:GR}}>{r&&r.temperatura?r.temperatura+"°C":"---"}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:nc?R:ok?V:GR}}>{nc?"NC":ok?"OK":"---"}</div>
+                  </div>
                 </div>
-                <div style={{fontSize:9,color:GR,marginTop:1}}>
-                  {cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 2°C a 4°C"}
+              </Cd>
+            );
+          })}
+        </div>
+      ):(
+        <div>
+          {FRIOS.map(eq=>{
+            const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel"),cf=iC(eq,temps[eq]);
+            return(
+              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(cf===false?R:cf===true?V:BE)}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
+                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 5°C"}</div>
+                    <div style={{fontSize:9,color:GR,marginTop:1}}>{cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 2°C a 4°C"}</div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:3}}>
+                    {cg&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:"-"+abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":BE),background:temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":"transparent",color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>−</button>
+                      <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":BE),background:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":"transparent",color:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>+</button>
+                    </div>}
+                    <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
+                    <span style={{fontSize:10,fontWeight:700,color:cf===false?R:cf===true?V:GR,minWidth:20}}>{cf===false?"NC":cf===true?"OK":""}</span>
+                  </div>
                 </div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:3}}>
-                {cg&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
-                  <button onClick={()=>{if(!done){const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:"-"+abs}));}}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":BE),background:temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":"transparent",color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>−</button>
-                  <button onClick={()=>{if(!done){const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:abs}));}}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":BE),background:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":"transparent",color:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>+</button>
-                </div>}
-                <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{if(!done){const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
-                <span style={{fontSize:10,fontWeight:700,color:cf===false?R:cf===true?V:GR,minWidth:20}}>{cf===false?"NC":cf===true?"OK":""}</span>
-              </div>
-            </div>
-          </Cd>
-        );
-      })}
-      {!done&&<B lb={"Guardar Temperaturas "+momento.toUpperCase()} onClick={save} cor="#2d5a3d"/>}
+              </Cd>
+            );
+          })}
+          <B lb={"Guardar Temperaturas "+momento.toUpperCase()} onClick={save} cor="#0e7490"/>
+        </div>
+      )}
     </div>
   );
 }
@@ -258,49 +288,69 @@ function Recepcao({user,db,setDb,showToast}){
   const [form,setForm]=useState({fornecedor:"",fatura:"",professor:"P01"});
   const [prods,setProds]=useState([]);
   const [np,setNp]=useState({categoria:"",nome:"",quantidade:"",lote:"",validade:"",conforme:"conforme"});
-  const lista=(db.recepcao||[]).filter(r=>r.turma===user.turma);
+  const lista=(db.recepcao||[]).filter(r=>r.turma===user.turma).slice(-10).reverse();
   const addP=()=>{if(!np.categoria||!np.nome)return;setProds(p=>[...p,{...np,id:Date.now()}]);setNp({categoria:"",nome:"",quantidade:"",lote:"",validade:"",conforme:"conforme"});};
-  const save=()=>{if(!form.fornecedor||!form.fatura)return;const rec={...form,produtos:prods,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,recepcao:[...(p.recepcao||[]),rec]}));setStep("lista");setForm({fornecedor:"",fatura:"",professor:"P01"});setProds([]);prods.forEach(p=>enviar("Receção Matérias-Primas",[gD(),user.turma,user.id,form.fornecedor,form.fatura,p.nome,p.categoria,p.quantidade,p.lote||"",p.validade,p.conforme]));showToast("Receção registada!");};
-  if(step==="lista")return(<div style={{padding:15}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Receção de Mercadorias</div><B lb="+ Nova Receção" onClick={()=>setStep("nova")}/>{lista.slice(-5).reverse().map(r=><Cd key={r.id} st={{marginTop:10}}><div style={{fontWeight:600,fontSize:13}}>{r.fornecedor} - Ft {r.fatura}</div><div style={{fontSize:11,color:GR}}>{r.date} {r.time} - {r.aluno} - {(r.produtos||[]).length} produto(s)</div></Cd>)}</div>);
-  if(step==="nova")return(<div style={{padding:15}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Nova Receção</div><Cd><Ip lb="Fornecedor" val={form.fornecedor} onChange={v=>setForm(p=>({...p,fornecedor:v}))}/><Ip lb="Fatura" val={form.fatura} onChange={v=>setForm(p=>({...p,fatura:v}))}/><Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={["P01","P02","P03"]}/></Cd><div style={{display:"flex",gap:8}}><B lb="Voltar" sm out cor={GR} onClick={()=>setStep("lista")} st={{flex:1}}/><B lb="Produtos" sm onClick={()=>{if(form.fornecedor&&form.fatura)setStep("produtos");}} st={{flex:2}}/></div></div>);
-  return(<div style={{padding:15}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Produtos — Ft {form.fatura}</div>{prods.map(p=><Cd key={p.id} st={{marginBottom:8,borderLeft:"3px solid "+(p.conforme==="conforme"?V:R)}}><div style={{fontWeight:600,fontSize:13}}>{p.nome} - {p.categoria}</div></Cd>)}<Cd><Sl lb="Categoria" val={np.categoria} onChange={v=>setNp(p=>({...p,categoria:v}))} opts={CATS}/><Ip lb="Nome" val={np.nome} onChange={v=>setNp(p=>({...p,nome:v}))}/><Ip lb="Quantidade" val={np.quantidade} onChange={v=>setNp(p=>({...p,quantidade:v}))} ph="Ex: 5 kg"/><Ip lb="Lote" val={np.lote} onChange={v=>setNp(p=>({...p,lote:v}))}/><Ip lb="Validade" type="date" val={np.validade} onChange={v=>setNp(p=>({...p,validade:v}))}/><Sl lb="Conformidade" val={np.conforme} onChange={v=>setNp(p=>({...p,conforme:v}))} opts={["conforme","não conforme"]}/><B lb="Add" sm onClick={addP} cor={V2}/></Cd><div style={{display:"flex",gap:8,marginTop:6}}><B lb="Voltar" sm out cor={GR} onClick={()=>setStep("nova")} st={{flex:1}}/><B lb="Guardar Receção" sm onClick={save} cor={prods.length>0?V:GR} st={{flex:2}}/></div></div>);
+  const save=()=>{
+    if(!form.fornecedor||!form.fatura)return;
+    const rec={...form,produtos:prods,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
+    setDb(p=>({...p,recepcao:[...(p.recepcao||[]),rec]}));
+    prods.forEach(p=>enviar("Receção Matérias-Primas",[gD(),user.turma,user.id,form.fornecedor,form.fatura,p.nome,p.categoria,p.quantidade,p.lote||"",p.validade,p.conforme]));
+    showToast("Receção registada!");
+    // Clear form
+    setStep("lista");
+    setForm({fornecedor:"",fatura:"",professor:"P01"});
+    setProds([]);
+  };
+  if(step==="lista")return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Receção de Matérias-Primas</div>
+      <B lb="+ Nova Receção" onClick={()=>setStep("nova")}/>
+      {lista.map(r=><Cd key={r.id} st={{marginTop:10}}>
+        <div style={{fontWeight:600,fontSize:13}}>{r.fornecedor} — Ft {r.fatura}</div>
+        <div style={{fontSize:11,color:GR}}>{r.date} {r.time} — {r.aluno} — {(r.produtos||[]).length} produto(s)</div>
+        {(r.produtos||[]).map(p=><div key={p.id} style={{fontSize:11,color:"#0369a1",marginTop:3}}>• {p.nome} — {p.categoria} — {p.quantidade}</div>)}
+      </Cd>)}
+    </div>
+  );
+  if(step==="nova")return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Nova Receção</div>
+      <Cd>
+        <Ip lb="Fornecedor" val={form.fornecedor} onChange={v=>setForm(p=>({...p,fornecedor:v}))}/>
+        <Ip lb="Fatura" val={form.fatura} onChange={v=>setForm(p=>({...p,fatura:v}))}/>
+        <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={["P01","P02","P03"]}/>
+      </Cd>
+      <div style={{display:"flex",gap:8}}>
+        <B lb="Voltar" sm out cor={GR} onClick={()=>setStep("lista")} st={{flex:1}}/>
+        <B lb="Adicionar Produtos" sm onClick={()=>{if(form.fornecedor&&form.fatura)setStep("produtos");}} st={{flex:2}}/>
+      </div>
+    </div>
+  );
+  return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Produtos — Ft {form.fatura}</div>
+      {prods.length>0&&<Cd st={{marginBottom:10}}>
+        {prods.map(p=><div key={p.id} style={{padding:"6px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
+          <div><div style={{fontWeight:600,fontSize:13}}>{p.nome}</div><div style={{fontSize:11,color:GR}}>{p.categoria} — {p.quantidade}</div></div>
+          <span style={{fontSize:11,color:p.conforme==="conforme"?V:R,fontWeight:600}}>{p.conforme}</span>
+        </div>)}
+      </Cd>}
+      <Cd>
+        <Sl lb="Categoria" val={np.categoria} onChange={v=>setNp(p=>({...p,categoria:v}))} opts={CATS}/>
+        <Ip lb="Nome" val={np.nome} onChange={v=>setNp(p=>({...p,nome:v}))}/>
+        <Ip lb="Quantidade" val={np.quantidade} onChange={v=>setNp(p=>({...p,quantidade:v}))} ph="Ex: 5 kg"/>
+        <Ip lb="Lote" val={np.lote} onChange={v=>setNp(p=>({...p,lote:v}))}/>
+        <Ip lb="Validade" type="date" val={np.validade} onChange={v=>setNp(p=>({...p,validade:v}))}/>
+        <Sl lb="Conformidade" val={np.conforme} onChange={v=>setNp(p=>({...p,conforme:v}))} opts={["conforme","não conforme"]}/>
+        <B lb="+ Adicionar Produto" sm onClick={addP} cor={V2}/>
+      </Cd>
+      <div style={{display:"flex",gap:8,marginTop:6}}>
+        <B lb="Voltar" sm out cor={GR} onClick={()=>setStep("nova")} st={{flex:1}}/>
+        <B lb="Guardar Receção" sm onClick={save} cor={prods.length>0?V:"#ccc"} dis={prods.length===0} st={{flex:2}}/>
+      </div>
+    </div>
+  );
 }
-
-const CONSERVACAO=[
-  {cat:"Carne fresca",items:[
-    {prod:"Carne de vaca/porco picada",temp:"0-4°C",dias:"1-2 dias"},
-    {prod:"Carne de vaca/porco peça",temp:"0-4°C",dias:"3-5 dias"},
-    {prod:"Frango inteiro/peças",temp:"0-4°C",dias:"1-2 dias"},
-    {prod:"Carne cozinhada",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Carne congelada",temp:"≤-18°C",dias:"3-6 meses"},
-  ]},
-  {cat:"Peixe e marisco",items:[
-    {prod:"Peixe fresco",temp:"0-4°C",dias:"1-2 dias"},
-    {prod:"Peixe cozinhado",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Peixe congelado",temp:"≤-18°C",dias:"3-6 meses"},
-    {prod:"Marisco cozinhado",temp:"0-4°C",dias:"2-3 dias"},
-  ]},
-  {cat:"Laticínios",items:[
-    {prod:"Leite aberto",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Iogurte aberto",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Queijo fresco aberto",temp:"0-4°C",dias:"3-5 dias"},
-    {prod:"Natas abertas",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Manteiga aberta",temp:"0-4°C",dias:"2-3 semanas"},
-  ]},
-  {cat:"Preparações",items:[
-    {prod:"Sopas e caldos",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Molhos com carne",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Arroz/massa cozinhados",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Ovos cozinhados",temp:"0-4°C",dias:"1 semana"},
-    {prod:"Sobremesas com ovo/natas",temp:"0-4°C",dias:"2-3 dias"},
-  ]},
-  {cat:"Congelados produzidos",items:[
-    {prod:"Pratos com carne",temp:"≤-18°C",dias:"2-3 meses"},
-    {prod:"Pratos com peixe",temp:"≤-18°C",dias:"1-2 meses"},
-    {prod:"Sopas",temp:"≤-18°C",dias:"3-4 meses"},
-    {prod:"Massa/pão",temp:"≤-18°C",dias:"3-6 meses"},
-  ]},
-];
 
 function ConsTabela(){
   const [open,setOpen]=useState(false);
@@ -1190,6 +1240,93 @@ function Equipamentos({user,db,setDb,showToast}){
   );
 }
 
+function Faltas({user,db,setDb,showToast}){
+  const [form,setForm]=useState({tipo:"equipamento",descricao:"",urgencia:"normal"});
+  const lista=(db.faltas||[]).slice(-10).reverse();
+  const save=()=>{
+    if(!form.descricao)return;
+    const falta={...form,responsavel:user.id,turma:user.turma||"",date:gD(),time:gT(),id:Date.now(),estado:"pendente"};
+    setDb(p=>({...p,faltas:[...(p.faltas||[]),falta]}));
+    enviar("Faltas e Necessidades",[gD(),user.id,form.tipo,form.descricao,form.urgencia,"pendente"]);
+    showToast("Falta registada! Notificação enviada.");
+    setForm({tipo:"equipamento",descricao:"",urgencia:"normal"});
+  };
+  const corU={normal:"#0369a1",urgente:"#d97706",critico:"#dc2626"};
+  return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Faltas e Necessidades</div>
+      <div style={{fontSize:12,color:GR,marginBottom:14}}>Regista equipamentos em falta, materiais ou outras necessidades</div>
+      <Cd>
+        <Sl lb="Tipo" val={form.tipo} onChange={v=>setForm(p=>({...p,tipo:v}))} opts={["equipamento","material","produto limpeza","outro"]}/>
+        <Ta lb="Descrição" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que está em falta ou é necessário..."/>
+        <Sl lb="Urgência" val={form.urgencia} onChange={v=>setForm(p=>({...p,urgencia:v}))} opts={["normal","urgente","critico"]}/>
+        <div style={{background:"#fef3c7",borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:"#92400e"}}>
+          Após guardar, será enviada notificação por email à coordenação.
+        </div>
+        <B lb="Registar e Notificar" onClick={save} cor="#b45309"/>
+      </Cd>
+      {lista.length>0&&<div>
+        <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:8}}>Registos recentes</div>
+        {lista.map(f=><Cd key={f.id} st={{marginBottom:8,borderLeft:"3px solid "+(corU[f.urgencia]||"#b45309")}}>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontWeight:600,fontSize:13}}>{f.tipo}</span>
+            <span style={{background:corU[f.urgencia],color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{f.urgencia}</span>
+          </div>
+          <div style={{fontSize:12,color:GR,marginTop:3}}>{f.descricao}</div>
+          <div style={{fontSize:10,color:GR,marginTop:2}}>{f.date} {f.time} — {f.responsavel}</div>
+        </Cd>)}
+      </div>}
+    </div>
+  );
+}
+
+function Auxiliar({user,db,setDb,showToast}){
+  const h=gD(),k="aux-"+h;
+  const regs=(db.auxHig&&db.auxHig[k])?db.auxHig[k].registos:{};
+  const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
+  const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
+
+  const mk=item=>{
+    if(regs[item]){showToast("Ja marcado");return;}
+    const n={...regs,[item]:{aluno:user.id,time:gT()}};
+    setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,date:h};return{...p,auxHig:ah};});
+    showToast("Verificado!");
+  };
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{background:"linear-gradient(135deg,#0f766e,#0e7490)",borderRadius:14,padding:18,marginBottom:14,color:W}}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Auxiliar de Apoio</div>
+        <div style={{fontSize:12,opacity:.75,marginTop:2}}>{h}</div>
+      </div>
+      <Cd>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
+          <span style={{fontSize:12,color:GR}}>Progresso de verificação</span>
+          <span style={{background:tF===tI?V:CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>{tF}/{tI}</span>
+        </div>
+        <Pg val={tF} max={tI}/>
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          {Object.keys(ZONAS).map(z=>{const f=ZONAS[z].filter(i=>regs[i]).length,ok=f===ZONAS[z].length;return <button key={z} onClick={()=>setZona(z)} style={{padding:"5px 9px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(zona===z?V:ok?"#b8dfc8":BE),background:zona===z?V:ok?"#e8f5e9":LC,color:zona===z?W:ok?V:GR,fontFamily:"inherit"}}>{z}{ok?" ok":" "+f+"/"+ZONAS[z].length}</button>;})}
+        </div>
+      </Cd>
+      <Cd>
+        <div style={{fontWeight:700,fontSize:14,color:V,marginBottom:10}}>{zona} — {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length}</div>
+        {ZONAS[zona].map(item=>{const reg=regs[item];return(
+          <div key={item} style={{borderBottom:"1px solid "+LC,paddingBottom:10,marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+              <div onClick={()=>mk(item)} style={{width:26,height:26,borderRadius:7,flexShrink:0,marginTop:1,border:"2px solid "+(reg?V:BE),background:reg?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>{reg&&<span style={{color:W,fontSize:13,fontWeight:700}}>v</span>}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:reg?600:400,color:reg?V:GR}}>{item}</div>
+                {reg&&<div style={{fontSize:10,color:GR,marginTop:2}}>{reg.time}</div>}
+              </div>
+            </div>
+          </div>
+        );})}
+      </Cd>
+    </div>
+  );
+}
+
 export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
@@ -1213,10 +1350,12 @@ export default function App(){
   else if(mod==="manutencao")page=<Manutencao {...p}/>;
   else if(mod==="higienizacao")page=<Higienizacao {...p}/>;
   else if(mod==="equipamentos")page=<Equipamentos {...p}/>;
+  else if(mod==="faltas")page=<Faltas {...p}/>;
   else if(mod==="naoConf")page=<NaoConf {...p}/>;
   else if(mod==="encerramento")page=<Encerramento {...p}/>;
   else if(user.tipo==="professor")page=<Professor {...p}/>;
   else if(user.tipo==="coord")page=<Coordenadora {...p}/>;
+  else if(user.tipo==="auxiliar")page=<Auxiliar {...p}/>;
   else page=<DashAluno {...p}/>;
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}>
