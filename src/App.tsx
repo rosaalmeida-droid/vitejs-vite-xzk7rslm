@@ -12,7 +12,7 @@ document.head.appendChild(fontStyle);
 
 
 
-const SHEET_URL="https://script.google.com/a/macros/eclisboa.net/s/AKfycbx61h1YIvODQaH_DJ-jhzx6zHSd2tux2LZuPOpOIvVFfOyK9J8gfzJIbjiEH6WE7xX6iQ/exec";
+const SHEET_URL="https://script.google.com/a/macros/eclisboa.net/s/AKfycbx92qONpPXwT8_lSBhPVOoQWih-8Y7e5a2FX594uqtEnsLOmhUs4Ph2R-BGKR-yZKBCew/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
