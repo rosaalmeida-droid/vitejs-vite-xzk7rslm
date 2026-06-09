@@ -387,6 +387,42 @@ function Recepcao({user,db,setDb,showToast}){
   );
 }
 
+const CONSERVACAO=[
+  {cat:"Carne fresca",items:[
+    {prod:"Carne de vaca/porco picada",temp:"0-4°C",dias:"1-2 dias"},
+    {prod:"Carne de vaca/porco peça",temp:"0-4°C",dias:"3-5 dias"},
+    {prod:"Frango inteiro/peças",temp:"0-4°C",dias:"1-2 dias"},
+    {prod:"Carne cozinhada",temp:"0-4°C",dias:"3-4 dias"},
+    {prod:"Carne congelada",temp:"≤-18°C",dias:"3-6 meses"},
+  ]},
+  {cat:"Peixe e marisco",items:[
+    {prod:"Peixe fresco",temp:"0-4°C",dias:"1-2 dias"},
+    {prod:"Peixe cozinhado",temp:"0-4°C",dias:"2-3 dias"},
+    {prod:"Peixe congelado",temp:"≤-18°C",dias:"3-6 meses"},
+    {prod:"Marisco cozinhado",temp:"0-4°C",dias:"2-3 dias"},
+  ]},
+  {cat:"Laticínios",items:[
+    {prod:"Leite aberto",temp:"0-4°C",dias:"3-4 dias"},
+    {prod:"Iogurte aberto",temp:"0-4°C",dias:"2-3 dias"},
+    {prod:"Queijo fresco aberto",temp:"0-4°C",dias:"3-5 dias"},
+    {prod:"Natas abertas",temp:"0-4°C",dias:"2-3 dias"},
+    {prod:"Manteiga aberta",temp:"0-4°C",dias:"2-3 semanas"},
+  ]},
+  {cat:"Preparações",items:[
+    {prod:"Sopas e caldos",temp:"0-4°C",dias:"3-4 dias"},
+    {prod:"Molhos com carne",temp:"0-4°C",dias:"3-4 dias"},
+    {prod:"Arroz/massa cozinhados",temp:"0-4°C",dias:"2-3 dias"},
+    {prod:"Ovos cozinhados",temp:"0-4°C",dias:"1 semana"},
+    {prod:"Sobremesas com ovo/natas",temp:"0-4°C",dias:"2-3 dias"},
+  ]},
+  {cat:"Congelados produzidos",items:[
+    {prod:"Pratos com carne",temp:"≤-18°C",dias:"2-3 meses"},
+    {prod:"Pratos com peixe",temp:"≤-18°C",dias:"1-2 meses"},
+    {prod:"Sopas",temp:"≤-18°C",dias:"3-4 meses"},
+    {prod:"Massa/pão",temp:"≤-18°C",dias:"3-6 meses"},
+  ]},
+];
+
 function ConsTabela(){
   const [open,setOpen]=useState(false);
   return(
