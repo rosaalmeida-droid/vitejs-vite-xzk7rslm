@@ -143,7 +143,7 @@ function DashAluno({user,db,setModule}){
         ))}
       </div>}
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {user.id}</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {(db.assinaturas&&db.assinaturas[user.id])||user.id}</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} - {h}</div>
         <div style={{fontSize:11,opacity:.65,marginTop:4}}>{feitos}/{historico.length} tarefas concluídas hoje</div>
       </div>
@@ -518,34 +518,67 @@ function Higienizacao({user,db,setDb,showToast}){
   const regs=(db.higienizacao&&db.higienizacao[k])?db.higienizacao[k].registos:{};
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
   const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
+  const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
+
   const mk=item=>{
-    if(regs[item]){if(regs[item].aluno!==user.id){showToast("Marcado por "+regs[item].aluno);return;}if(!window.confirm("Desmarcar?"))return;const n={...regs};delete n[item];setDb(p=>{const hg={...p.higienizacao};hg[k]={registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});showToast("Desmarcado");return;}
-    const n={...regs,[item]:{aluno:user.id,time:gT(),turma:user.turma}};
+    if(regs[item]){
+      if(regs[item].aluno!==user.id&&regs[item].aluno!==nomeAluno){showToast("Marcado por "+regs[item].aluno);return;}
+      if(!window.confirm("Desmarcar?"))return;
+      const n={...regs};delete n[item];
+      setDb(p=>{const hg={...p.higienizacao};hg[k]={registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
+      showToast("Desmarcado");return;
+    }
+    const n={...regs,[item]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
     setDb(p=>{const hg={...p.higienizacao};hg[k]={registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
-    enviar("Higienização Equip. e Utensilios",[h,user.turma,user.id,item]);
-    showToast("Registado por "+user.id);
+    enviar("Higienização",[h,user.turma,nomeAluno||user.id,item]);
+    showToast("Verificado!");
   };
+
+  const pct=Math.round(tF/Math.max(tI,1)*100);
+
   return(
     <div style={{padding:15}}>
       <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Higienização</div>
+      
       <Cd>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}><span style={{fontSize:12,color:GR}}>Progresso</span><span style={{background:tF===tI?V:CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>{tF}/{tI}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <span style={{fontSize:13,fontWeight:600,color:V}}>Progresso total</span>
+          <span style={{fontSize:22,fontWeight:800,color:tF===tI?V:CA}}>{pct}%</span>
+        </div>
         <Pg val={tF} max={tI}/>
-        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-          {Object.keys(ZONAS).map(z=>{const f=ZONAS[z].filter(i=>regs[i]).length,ok=f===ZONAS[z].length;return <button key={z} onClick={()=>setZona(z)} style={{padding:"5px 9px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(zona===z?V:ok?"#b8dfc8":BE),background:zona===z?V:ok?"#e8f5e9":LC,color:zona===z?W:ok?V:GR,fontFamily:"inherit"}}>{z}{ok?" ok":" "+f+"/"+ZONAS[z].length}</button>;})}
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+          {Object.keys(ZONAS).map(z=>{
+            const f=ZONAS[z].filter(i=>regs[i]).length,ok=f===ZONAS[z].length,total=ZONAS[z].length;
+            return(
+              <button key={z} onClick={()=>setZona(z)} style={{padding:"8px 12px",borderRadius:9,fontSize:12,fontWeight:700,cursor:"pointer",border:"2px solid "+(zona===z?V:ok?"#0891b2":BE),background:zona===z?V:ok?"#e0f2fe":LC,color:zona===z?W:ok?"#0e7490":GR,fontFamily:"inherit",flex:1,minWidth:80}}>
+                <div>{z}</div>
+                <div style={{fontSize:10,marginTop:2,opacity:.8}}>{f}/{total}</div>
+              </button>
+            );
+          })}
         </div>
       </Cd>
-      <Cd>
-        <div style={{fontWeight:700,fontSize:14,color:V,marginBottom:10}}>{zona} - {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length}</div>
-        {ZONAS[zona].map(item=>{const reg=regs[item],meu=reg&&reg.aluno===user.id;return(
-          <div key={item} style={{borderBottom:"1px solid "+LC,paddingBottom:10,marginBottom:10}}>
-            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-              <div onClick={()=>mk(item)} style={{width:26,height:26,borderRadius:7,flexShrink:0,marginTop:1,border:"2px solid "+(reg?V:BE),background:reg?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>{reg&&<span style={{color:W,fontSize:13,fontWeight:700}}>v</span>}</div>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:reg?600:400,color:reg?V:GR}}>{item}</div>{reg&&<div style={{fontSize:10,color:GR,marginTop:2}}><span style={{background:meu?"#e8f5e9":"#fff3e0",color:meu?V:CA,borderRadius:4,padding:"1px 6px",fontWeight:700}}>{reg.aluno}</span> {reg.time}</div>}</div>
+
+      <div style={{fontWeight:700,fontSize:15,color:V,marginBottom:10,paddingLeft:2}}>{zona} <span style={{fontSize:12,color:GR,fontWeight:400}}>— {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length} verificados</span></div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {ZONAS[zona].map(item=>{
+          const reg=regs[item];
+          const meu=reg&&(reg.aluno===user.id||reg.aluno===nomeAluno);
+          return(
+            <div key={item} onClick={()=>mk(item)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:13,background:reg?V:W,border:"2px solid "+(reg?V:"#e2e8f0"),cursor:"pointer",boxShadow:"0 2px 8px rgba(14,116,144,"+(reg?.15:.05)+")"}}>
+              <div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:reg?"rgba(255,255,255,.25)":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <span style={{fontSize:16,fontWeight:700,color:reg?W:"#bae6fd"}}>{reg?"✓":"○"}</span>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:reg?W:"#0c4a6e"}}>{item}</div>
+                {reg&&<div style={{fontSize:10,color:"rgba(255,255,255,.75)",marginTop:2}}>{reg.aluno} — {reg.time}</div>}
+              </div>
+              {reg&&!meu&&<span style={{fontSize:9,color:"rgba(255,255,255,.7)",background:"rgba(255,255,255,.15)",borderRadius:4,padding:"2px 6px"}}>{reg.aluno}</span>}
             </div>
-          </div>
-        );})}
-      </Cd>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1277,7 +1310,8 @@ function Equipamentos({user,db,setDb,showToast}){
 
 function Faltas({user,db,setDb,showToast}){
   const [form,setForm]=useState({tipo:"equipamento",descricao:"",urgencia:"normal"});
-  const lista=(db.faltas||[]).slice(-10).reverse();
+  const duasSemanas=new Date();duasSemanas.setDate(duasSemanas.getDate()-14);
+  const lista=(db.faltas||[]).filter(f=>{const p=f.date.split("/");const d=new Date(p[2],p[1]-1,p[0]);return d>=duasSemanas;}).reverse();
   const save=()=>{
     if(!form.descricao)return;
     const falta={...form,responsavel:user.id,turma:user.turma||"",date:gD(),time:gT(),id:Date.now(),estado:"pendente"};
@@ -1307,14 +1341,7 @@ function Faltas({user,db,setDb,showToast}){
             <span style={{fontWeight:600,fontSize:13}}>{f.tipo}</span>
             <span style={{background:corU[f.urgencia],color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{f.urgencia}</span>
           </div>
-          <div style={{fontSize:12,color:GR,marginTop:3}}>{f.descricao}</div>
-          <div style={{fontSize:10,color:GR,marginTop:2}}>{f.date} {f.time} — {f.responsavel}</div>
-        </Cd>)}
-      </div>}
-    </div>
-  );
-}
-
+          <div style={{fontSize:12,color:GR,marginTop:3}}>{f.d
 function Auxiliar({user,db,setDb,showToast}){
   const h=gD(),k="aux-"+h;
   const regs=(db.auxHig&&db.auxHig[k])?db.auxHig[k].registos:{};
@@ -1323,10 +1350,11 @@ function Auxiliar({user,db,setDb,showToast}){
   const [notaEdit,setNotaEdit]=useState("");
   const [showNota,setShowNota]=useState(false);
   const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
+  const nomeAux=db.assinaturas&&db.assinaturas[user.id];
 
   const mk=item=>{
-    if(regs[item]){showToast("Ja marcado");return;}
-    const n={...regs,[item]:{aluno:user.id,time:gT()}};
+    if(regs[item]){showToast("Já marcado");return;}
+    const n={...regs,[item]:{aluno:nomeAux||user.id,time:gT()}};
     setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,notas,date:h};return{...p,auxHig:ah};});
     showToast("Verificado!");
   };
@@ -1338,11 +1366,24 @@ function Auxiliar({user,db,setDb,showToast}){
     showToast("Nota guardada!");
   };
 
+  if(!nomeAux){
+    return(
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:W,borderRadius:16,padding:24,width:"100%",maxWidth:360}}>
+          <div style={{fontFamily:"Georgia,serif",fontSize:18,fontWeight:700,color:"#0f766e",marginBottom:8}}>Assinatura Digital</div>
+          <div style={{fontSize:13,color:GR,marginBottom:14}}>Escreve o teu nome completo para continuar.</div>
+          <AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/>
+        </div>
+      </div>
+    );
+  }
+
   return(
     <div style={{padding:15}}>
       <div style={{background:"linear-gradient(135deg,#0f766e,#0e7490)",borderRadius:14,padding:18,marginBottom:14,color:W}}>
         <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Auxiliar de Apoio</div>
-        <div style={{fontSize:12,opacity:.75,marginTop:2}}>{h}</div>
+        <div style={{fontSize:14,opacity:.9,marginTop:2,fontStyle:"italic"}}>{nomeAux}</div>
+        <div style={{fontSize:11,opacity:.65,marginTop:2}}>{h}</div>
       </div>
       <Cd>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
@@ -1372,7 +1413,7 @@ function Auxiliar({user,db,setDb,showToast}){
         </div>
         {showNota&&(
           <div style={{marginBottom:12,background:"#fef3c7",borderRadius:9,padding:10}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#92400e",marginBottom:6,textTransform:"uppercase"}}>Nota para a zona {zona}</div>
+            <div style={{fontSize:10,fontWeight:700,color:"#92400e",marginBottom:6,textTransform:"uppercase"}}>Nota — {zona}</div>
             <textarea value={notaEdit} onChange={e=>setNotaEdit(e.target.value)} placeholder="Ex: Produto acabou, não foi possível higienizar..." rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #f59e0b",fontSize:13,background:W,color:"#92400e",outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
             <div style={{display:"flex",gap:6,marginTop:6}}>
               <button onClick={()=>setShowNota(false)} style={{flex:1,padding:"7px",borderRadius:7,border:"1.5px solid "+BE,background:"transparent",color:GR,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
@@ -1386,12 +1427,21 @@ function Auxiliar({user,db,setDb,showToast}){
           </div>
         )}
         {ZONAS[zona].map(item=>{const reg=regs[item];return(
-          <div key={item} style={{borderBottom:"1px solid "+LC,paddingBottom:10,marginBottom:10}}>
-            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-              <div onClick={()=>mk(item)} style={{width:26,height:26,borderRadius:7,flexShrink:0,marginTop:1,border:"2px solid "+(reg?V:BE),background:reg?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>{reg&&<span style={{color:W,fontSize:13,fontWeight:700}}>v</span>}</div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:reg?600:400,color:reg?V:GR}}>{item}</div>
-                {reg&&<div style={{fontSize:10,color:GR,marginTop:2}}>{reg.time}</div>}
+          <div key={item} onClick={()=>mk(item)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+LC,cursor:"pointer"}}>
+            <div style={{width:32,height:32,borderRadius:8,flexShrink:0,border:"2px solid "+(reg?V:BE),background:reg?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {reg&&<span style={{color:W,fontSize:16,fontWeight:700}}>✓</span>}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:reg?600:400,color:reg?V:"#333"}}>{item}</div>
+              {reg&&<div style={{fontSize:10,color:GR,marginTop:1}}>{reg.aluno} — {reg.time}</div>}
+            </div>
+          </div>
+        );})}
+      </Cd>
+    </div>
+  );
+}
+v style={{fontSize:10,color:GR,marginTop:2}}>{reg.time}</div>}
               </div>
             </div>
           </div>
