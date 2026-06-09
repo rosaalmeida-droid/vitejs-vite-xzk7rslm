@@ -36,7 +36,7 @@ const gD=()=>new Date().toLocaleDateString("pt-PT");
 const gT=()=>new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});
 const fD=s=>{if(!s)return"?";if(s.includes("/"))return s;const p=s.split("-");return p[2]+"/"+p[1]+"/"+p[0];};
 const nD=s=>s?(s.includes("/")?s.split("/").reverse().join("-"):s):"";
-const iC=(nm,t)=>{const v=parseFloat(t);if(isNaN(v))return null;const cg=nm.toLowerCase().includes("congelador")||nm.toLowerCase().includes("congel");return cg?v<=-18:v>=0&&v<=5;};
+const iC=(nm,t)=>{const v=parseFloat(t);if(isNaN(v))return null;const cg=nm.toLowerCase().includes("congelador")||nm.toLowerCase().includes("congel");return cg?v<=-18:v>=0&&v<=4;};
 
 function B({lb,onClick,cor,dis,sm,out,st}){
   const bg=dis?"#ccc":out?"transparent":(cor||V);
@@ -268,7 +268,7 @@ function Temperaturas({user,db,setDb,showToast}){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
-                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 5°C"}</div>
+                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>
                   </div>
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:20,fontWeight:800,color:nc?R:ok?V:GR}}>{r&&r.temperatura?r.temperatura+"°C":"---"}</div>
@@ -295,8 +295,8 @@ function Temperaturas({user,db,setDb,showToast}){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
-                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 5°C"}</div>
-                    <div style={{fontSize:9,color:GR,marginTop:1}}>{cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 2°C a 4°C"}</div>
+                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>
+                    <div style={{fontSize:9,color:GR,marginTop:1}}>{cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 1°C a 3°C"}</div>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:3}}>
                     {cg&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
@@ -388,38 +388,74 @@ function Recepcao({user,db,setDb,showToast}){
 }
 
 const CONSERVACAO=[
-  {cat:"Carne fresca",items:[
-    {prod:"Carne de vaca/porco picada",temp:"0-4°C",dias:"1-2 dias"},
-    {prod:"Carne de vaca/porco peça",temp:"0-4°C",dias:"3-5 dias"},
-    {prod:"Frango inteiro/peças",temp:"0-4°C",dias:"1-2 dias"},
-    {prod:"Carne cozinhada",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Carne congelada",temp:"≤-18°C",dias:"3-6 meses"},
+  {cat:"Ovos e Derivados",items:[
+    {prod:"Ovos frescos com casca",temp:"≤4°C",dias:"3 a 5 semanas"},
+    {prod:"Ovos pasteurizados — embalagem fechada",temp:"≤4°C",dias:"10 dias"},
+    {prod:"Ovos pasteurizados — após abertura",temp:"≤4°C",dias:"3 dias"},
+    {prod:"Ovos pasteurizados congelados",temp:"≤-18°C",dias:"1 ano"},
+    {prod:"Maionese — após abertura",temp:"≤4°C",dias:"2 meses"},
   ]},
-  {cat:"Peixe e marisco",items:[
-    {prod:"Peixe fresco",temp:"0-4°C",dias:"1-2 dias"},
-    {prod:"Peixe cozinhado",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Peixe congelado",temp:"≤-18°C",dias:"3-6 meses"},
-    {prod:"Marisco cozinhado",temp:"0-4°C",dias:"2-3 dias"},
+  {cat:"Carnes Frias e Enchidos",items:[
+    {prod:"Salsichas — embalagem fechada",temp:"≤4°C",dias:"2 semanas"},
+    {prod:"Salsichas — após abertura",temp:"≤4°C",dias:"1 semana"},
+    {prod:"Salsichas congeladas",temp:"≤-18°C",dias:"1 a 2 meses"},
+    {prod:"Bacon",temp:"≤4°C",dias:"7 dias"},
+    {prod:"Bacon congelado",temp:"≤-18°C",dias:"1 mês"},
+    {prod:"Fiambre fatiado",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Fiambre fatiado congelado",temp:"≤-18°C",dias:"1 a 2 meses"},
+    {prod:"Hambúrguer fresco",temp:"≤4°C",dias:"1 a 2 dias"},
+    {prod:"Hambúrguer congelado",temp:"≤-18°C",dias:"3 a 4 meses"},
+  ]},
+  {cat:"Aves",items:[
+    {prod:"Frango/Peru inteiro",temp:"≤4°C",dias:"1 a 2 dias"},
+    {prod:"Frango/Peru inteiro congelado",temp:"≤-18°C",dias:"1 ano"},
+    {prod:"Frango/Peru peças",temp:"≤4°C",dias:"1 a 2 dias"},
+    {prod:"Frango/Peru peças congelado",temp:"≤-18°C",dias:"9 meses"},
+    {prod:"Frango frito",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Frango frito congelado",temp:"≤-18°C",dias:"4 meses"},
+    {prod:"Frango cozinhado",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Frango cozinhado congelado",temp:"≤-18°C",dias:"4 a 6 meses"},
+  ]},
+  {cat:"Peixe e Marisco",items:[
+    {prod:"Peixe fresco",temp:"≤4°C",dias:"1 a 2 dias"},
+    {prod:"Peixe congelado",temp:"≤-18°C",dias:"6 meses"},
+    {prod:"Peixe cozinhado",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Peixe cozinhado congelado",temp:"≤-18°C",dias:"4 a 6 meses"},
+    {prod:"Peixe fumado (vácuo)",temp:"≤4°C",dias:"14 dias"},
+    {prod:"Peixe fumado congelado",temp:"≤-18°C",dias:"2 meses"},
+    {prod:"Marisco fresco",temp:"≤4°C",dias:"1 a 2 dias"},
+    {prod:"Marisco congelado",temp:"≤-18°C",dias:"3 a 6 meses"},
+    {prod:"Marisco cozinhado",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Marisco cozinhado congelado",temp:"≤-18°C",dias:"3 meses"},
   ]},
   {cat:"Laticínios",items:[
-    {prod:"Leite aberto",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Iogurte aberto",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Queijo fresco aberto",temp:"0-4°C",dias:"3-5 dias"},
-    {prod:"Natas abertas",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Manteiga aberta",temp:"0-4°C",dias:"2-3 semanas"},
+    {prod:"Leite",temp:"≤4°C",dias:"7 dias"},
+    {prod:"Leite congelado",temp:"≤-18°C",dias:"3 meses"},
+    {prod:"Manteiga",temp:"≤4°C",dias:"7 a 14 dias"},
+    {prod:"Manteiga congelada",temp:"≤-18°C",dias:"3 meses"},
+    {prod:"Margarina",temp:"≤4°C",dias:"1 a 3 meses"},
+    {prod:"Margarina congelada",temp:"≤-18°C",dias:"6 a 9 meses"},
+    {prod:"Queijo — embalagem fechada",temp:"≤4°C",dias:"6 meses"},
+    {prod:"Queijo — após abertura",temp:"≤4°C",dias:"3 a 4 semanas"},
+    {prod:"Queijo congelado",temp:"≤-18°C",dias:"6 meses"},
+    {prod:"Queijo fundido",temp:"≤4°C",dias:"2 semanas"},
+    {prod:"Natas UHT",temp:"≤4°C",dias:"1 mês"},
+    {prod:"Iogurte",temp:"≤4°C",dias:"7 a 14 dias"},
+    {prod:"Iogurte congelado",temp:"≤-18°C",dias:"1 a 2 meses"},
+    {prod:"Pudim — após abertura",temp:"≤4°C",dias:"2 dias"},
   ]},
-  {cat:"Preparações",items:[
-    {prod:"Sopas e caldos",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Molhos com carne",temp:"0-4°C",dias:"3-4 dias"},
-    {prod:"Arroz/massa cozinhados",temp:"0-4°C",dias:"2-3 dias"},
-    {prod:"Ovos cozinhados",temp:"0-4°C",dias:"1 semana"},
-    {prod:"Sobremesas com ovo/natas",temp:"0-4°C",dias:"2-3 dias"},
+  {cat:"Preparações e Refeições",items:[
+    {prod:"Sopas",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Sopas congeladas",temp:"≤-18°C",dias:"2 a 3 meses"},
+    {prod:"Carne cozinhada",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Carne cozinhada congelada",temp:"≤-18°C",dias:"2 a 3 meses"},
+    {prod:"Pizza",temp:"≤4°C",dias:"3 a 4 dias"},
+    {prod:"Pizza congelada",temp:"≤-18°C",dias:"1 a 2 meses"},
   ]},
-  {cat:"Congelados produzidos",items:[
-    {prod:"Pratos com carne",temp:"≤-18°C",dias:"2-3 meses"},
-    {prod:"Pratos com peixe",temp:"≤-18°C",dias:"1-2 meses"},
-    {prod:"Sopas",temp:"≤-18°C",dias:"3-4 meses"},
-    {prod:"Massa/pão",temp:"≤-18°C",dias:"3-6 meses"},
+  {cat:"Bebidas e Sumos",items:[
+    {prod:"Sumos — embalagem fechada",temp:"≤4°C",dias:"3 semanas"},
+    {prod:"Sumos — após abertura",temp:"≤4°C",dias:"7 a 10 dias"},
+    {prod:"Sumos congelados",temp:"≤-18°C",dias:"8 a 12 meses"},
   ]},
 ];
 
@@ -471,6 +507,9 @@ function Producao({user,db,setDb,showToast}){
         <Ip lb="Data Limite de Consumo" type="date" val={form.dataLimite} onChange={v=>setForm(p=>({...p,dataLimite:v}))}/>
         <ConsTabela/>
         <Sl lb="Conservação" val={form.conservacao} onChange={v=>setForm(p=>({...p,conservacao:v}))} opts={["refrigerado","congelado","consumo imediato"]}/>
+        <div style={{background:"#fef3c7",borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:"#92400e",lineHeight:1.6}}>
+          <strong>Regra HACCP — Sobras:</strong> Acondicionar em recipiente tapado, rotulado e consumir em max. 72h. Data limite calculada automaticamente.
+        </div>
         <Sl lb="Local" val={form.local} onChange={v=>setForm(p=>({...p,local:v}))} opts={FRIOS}/>
         <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={["P01","P02","P03"]}/>
         {form.nome&&form.dataLimite&&<div style={{background:LC,borderRadius:8,padding:10,marginBottom:10,fontSize:11,lineHeight:1.6}}>Produto: {form.nome} | Produzido em: {fD(form.dataProducao)} | Consumir até: {fD(form.dataLimite)} | {user.id} | Lote {nL}</div>}
@@ -1487,6 +1526,177 @@ v style={{fontSize:10,color:GR,marginTop:2}}>{reg.time}</div>}
   );
 }
 
+function HigienePessoal({user,db,setDb,showToast}){
+  const h=gD(),k="hig-pessoal-"+user.id+"-"+h;
+  const sv=db.higPessoal&&db.higPessoal[k];
+  const [checks,setChecks]=useState(sv?sv.checks:{});
+  const ITEMS_INFO=[
+    {titulo:"Lavagem das Mãos",desc:"Lavar as mãos durante pelo menos 20 segundos com água quente e sabão: antes de manipular alimentos, após usar a casa de banho, após tocar em alimentos crus, após assoar, tossir ou espirrar."},
+    {titulo:"Farda Completa",desc:"Usar sempre: avental limpo, touca ou rede no cabelo, calçado adequado e antiderrapante."},
+    {titulo:"Sem Adornos",desc:"Retirar obrigatoriamente: anéis, pulseiras, relógios, brincos. Podem cair nos alimentos e causar contaminação física."},
+    {titulo:"Unhas",desc:"Unhas curtas, limpas e sem verniz. O verniz pode descascar e contaminar os alimentos."},
+    {titulo:"Proibições",desc:"É proibido: comer, beber, fumar ou mascar pastilha na cozinha. Também é proibido tossir ou espirrar sobre os alimentos."},
+    {titulo:"Doença",desc:"Não trabalhar com alimentos se tiver: diarreia, vómitos, febre, tosse intensa ou feridas infetadas nas mãos. Informar o professor imediatamente."},
+  ];
+  const CHECKLIST=[
+    {id:"farda",l:"Farda completa e limpa"},
+    {id:"touca",l:"Cabelo apanhado / touca colocada"},
+    {id:"maos",l:"Mãos lavadas antes de entrar"},
+    {id:"adornos",l:"Sem anéis, pulseiras ou relógio"},
+    {id:"unhas",l:"Unhas curtas e sem verniz"},
+    {id:"calcado",l:"Calçado adequado"},
+    {id:"sem_doenca",l:"Sem sintomas de doença"},
+    {id:"sem_perfume",l:"Sem perfume excessivo"},
+  ];
+  const total=CHECKLIST.length;
+  const feitos=CHECKLIST.filter(i=>checks[i.id]).length;
+  const todosOk=feitos===total;
+  const [aba,setAba]=useState("info");
+
+  const guardar=()=>{
+    setDb(p=>{const hp={...p.higPessoal};hp[k]={checks,aluno:user.id,date:h,time:gT()};return{...p,higPessoal:hp};});
+    showToast("Higiene pessoal confirmada!");
+  };
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e",marginBottom:14}}>Higiene Pessoal</div>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["info","Informação"],["checklist","Checklist"]].map(([id,lb])=>(
+          <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?"#0f766e":BE),background:aba===id?"#0f766e":LC,color:aba===id?W:"#0f766e",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",letterSpacing:.5}}>{lb}</button>
+        ))}
+      </div>
+      {aba==="info"&&<div>
+        {ITEMS_INFO.map(item=>(
+          <Cd key={item.titulo} st={{borderLeft:"4px solid #0f766e",marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#0f766e",marginBottom:5}}>{item.titulo}</div>
+            <div style={{fontSize:12,color:"#334155",lineHeight:1.6}}>{item.desc}</div>
+          </Cd>
+        ))}
+      </div>}
+      {aba==="checklist"&&<div>
+        {sv&&<div style={{background:"#e0f2fe",borderRadius:9,padding:10,marginBottom:10,color:"#0e7490",fontSize:12,fontWeight:600}}>Confirmado hoje às {sv.time}</div>}
+        <Cd>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+            <span style={{fontSize:12,color:GR}}>Verificados</span>
+            <span style={{background:todosOk?"#0f766e":CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>{feitos}/{total}</span>
+          </div>
+          <Pg val={feitos} max={total}/>
+          {CHECKLIST.map(item=>(
+            <div key={item.id} onClick={()=>{if(!sv)setChecks(p=>({...p,[item.id]:!p[item.id]}));}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+LC,cursor:sv?"default":"pointer"}}>
+              <div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:checks[item.id]?"#0f766e":"transparent",border:"2px solid "+(checks[item.id]?"#0f766e":BE),display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {checks[item.id]&&<span style={{color:W,fontSize:14,fontWeight:700}}>✓</span>}
+              </div>
+              <span style={{fontSize:13,color:checks[item.id]?"#0f766e":GR,fontWeight:checks[item.id]?600:400}}>{item.l}</span>
+            </div>
+          ))}
+        </Cd>
+        {!sv&&<B lb={todosOk?"Confirmar Higiene Pessoal":"Faltam "+(total-feitos)+" itens"} onClick={guardar} cor={todosOk?"#0f766e":"#ccc"} dis={!todosOk}/>}
+      </div>}
+    </div>
+  );
+}
+
+function Oleos({user,db,setDb,showToast}){
+  const [form,setForm]=useState({equipamento:"Fritadeira 1",temperatura:"",cor:"normal",espuma:"nao",cheiro:"normal",teste:"ok",acao:"continua"});
+  const lista=(db.oleos||[]).filter(o=>o.turma===user.turma).slice(-10).reverse();
+  const save=()=>{
+    if(!form.temperatura)return;
+    const alterado=form.cor!=="normal"||form.espuma==="sim"||form.cheiro!=="normal"||form.teste!=="ok";
+    const reg={...form,alterado,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
+    setDb(p=>({...p,oleos:[...(p.oleos||[]),reg]}));
+    enviar("Controlo Óleos",[gD(),user.turma,user.id,form.equipamento,form.temperatura,form.cor,form.espuma,form.cheiro,form.teste,form.acao,alterado?"ALTERADO":"OK"]);
+    if(alterado){
+      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:form.equipamento,descricao:"Óleo alterado — "+[form.cor!=="normal"?"cor alterada":"",form.espuma==="sim"?"espuma":"",form.cheiro!=="normal"?"cheiro":""].filter(Boolean).join(", "),acaoCorretiva:form.acao,responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+    }
+    showToast(alterado?"Óleo ALTERADO — NC registada!":"Óleo OK registado!");
+    setForm({equipamento:"Fritadeira 1",temperatura:"",cor:"normal",espuma:"nao",cheiro:"normal",teste:"ok",acao:"continua"});
+  };
+  return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Controlo de Óleos</div>
+      <div style={{fontSize:12,color:GR,marginBottom:14}}>Registar o estado do óleo de fritura antes e durante a utilização</div>
+      <Cd>
+        <Sl lb="Equipamento" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} opts={["Fritadeira 1","Fritadeira 2","Wok","Outro"]}/>
+        <Ip lb="Temperatura do óleo (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph="Ex: 175"/>
+        <div style={{background:"#fef3c7",borderRadius:8,padding:8,marginBottom:10,fontSize:11,color:"#92400e"}}>Temperatura máxima recomendada: 180°C. Acima disso rejeitar o óleo.</div>
+        <Sl lb="Cor do óleo" val={form.cor} onChange={v=>setForm(p=>({...p,cor:v}))} opts={["normal","ligeiramente escura","escura (rejeitar)"]}/>
+        <Sl lb="Espuma" val={form.espuma} onChange={v=>setForm(p=>({...p,espuma:v}))} opts={["nao","sim (rejeitar)"]}/>
+        <Sl lb="Cheiro" val={form.cheiro} onChange={v=>setForm(p=>({...p,cheiro:v}))} opts={["normal","intenso (rejeitar)"]}/>
+        <Sl lb="Teste de oxidação" val={form.teste} onChange={v=>setForm(p=>({...p,teste:v}))} opts={["ok","alterado (rejeitar)"]}/>
+        <Sl lb="Ação tomada" val={form.acao} onChange={v=>setForm(p=>({...p,acao:v}))} opts={["continua","substituido","rejeitado"]}/>
+        <B lb="Registar Controlo" onClick={save} cor="#d97706"/>
+      </Cd>
+      {lista.map(o=><Cd key={o.id} st={{marginBottom:8,borderLeft:"3px solid "+(o.alterado?"#dc2626":"#d97706")}}>
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          <span style={{fontWeight:600,fontSize:13}}>{o.equipamento}</span>
+          <span style={{background:o.alterado?"#dc2626":"#16a34a",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{o.alterado?"ALTERADO":"OK"}</span>
+        </div>
+        <div style={{fontSize:11,color:GR}}>{o.date} {o.time} — {o.temperatura}°C — {o.responsavel}</div>
+      </Cd>)}
+    </div>
+  );
+}
+
+function Servico({user,db,setDb,showToast}){
+  const [form,setForm]=useState({prato:"",tipo:"quente",tempInicio:gT(),temperatura:"",equipamento:""});
+  const lista=(db.servico||[]).filter(s=>s.turma===user.turma&&s.date===gD()).slice(-8).reverse();
+  const save=()=>{
+    if(!form.prato||!form.temperatura)return;
+    const tempOk=form.tipo==="quente"?parseFloat(form.temperatura)>=65:parseFloat(form.temperatura)<=4;
+    const reg={...form,tempOk,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
+    setDb(p=>({...p,servico:[...(p.servico||[]),reg]}));
+    enviar("Temperatura Serviço",[gD(),user.turma,user.id,form.prato,form.tipo,form.temperatura,tempOk?"OK":"NC",form.tempInicio,form.equipamento]);
+    if(!tempOk){
+      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:"Serviço — "+form.prato,descricao:"Temp. serviço NC: "+form.temperatura+"°C ("+form.tipo+")",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+    }
+    showToast(tempOk?"Temperatura OK!":"Temperatura NC — verifique!");
+    setForm({prato:"",tipo:"quente",tempInicio:gT(),temperatura:"",equipamento:""});
+  };
+  return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Temperatura de Serviço</div>
+      <div style={{fontSize:12,color:GR,marginBottom:10}}>Registo de temperaturas durante o serviço de refeições</div>
+      <div style={{display:"flex",gap:8,marginBottom:12}}>
+        <div style={{flex:1,background:"#fef3c7",borderRadius:9,padding:10,textAlign:"center"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#d97706"}}>QUENTE</div>
+          <div style={{fontSize:18,fontWeight:800,color:"#d97706"}}>≥65°C</div>
+          <div style={{fontSize:9,color:"#92400e"}}>Banho-maria: 90°C</div>
+        </div>
+        <div style={{flex:1,background:"#e0f2fe",borderRadius:9,padding:10,textAlign:"center"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#0369a1"}}>FRIO</div>
+          <div style={{fontSize:18,fontWeight:800,color:"#0369a1"}}>≤4°C</div>
+          <div style={{fontSize:9,color:"#0369a1"}}>Self-service: max 2h</div>
+        </div>
+      </div>
+      <div style={{background:"#fdecea",borderRadius:9,padding:10,marginBottom:12,fontSize:11,color:"#dc2626",fontWeight:600}}>
+        Alimentos em self-service/buffet: max 2 horas de exposição!
+      </div>
+      <Cd>
+        <Ip lb="Prato / Alimento" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado, Salada..."/>
+        <Sl lb="Tipo de serviço" val={form.tipo} onChange={v=>setForm(p=>({...p,tipo:v}))} opts={["quente","frio","self-service quente","self-service frio","buffet"]}/>
+        <Ip lb="Hora de início do serviço" type="time" val={form.tempInicio} onChange={v=>setForm(p=>({...p,tempInicio:v}))}/>
+        <Ip lb="Temperatura (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph={form.tipo==="quente"||form.tipo.includes("quente")?"Min. 65°C":"Max. 4°C"}/>
+        <Ip lb="Equipamento (banho-maria, estufa, etc.)" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} ph="Ex: Banho-maria 1"/>
+        {form.temperatura&&<div style={{background:parseFloat(form.temperatura)>=(form.tipo==="quente"||form.tipo.includes("quente")?65:0)&&parseFloat(form.temperatura)<=(form.tipo==="frio"||form.tipo.includes("frio")?4:999)?"#e0f2fe":"#fdecea",borderRadius:8,padding:10,marginBottom:10,fontSize:13,fontWeight:700,textAlign:"center",color:parseFloat(form.temperatura)>=(form.tipo==="quente"||form.tipo.includes("quente")?65:0)&&parseFloat(form.temperatura)<=(form.tipo==="frio"||form.tipo.includes("frio")?4:999)?"#0369a1":"#dc2626"}}>
+          {form.tipo==="quente"||form.tipo.includes("quente")?parseFloat(form.temperatura)>=65?"OK — Temperatura adequada":"NC — Temperatura insuficiente! Aquecer mais.":parseFloat(form.temperatura)<=4?"OK — Temperatura adequada":"NC — Temperatura elevada! Verificar equipamento."}
+        </div>}
+        <B lb="Registar Temperatura" onClick={save} cor="#dc2626"/>
+      </Cd>
+      {lista.length>0&&<div>
+        <div style={{fontSize:12,fontWeight:700,color:GR,marginBottom:8}}>Registos de hoje</div>
+        {lista.map(s=><Cd key={s.id} st={{marginBottom:8,borderLeft:"3px solid "+(s.tempOk?"#16a34a":"#dc2626")}}>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontWeight:600,fontSize:13}}>{s.prato}</span>
+            <span style={{background:s.tempOk?"#16a34a":"#dc2626",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{s.tempOk?"OK":"NC"}</span>
+          </div>
+          <div style={{fontSize:11,color:GR}}>{s.tipo} — {s.temperatura}°C — início {s.tempInicio} — {s.responsavel}</div>
+        </Cd>)}
+      </div>}
+    </div>
+  );
+}
+
 export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
@@ -1511,6 +1721,9 @@ export default function App(){
   else if(mod==="higienizacao")page=<Higienizacao {...p}/>;
   else if(mod==="equipamentos")page=<Equipamentos {...p}/>;
   else if(mod==="faltas")page=<Faltas {...p}/>;
+  else if(mod==="higienePessoal")page=<HigienePessoal {...p}/>;
+  else if(mod==="oleos")page=<Oleos {...p}/>;
+  else if(mod==="servico")page=<Servico {...p}/>;
   else if(mod==="naoConf")page=<NaoConf {...p}/>;
   else if(mod==="encerramento")page=<Encerramento {...p}/>;
   else if(user.tipo==="professor")page=<Professor {...p}/>;
