@@ -1385,8 +1385,10 @@ function Equipamentos({user,db,setDb,showToast}){
 
 function Faltas({user,db,setDb,showToast}){
   const [form,setForm]=useState({tipo:"equipamento",descricao:"",urgencia:"normal"});
-  const duasSemanas=new Date();duasSemanas.setDate(duasSemanas.getDate()-14);
-  const lista=(db.faltas||[]).filter(f=>{const p=f.date.split("/");const d=new Date(p[2],p[1]-1,p[0]);return d>=duasSemanas;}).reverse();
+  const duasSemanas=new Date();
+  duasSemanas.setDate(duasSemanas.getDate()-14);
+  const lista=(db.faltas||[]).filter(f=>{try{const p=f.date.split("/");const d=new Date(p[2],p[1]-1,p[0]);return d>=duasSemanas;}catch{return true;}}).reverse();
+  const corU={normal:"#0369a1",urgente:"#d97706",critico:"#dc2626"};
   const save=()=>{
     if(!form.descricao)return;
     const falta={...form,responsavel:user.id,turma:user.turma||"",date:gD(),time:gT(),id:Date.now(),estado:"pendente"};
@@ -1395,7 +1397,6 @@ function Faltas({user,db,setDb,showToast}){
     showToast("Falta registada! Notificação enviada.");
     setForm({tipo:"equipamento",descricao:"",urgencia:"normal"});
   };
-  const corU={normal:"#0369a1",urgente:"#d97706",critico:"#dc2626"};
   return(
     <div style={{padding:15}}>
       <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Faltas e Necessidades</div>
@@ -1410,13 +1411,20 @@ function Faltas({user,db,setDb,showToast}){
         <B lb="Registar e Notificar" onClick={save} cor="#b45309"/>
       </Cd>
       {lista.length>0&&<div>
-        <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:8}}>Registos recentes</div>
+        <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:8}}>Últimas 2 semanas</div>
         {lista.map(f=><Cd key={f.id} st={{marginBottom:8,borderLeft:"3px solid "+(corU[f.urgencia]||"#b45309")}}>
           <div style={{display:"flex",justifyContent:"space-between"}}>
             <span style={{fontWeight:600,fontSize:13}}>{f.tipo}</span>
-            <span style={{background:corU[f.urgencia],color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{f.urgencia}</span>
+            <span style={{background:corU[f.urgencia]||"#b45309",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{f.urgencia}</span>
           </div>
-          <div style={{fontSize:12,color:GR,marginTop:3}}>{f.d
+          <div style={{fontSize:12,color:GR,marginTop:3}}>{f.descricao}</div>
+          <div style={{fontSize:10,color:GR,marginTop:2}}>{f.date} {f.time} — {f.responsavel}</div>
+        </Cd>)}
+      </div>}
+    </div>
+  );
+}
+
 function Auxiliar({user,db,setDb,showToast}){
   const h=gD(),k="aux-"+h;
   const regs=(db.auxHig&&db.auxHig[k])?db.auxHig[k].registos:{};
@@ -1443,12 +1451,8 @@ function Auxiliar({user,db,setDb,showToast}){
 
   if(!nomeAux){
     return(
-      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div style={{background:W,borderRadius:16,padding:24,width:"100%",maxWidth:360}}>
-          <div style={{fontFamily:"Georgia,serif",fontSize:18,fontWeight:700,color:"#0f766e",marginBottom:8}}>Assinatura Digital</div>
-          <div style={{fontSize:13,color:GR,marginBottom:14}}>Escreve o teu nome completo para continuar.</div>
-          <AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/>
-        </div>
+      <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}>
+        <AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/>
       </div>
     );
   }
@@ -1483,13 +1487,13 @@ function Auxiliar({user,db,setDb,showToast}){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div style={{fontWeight:700,fontSize:14,color:V}}>{zona} — {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length}</div>
           <button onClick={()=>{setNotaEdit(notas[zona]||"");setShowNota(!showNota);}} style={{padding:"5px 12px",borderRadius:7,border:"1.5px solid "+(notas[zona]?"#f59e0b":BE),background:notas[zona]?"#fef3c7":"transparent",color:notas[zona]?"#92400e":GR,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-            {notas[zona]?"Nota ✎":"+ Nota"}
+            {notas[zona]?"Nota":"+ Nota"}
           </button>
         </div>
         {showNota&&(
           <div style={{marginBottom:12,background:"#fef3c7",borderRadius:9,padding:10}}>
             <div style={{fontSize:10,fontWeight:700,color:"#92400e",marginBottom:6,textTransform:"uppercase"}}>Nota — {zona}</div>
-            <textarea value={notaEdit} onChange={e=>setNotaEdit(e.target.value)} placeholder="Ex: Produto acabou, não foi possível higienizar..." rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #f59e0b",fontSize:13,background:W,color:"#92400e",outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+            <textarea value={notaEdit} onChange={e=>setNotaEdit(e.target.value)} placeholder="Ex: Produto acabou..." rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #f59e0b",fontSize:13,background:W,color:"#92400e",outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
             <div style={{display:"flex",gap:6,marginTop:6}}>
               <button onClick={()=>setShowNota(false)} style={{flex:1,padding:"7px",borderRadius:7,border:"1.5px solid "+BE,background:"transparent",color:GR,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
               <button onClick={guardarNota} style={{flex:2,padding:"7px",borderRadius:7,border:"none",background:"#f59e0b",color:W,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Nota</button>
@@ -1504,20 +1508,11 @@ function Auxiliar({user,db,setDb,showToast}){
         {ZONAS[zona].map(item=>{const reg=regs[item];return(
           <div key={item} onClick={()=>mk(item)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+LC,cursor:"pointer"}}>
             <div style={{width:32,height:32,borderRadius:8,flexShrink:0,border:"2px solid "+(reg?V:BE),background:reg?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              {reg&&<span style={{color:W,fontSize:16,fontWeight:700}}>✓</span>}
+              {reg&&<span style={{color:W,fontSize:16,fontWeight:700}}>v</span>}
             </div>
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:reg?600:400,color:reg?V:"#333"}}>{item}</div>
               {reg&&<div style={{fontSize:10,color:GR,marginTop:1}}>{reg.aluno} — {reg.time}</div>}
-            </div>
-          </div>
-        );})}
-      </Cd>
-    </div>
-  );
-}
-v style={{fontSize:10,color:GR,marginTop:2}}>{reg.time}</div>}
-              </div>
             </div>
           </div>
         );})}
