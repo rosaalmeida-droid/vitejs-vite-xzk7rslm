@@ -12,7 +12,7 @@ document.head.appendChild(fontStyle);
 
 
 
-const SHEET_URL="https://script.google.com/a/macros/eclisboa.net/s/AKfycbx92qONpPXwT8_lSBhPVOoQWih-8Y7e5a2FX594uqtEnsLOmhUs4Ph2R-BGKR-yZKBCew/exec";
+const SHEET_URL="https://script.google.com/macros/s/AKfycbyQjtMs5k1aK0yDJVNOg0l-i6WExp3M19JeDkCP2IKcy8xPRo6H4HmE4emwbZXmev89rw/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
@@ -192,8 +192,21 @@ function Temperaturas({user,db,setDb,showToast}){
   const [momento,setMomento]=useState("inicio");
   const k=momento==="inicio"?kI:kF;
   const sv=momento==="inicio"?svI:svF;
-  const [temps,setTemps]=useState({});
-  const done=!!sv;
+
+  // Load existing temps if partial registration
+  const [temps,setTemps]=useState(()=>{
+    const existing=momento==="inicio"?svI:svF;
+    if(existing&&existing.temps)return existing.temps;
+    return {};
+  });
+
+  // Check if all equipments have been registered
+  const todosPreenchidos=FRIOS.every(eq=>temps[eq]!==undefined&&temps[eq]!=="");
+  // Check if fully saved (all equipment + saved to db)
+  const done=!!sv&&FRIOS.every(eq=>{
+    const r=sv.records&&sv.records.find(x=>x.equipamento===eq);
+    return r&&r.temperatura!=="";
+  });
 
   const save=()=>{
     const cab=["Data","Turma","Aluno","Momento","Hora",...FRIOS.flatMap(eq=>[eq+" Temp",eq+" Conf"]),"Validado Prof"];
@@ -203,12 +216,20 @@ function Temperaturas({user,db,setDb,showToast}){
       const te={...p.temperaturas};
       te[k]={temps,records,aluno:user.id,turma:user.turma,date:h,time:gT(),momento};
       const ncs=[...(p.ncs||[])];
-      records.filter(r=>r.conforme===false).forEach(r=>ncs.push({id:Date.now()+Math.random(),date:h,time:gT(),zona:r.equipamento,descricao:"Temp NC "+momento+": "+r.temperatura+"C",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}));
+      records.filter(r=>r.conforme===false&&r.temperatura!=="").forEach(r=>ncs.push({id:Date.now()+Math.random(),date:h,time:gT(),zona:r.equipamento,descricao:"Temp NC "+momento+": "+r.temperatura+"C",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}));
       return{...p,temperaturas:te,ncs};
     });
     enviar("Temperaturas",{cabecalho:cab,linha});
-    showToast("Temperaturas "+momento+" registadas!");
-    if(momento==="inicio")setMomento("final");
+    showToast("Temperaturas "+momento+" guardadas!");
+    if(momento==="inicio"&&todosPreenchidos)setMomento("final");
+  };
+
+  // When switching moment, load existing temps
+  const switchMomento=(m)=>{
+    setMomento(m);
+    const existing=m==="inicio"?svI:svF;
+    if(existing&&existing.temps)setTemps(existing.temps);
+    else setTemps({});
   };
 
   return(
@@ -217,16 +238,22 @@ function Temperaturas({user,db,setDb,showToast}){
       <div style={{display:"flex",gap:8,marginBottom:14}}>
         {["inicio","final"].map(m=>{
           const feito=m==="inicio"?!!svI:!!svF;
+          const completo=feito&&FRIOS.every(eq=>{
+            const sv2=m==="inicio"?svI:svF;
+            const r=sv2&&sv2.records&&sv2.records.find(x=>x.equipamento===eq);
+            return r&&r.temperatura!=="";
+          });
           return(
-            <button key={m} onClick={()=>{setMomento(m);setTemps({});}} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#0e7490":BE),background:momento===m?"#0e7490":feito?"#e0f2fe":LC,color:momento===m?W:feito?"#0e7490":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+            <button key={m} onClick={()=>switchMomento(m)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#0e7490":BE),background:momento===m?"#0e7490":completo?"#e0f2fe":feito?"#fff3e0":LC,color:momento===m?W:completo?"#0e7490":feito?"#d97706":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
               {m==="inicio"?"Início de Aula":"Final de Aula"}
-              {feito&&<span style={{fontSize:10,display:"block",opacity:.8}}>Registado {m==="inicio"?svI.time:svF.time}</span>}
+              {completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Completo {m==="inicio"?svI.time:svF.time}</span>}
+              {feito&&!completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Incompleto — continuar</span>}
             </button>
           );
         })}
       </div>
 
-      {done?(
+      {sv&&done?(
         <div>
           <div style={{background:"#e0f2fe",borderRadius:11,padding:"10px 14px",marginBottom:12,color:"#0e7490",fontSize:13,fontWeight:600}}>
             Registado por {sv.aluno} às {sv.time}
@@ -254,10 +281,17 @@ function Temperaturas({user,db,setDb,showToast}){
         </div>
       ):(
         <div>
+          {sv&&!done&&<div style={{background:"#fff3e0",borderRadius:9,padding:10,marginBottom:10,color:"#d97706",fontSize:12,fontWeight:600}}>
+            Registo incompleto — preenche os equipamentos em falta e guarda novamente.
+          </div>}
+          <div style={{marginBottom:10,fontSize:11,color:GR}}>
+            Preenchidos: {FRIOS.filter(eq=>temps[eq]!==undefined&&temps[eq]!=="").length}/{FRIOS.length}
+          </div>
           {FRIOS.map(eq=>{
             const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel"),cf=iC(eq,temps[eq]);
+            const preenchido=temps[eq]!==undefined&&temps[eq]!=="";
             return(
-              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(cf===false?R:cf===true?V:BE)}}>
+              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(cf===false?R:cf===true?V:preenchido?"#bae6fd":BE)}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
@@ -269,14 +303,15 @@ function Temperaturas({user,db,setDb,showToast}){
                       <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:"-"+abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":BE),background:temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":"transparent",color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>−</button>
                       <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":BE),background:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":"transparent",color:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>+</button>
                     </div>}
-                    <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
+                    <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:preenchido?"#bae6fd":BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
                     <span style={{fontSize:10,fontWeight:700,color:cf===false?R:cf===true?V:GR,minWidth:20}}>{cf===false?"NC":cf===true?"OK":""}</span>
                   </div>
                 </div>
               </Cd>
             );
           })}
-          <B lb={"Guardar Temperaturas "+momento.toUpperCase()} onClick={save} cor="#0e7490"/>
+          <B lb={todosPreenchidos?"Guardar Temperaturas "+momento.toUpperCase():"Guardar ("+FRIOS.filter(eq=>temps[eq]!==undefined&&temps[eq]!=="").length+"/"+FRIOS.length+" preenchidos)"} onClick={save} cor={todosPreenchidos?"#0e7490":"#0369a1"}/>
+          {!todosPreenchidos&&<div style={{marginTop:8,fontSize:11,color:GR,textAlign:"center"}}>Podes guardar parcialmente e continuar depois.</div>}
         </div>
       )}
     </div>
