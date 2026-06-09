@@ -143,7 +143,7 @@ function DashAluno({user,db,setModule}){
         ))}
       </div>}
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {(db.assinaturas&&db.assinaturas[user.id])?db.assinaturas[user.id].split(" ")[0]:user.id}!</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {(db.assinaturas&&db.assinaturas[user.id])?(db.assinaturas[user.id].split(" ")[0].charAt(0).toUpperCase()+db.assinaturas[user.id].split(" ")[0].slice(1)):user.id}!</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} - {h}</div>
         <div style={{fontSize:11,opacity:.65,marginTop:4}}>{feitos}/{historico.length} tarefas concluídas hoje</div>
       </div>
