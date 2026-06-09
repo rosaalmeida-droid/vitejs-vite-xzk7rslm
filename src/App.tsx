@@ -2258,28 +2258,7 @@ function InfoBtn({modId}){
   );
 }
 
-function InfoBtn({modId}){
-  const [open,setOpen]=useState(false);
-  const info=INFO_HACCP[modId];
-  if(!info)return null;
-  return(
-    <div style={{display:"inline-block"}}>
-      <button onClick={()=>setOpen(!open)} style={{width:28,height:28,borderRadius:"50%",background:"#0e7490",border:"none",color:W,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>?</button>
-      {open&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:16}} onClick={()=>setOpen(false)}>
-          <div style={{background:W,borderRadius:"16px 16px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"70vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#0e7490",flex:1,paddingRight:10}}>{info.titulo}</div>
-              <button onClick={()=>setOpen(false)} style={{width:28,height:28,borderRadius:"50%",background:"#f0f9ff",border:"none",fontSize:16,cursor:"pointer",flexShrink:0}}>×</button>
-            </div>
-            <div style={{fontSize:13,color:"#334155",lineHeight:1.7,marginBottom:12}}>{info.texto}</div>
-            <div style={{fontSize:10,color:GR,borderTop:"1px solid #e0f2fe",paddingTop:8}}>Fonte: {info.fonte}</div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+
 
 export default function App(){
   const [user,setUser]=useState(null);
