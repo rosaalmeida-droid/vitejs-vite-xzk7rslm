@@ -143,7 +143,7 @@ function DashAluno({user,db,setModule}){
         ))}
       </div>}
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {(db.assinaturas&&db.assinaturas[user.id])||user.id}</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {(db.assinaturas&&db.assinaturas[user.id])?db.assinaturas[user.id].split(" ")[0]:user.id}!</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} - {h}</div>
         <div style={{fontSize:11,opacity:.65,marginTop:4}}>{feitos}/{historico.length} tarefas concluídas hoje</div>
       </div>
@@ -1708,7 +1708,7 @@ export default function App(){
   const back=()=>setMod(null);
   if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}}/>;
   if(user.tipo==="aluno"&&!(db.assinaturas&&db.assinaturas[user.id])){
-    return(<div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><AssinaturaDigital userId={user.id} onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
+    return(<div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
   }
   const p={user,db,setDb,showToast,setModule:setMod};
   let page;
