@@ -1813,6 +1813,12 @@ function ConservacaoProd({user,db,setDb,showToast}){
   const prazo=calcData();
   const metodos=["refrigeracao","congelacao","vacuo_frig","vacuo_cong"];
   const metNomes={"refrigeracao":"Refrigeração (0-4°C)","congelacao":"Congelação (≤-18°C)","vacuo_frig":"Vácuo + Frigorífico","vacuo_cong":"Vácuo + Congelador"};
+  const metEmbalagem={
+    "refrigeracao":{emb:"Caixa hermética / Película aderente / Recipiente tapado",cor:"#0369a1",dica:"Selar bem para evitar absorção de odores e contaminação cruzada."},
+    "congelacao":{emb:"Saco de congelação / Caixa hermética para congelador",cor:"#6d28d9",dica:"Retirar o máximo de ar antes de fechar. Não recongelar após descongelar."},
+    "vacuo_frig":{emb:"Saco de vácuo selado (máquina de vácuo)",cor:"#0891b2",dica:"Verificar a qualidade do selo. Produto deve estar frio antes de selar."},
+    "vacuo_cong":{emb:"Saco de vácuo selado + congelador (≤-18°C)",cor:"#0f766e",dica:"Pré-congelar alimentos húmidos antes de selar. Evita queimaduras do congelador."},
+  };
 
   return(
     <div style={{padding:15}}>
@@ -1828,9 +1834,11 @@ function ConservacaoProd({user,db,setDb,showToast}){
           <Sl lb="Tipo de produto" val={form.tipoProd} onChange={v=>setForm(p=>({...p,tipoProd:v}))} opts={["fresco","confeccionado"]}/>
           <Ip lb="Produto" val={form.produto} onChange={v=>setForm(p=>({...p,produto:v}))} ph="Ex: Frango, Sopa de legumes, Queijo..."/>
           <Sl lb="Método de conservação" val={form.metodo} onChange={v=>setForm(p=>({...p,metodo:v}))} opts={metodos.map(m=>m)} />
-          <div style={{fontSize:10,color:GR,marginBottom:10,marginTop:-6}}>
-            {{"refrigeracao":"Frigorífico 0-4°C","congelacao":"Congelador ≤-18°C","vacuo_frig":"Embalado a vácuo no frigorífico","vacuo_cong":"Embalado a vácuo no congelador"}[form.metodo]}
-          </div>
+          {form.metodo&&metEmbalagem[form.metodo]&&<div style={{background:"#f0f9ff",borderRadius:10,padding:"10px 12px",marginBottom:10,marginTop:-4,borderLeft:"3px solid "+metEmbalagem[form.metodo].cor}}>
+            <div style={{fontSize:11,fontWeight:700,color:metEmbalagem[form.metodo].cor,marginBottom:3}}>Embalagem recomendada:</div>
+            <div style={{fontSize:12,color:"#0c4a6e",fontWeight:600,marginBottom:4}}>{metEmbalagem[form.metodo].emb}</div>
+            <div style={{fontSize:11,color:GR,fontStyle:"italic"}}>{metEmbalagem[form.metodo].dica}</div>
+          </div>}
           <Ip lb="Quantidade" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 2 kg, 4 doses..."/>
           <Ip lb="Data de produção" type="date" val={form.dataProducao} onChange={v=>setForm(p=>({...p,dataProducao:v}))}/>
           {prazo&&<div style={{background:"#e0f2fe",borderRadius:8,padding:10,marginBottom:10,fontSize:12,color:"#0369a1"}}>
