@@ -30,7 +30,25 @@ const ZONAS={
 };
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
 const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
-const MODS=[{id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},{id:"higienePessoal",lb:"Higiene Pessoal",cor:"#0f766e"},{id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0369a1"},{id:"producao",lb:"Prod. Confeccionados",cor:"#0891b2"},{id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#059669"},{id:"oleos",lb:"Controlo de Óleos",cor:"#d97706"},{id:"servico",lb:"Temperatura de Serviço",cor:"#dc2626"},{id:"manutencao",lb:"Manutenção e Avarias",cor:"#0284c7"},{id:"higienizacao",lb:"Higienização",cor:"#0e7490"},{id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#0f766e"},{id:"faltas",lb:"Faltas e Necessidades",cor:"#b45309"},{id:"naoConf",lb:"Não Conformidades",cor:"#dc2626"},{id:"encerramento",lb:"Encerramento da Aula",cor:"#0369a1"}];
+const MODS_HACCP=[
+  {id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},
+  {id:"higienePessoal",lb:"Higiene Pessoal",cor:"#0f766e"},
+  {id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0369a1"},
+  {id:"conservacao",lb:"Conservação de Produtos",cor:"#0891b2"},
+  {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
+  {id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#059669"},
+  {id:"oleos",lb:"Controlo de Óleos",cor:"#d97706"},
+  {id:"servico",lb:"Temperatura de Serviço",cor:"#dc2626"},
+  {id:"higienizacao",lb:"Higienização",cor:"#0e7490"},
+];
+const MODS_GESTAO=[
+  {id:"manutencao",lb:"Manutenção e Avarias",cor:"#0284c7"},
+  {id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#0f766e"},
+  {id:"naoConf",lb:"Não Conformidades",cor:"#dc2626"},
+  {id:"faltas",lb:"Faltas e Necessidades",cor:"#b45309"},
+  {id:"encerramento",lb:"Encerramento da Aula",cor:"#0369a1"},
+];
+const MODS=[...MODS_HACCP,...MODS_GESTAO];
 
 const gD=()=>new Date().toLocaleDateString("pt-PT");
 const gT=()=>new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});
@@ -49,7 +67,7 @@ function Ta({lb,val,onChange,ph}){return <div style={{marginBottom:11}}>{lb&&<di
 function Ck({lb,chk,onChange}){return <div onClick={()=>onChange(!chk)} style={{display:"flex",alignItems:"center",gap:11,padding:"10px 0",borderBottom:"1px solid "+LC,cursor:"pointer"}}><div style={{width:25,height:25,borderRadius:7,border:"2px solid "+(chk?V:BE),background:chk?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{chk&&<span style={{color:W,fontSize:13,fontWeight:700}}>v</span>}</div><span style={{fontSize:13,color:chk?V:GR}}>{lb}</span></div>;}
 function Pg({val,max}){const pct=val/Math.max(max,1)*100;return <div style={{background:"#e0f2fe",borderRadius:7,height:8,marginBottom:12}}><div style={{background:"linear-gradient(90deg,#0e7490,#0891b2)",height:8,borderRadius:7,width:pct+"%",transition:"width .3s"}}/></div>;}
 function Tt({msg,onClose}){useEffect(()=>{const t=setTimeout(onClose,2800);return()=>clearTimeout(t);},[onClose]);return <div style={{position:"fixed",bottom:22,left:"50%",transform:"translateX(-50%)",background:V,color:W,borderRadius:11,padding:"11px 22px",fontSize:13,fontWeight:500,zIndex:9999}}>{msg}</div>;}
-function Hd({user,onOut}){return <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:99,boxShadow:"0 4px 20px rgba(14,116,144,.4)"}}><div><div style={{fontSize:20,fontWeight:800,letterSpacing:1,textTransform:"uppercase"}}>KitchenFlow <span style={{color:"#bae6fd"}}>ECL</span></div>{user&&<div style={{fontSize:10,opacity:.7,letterSpacing:.5,marginTop:1}}>{user.id} — {gD()}</div>}</div>{user&&<button onClick={onOut} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",letterSpacing:.5}}>SAIR</button>}</div>;}
+function Hd({user,onOut,onRanking}){return <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:99,boxShadow:"0 4px 20px rgba(14,116,144,.4)"}}><div><div style={{fontSize:20,fontWeight:800,letterSpacing:1,textTransform:"uppercase"}}>KitchenFlow <span style={{color:"#bae6fd"}}>ECL</span></div>{user&&<div style={{fontSize:10,opacity:.7,letterSpacing:.5,marginTop:1}}>{user.id} — {gD()}</div>}</div><div style={{display:"flex",gap:6}}>{user&&<button onClick={onRanking} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",letterSpacing:.3}}>Ranking</button>}{user&&<button onClick={onOut} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",letterSpacing:.5}}>SAIR</button>}</div></div>;}
 
 function Login({onLogin}){
   const [tipo,setTipo]=useState("aluno");
@@ -86,6 +104,7 @@ function Login({onLogin}){
           <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:W}}>KitchenFlow ECL</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}}>ESCOLA DE COMÉRCIO DE LISBOA</div>
         </div>
+        {showRanking&&<div style={{background:"rgba(255,255,255,.95)",borderRadius:16,padding:16,marginBottom:16,maxHeight:"50vh",overflowY:"auto"}}><Ranking db={db}/></div>}
         <div style={{background:W,borderRadius:20,padding:28,boxShadow:"0 20px 60px rgba(14,116,144,.3)",border:"1px solid rgba(186,230,253,.3)"}}>
           <div style={{display:"flex",gap:6,marginBottom:16}}>
             {[["aluno","Aluno"],["professor","Prof."],["coord","Coord."],["auxiliar","Aux."]].map(([t,lb])=>(
@@ -99,6 +118,7 @@ function Login({onLogin}){
           <Ip lb="PIN" type="text" val={pin} onChange={setPin} ph={tipo==="aluno"?"PIN: 1234":"PIN: 1111"}/>
           {err&&<div style={{color:R,fontSize:12,marginBottom:8,textAlign:"center"}}>{err}</div>}
           <B lb="Entrar" onClick={go}/>
+          <button onClick={()=>setShowRanking(!showRanking)} style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #bae6fd",background:"transparent",color:"#0369a1",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginTop:8,textTransform:"uppercase",letterSpacing:.5}}>{showRanking?"Fechar Ranking":"Ver Ranking"}</button>
         </div>
       </div>
     </div>
@@ -111,50 +131,69 @@ function DashAluno({user,db,setModule}){
   const ncs=(db.ncs||[]).filter(n=>n.turma===user.turma&&n.date===h).length;
   const tempI=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"]);
   const tempF=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"]);
+  const encerrado=!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]);
+  const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
   const avisos=[];
   if(!tempI)avisos.push({msg:"Falta registo de temperaturas — Início de aula",mod:"temperaturas"});
   if(!tempF)avisos.push({msg:"Falta registo de temperaturas — Final de aula",mod:"temperaturas"});
+  if(!encerrado){
+    const now=new Date();
+    if(now.getHours()>=14)avisos.push({msg:"Não esquecer o Encerramento da Aula!",mod:"encerramento",urgente:true});
+  }
 
   const historico=[
     {id:"ti",lb:"Temperaturas Início",ok:tempI,detalhe:tempI?db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"].time:""},
     {id:"tf",lb:"Temperaturas Final",ok:tempF,detalhe:tempF?db.temperaturas["temp-"+user.turma+"-"+h+"-final"].time:""},
+    {id:"hp",lb:"Higiene Pessoal",ok:!!(db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h]),detalhe:""},
     {id:"rec",lb:"Receção Matérias-Primas",ok:!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h),detalhe:(db.recepcao||[]).filter(r=>r.turma===user.turma&&r.date===h).length+" registo(s)"},
-    {id:"prod",lb:"Prod. Confeccionados",ok:!!(db.producao||[]).find(p=>p.turma===user.turma&&p.date===h),detalhe:(db.producao||[]).filter(p=>p.turma===user.turma&&p.date===h).length+" produto(s)"},
+    {id:"cons",lb:"Conservação de Produtos",ok:!!(db.conservacaoProd||[]).find(p=>p.turma===user.turma&&p.date===h),detalhe:(db.conservacaoProd||[]).filter(p=>p.turma===user.turma&&p.date===h).length+" produto(s)"},
     {id:"test",lb:"Amostra Testemunho",ok:!!(db.testemunho||[]).find(t=>t.turma===user.turma&&t.date===h),detalhe:(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===h).length+" amostra(s)"},
-    {id:"des",lb:"Desinfeção Alimentos Cru",ok:!!(db.desinfecao||[]).find(d=>d.turma===user.turma&&d.date===h),detalhe:(db.desinfecao||[]).filter(d=>d.turma===user.turma&&d.date===h).length+" registo(s)"},
-    {id:"hig",lb:"Higienização",ok:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]),detalhe:db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]?Object.keys(db.higienizacao["hig-"+user.turma+"-"+h].registos||{}).length+" tarefas":""},
-    {id:"man",lb:"Manutenção",ok:!!(db.manutencao||[]).find(m=>m.turma===user.turma&&m.date===h),detalhe:(db.manutencao||[]).filter(m=>m.turma===user.turma&&m.date===h).length+" ocorrência(s)"},
-    {id:"nc",lb:"Não Conformidades",ok:ncs>0,detalhe:ncs+" NC(s)"},
-    {id:"enc",lb:"Encerramento",ok:!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]),detalhe:db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]?db.encerramento["enc-"+user.turma+"-"+h].time:""},
-    {id:"val",lb:"Validação Professor",ok:!!(db.validacoes&&db.validacoes["val-"+user.turma+"-"+h]),detalhe:""},
+    {id:"des",lb:"Desinfeção Alimentos Cru",ok:!!(db.desinfecao||[]).find(d=>d.turma===user.turma&&d.date===h),detalhe:""},
+    {id:"hig",lb:"Higienização",ok:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]),detalhe:""},
+    {id:"enc",lb:"Encerramento da Aula",ok:encerrado,detalhe:""},
   ];
-
   const feitos=historico.filter(x=>x.ok).length;
 
   return(
     <div style={{padding:15}}>
       {avisos.length>0&&<div style={{marginBottom:12}}>
         {avisos.map((av,i)=>(
-          <div key={i} onClick={()=>setModule(av.mod)} style={{background:"#fdecea",border:"2px solid "+R,borderRadius:10,padding:"10px 13px",marginBottom:7,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:14,color:R,fontWeight:700}}>(!)</span>
-            <span style={{fontSize:12,fontWeight:600,color:R,flex:1}}>{av.msg}</span>
-            <span style={{fontSize:11,color:R}}>Registar</span>
+          <div key={i} onClick={()=>setModule(av.mod)} style={{background:av.urgente?"#dc2626":"#fdecea",border:"2px solid "+(av.urgente?"#b91c1c":R),borderRadius:10,padding:"10px 13px",marginBottom:7,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:14,color:W,fontWeight:700,background:av.urgente?"#b91c1c":R,borderRadius:6,padding:"2px 7px",fontSize:11}}>(!)</span>
+            <span style={{fontSize:12,fontWeight:600,color:av.urgente?W:R,flex:1}}>{av.msg}</span>
+            <span style={{fontSize:11,color:av.urgente?W:R}}>Registar</span>
           </div>
         ))}
       </div>}
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {(db.assinaturas&&db.assinaturas[user.id])?(db.assinaturas[user.id].split(" ")[0].charAt(0).toUpperCase()+db.assinaturas[user.id].split(" ")[0].slice(1)):user.id}!</div>
-        <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} - {h}</div>
-        <div style={{fontSize:11,opacity:.65,marginTop:4}}>{feitos}/{historico.length} tarefas concluídas hoje</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {nomeAluno?(nomeAluno.split(" ")[0].charAt(0).toUpperCase()+nomeAluno.split(" ")[0].slice(1)):user.id}!</div>
+        <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} — {h}</div>
+        <div style={{fontSize:11,opacity:.65,marginTop:4}}>{ncs} não conformidades hoje</div>
       </div>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["modulos","Módulos"],["historico","Histórico do Dia"]].map(([id,lb])=>(
           <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?V:BE),background:aba===id?V:LC,color:aba===id?W:GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
         ))}
       </div>
-      {aba==="modulos"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-        {MODS.map(m=>(<button key={m.id} onClick={()=>setModule(m.id)} style={{background:W,border:"none",borderRadius:14,padding:"14px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(14,116,144,.12)",borderLeft:"4px solid "+m.cor,borderTop:"1px solid #e0f2fe",transition:"transform .1s"}}><div style={{fontSize:11,fontWeight:700,color:m.cor,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.5}}>{m.lb}</div></button>))}
+
+      {aba==="modulos"&&<div>
+        <div style={{fontSize:10,fontWeight:800,color:V,textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:2}}>Registos HACCP Obrigatórios</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+          {MODS_HACCP.map(m=>{
+            const feito=historico.find(h=>h.id===["ti","tf","hp","rec","cons","test","des","hig","enc"][MODS_HACCP.indexOf(m)])?.ok;
+            return(<button key={m.id} onClick={()=>setModule(m.id)} style={{background:W,border:"none",borderRadius:13,padding:"13px 11px",cursor:"pointer",textAlign:"left",boxShadow:"0 3px 10px rgba(14,116,144,.12)",borderLeft:"4px solid "+m.cor,borderTop:"1px solid #e0f2fe"}}>
+              <div style={{fontSize:11,fontWeight:700,color:m.cor,lineHeight:1.3,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+            </button>);
+          })}
+        </div>
+        <div style={{fontSize:10,fontWeight:800,color:GR,textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:2}}>Gestão da Cozinha</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {MODS_GESTAO.map(m=>(<button key={m.id} onClick={()=>setModule(m.id)} style={{background:"#f8fafc",border:"none",borderRadius:13,padding:"13px 11px",cursor:"pointer",textAlign:"left",boxShadow:"0 2px 6px rgba(0,0,0,.05)",borderLeft:"4px solid "+m.cor}}>
+            <div style={{fontSize:11,fontWeight:600,color:m.cor,lineHeight:1.3,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+          </button>))}
+        </div>
       </div>}
+
       {aba==="historico"&&<div>
         <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:V,marginBottom:12}}>Histórico — {h}</div>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}>
@@ -234,7 +273,7 @@ function Temperaturas({user,db,setDb,showToast}){
 
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Temperaturas</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Temperaturas</div><InfoBtn modId="temperaturas"/></div>
       <div style={{display:"flex",gap:8,marginBottom:14}}>
         {["inicio","final"].map(m=>{
           const feito=m==="inicio"?!!svI:!!svF;
@@ -387,6 +426,42 @@ function Recepcao({user,db,setDb,showToast}){
   );
 }
 
+const VACUO_FRIG={
+  "Carne vermelha crua":{normal:"3-5 dias",vacuo:"30-40 dias"},
+  "Aves de capoeira (fresco)":{normal:"2-3 dias",vacuo:"6-9 dias"},
+  "Peixe inteiro":{normal:"1-3 dias",vacuo:"4-5 dias"},
+  "Fiambre curado":{normal:"3-5 dias",vacuo:"160-180 dias"},
+  "Carne de porco fatiada":{normal:"4-7 dias",vacuo:"20-28 dias"},
+  "Queijo duro":{normal:"15-20 dias",vacuo:"40-60 dias"},
+  "Queijo de pasta mole":{normal:"5-7 dias",vacuo:"13-15 dias"},
+  "Legumes frescos":{normal:"5 dias",vacuo:"18-20 dias"},
+  "Ervas frescas":{normal:"2-3 dias",vacuo:"7-14 dias"},
+  "Frutos frescos":{normal:"3-7 dias",vacuo:"8-25 dias"},
+  "Sobremesas":{normal:"5 dias",vacuo:"10-18 dias"},
+  "Massa cozida":{normal:"2-3 dias",vacuo:"8-12 dias"},
+  "Sopas cozinhadas":{normal:"2-3 dias",vacuo:"8-12 dias"},
+  "Risoto cozido":{normal:"2-3 dias",vacuo:"8-12 dias"},
+  "Carne frita/cozinhada":{normal:"2-3 dias",vacuo:"8-12 dias"},
+};
+const VACUO_CONG={
+  "Carne vermelha crua":{normal:"6 meses",vacuo:"2-3 anos"},
+  "Carne moída":{normal:"4 meses",vacuo:"1 ano"},
+  "Aves de capoeira":{normal:"6 meses",vacuo:"2-3 anos"},
+  "Peixe":{normal:"6 meses",vacuo:"2 anos"},
+  "Carnes cozinhadas":{normal:"2-3 meses",vacuo:"2-3 anos"},
+  "Queijos duros":{normal:"6-12 meses",vacuo:"2-3 anos"},
+  "Legumes (escaldados)":{normal:"8-10 meses",vacuo:"2-3 anos"},
+  "Frutos":{normal:"6-12 meses",vacuo:"2-3 anos"},
+};
+const NAO_VACUO=[
+  {prod:"Alho e cebola",motivo:"Libertam gases que podem criar condições para botulismo. Perigoso à temperatura ambiente em vácuo."},
+  {prod:"Queijos moles (Brie, Ricotta, Camembert)",motivo:"Desenvolvem bactérias anaeróbias sem oxigénio. Guardar na embalagem original ou embalagem respirável."},
+  {prod:"Cogumelos crus",motivo:"Continuam a libertar gases após colheita. O vácuo acelera a deterioração e altera a textura."},
+  {prod:"Vegetais crucíferos crus (brócolos, couve, couve-flor)",motivo:"Produzem gases após colheita. Escaldar antes de selar a vácuo para parar as enzimas."},
+  {prod:"Alimentos quentes ou mornos",motivo:"O vapor enfraquece a selagem e favorece o desenvolvimento de bactérias. Deixar arrefecer completamente primeiro."},
+  {prod:"Alho cru à temperatura ambiente",motivo:"Risco de botulismo. Nunca selar alho cru a vácuo para armazenamento à temperatura ambiente."},
+];
+
 const CONSERVACAO=[
   {cat:"Ovos e Derivados",items:[
     {prod:"Ovos frescos com casca",temp:"≤4°C",dias:"3 a 5 semanas"},
@@ -527,7 +602,7 @@ function Testemunho({user,db,setDb,showToast}){
   const save=()=>{if(!form.prato)return;const dest=cD(form.dataRefeicao);setDb(p=>({...p,testemunho:[...(p.testemunho||[]),{...form,dataDestruicao:dest,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Amostra Testemunho",[gD(),user.turma,user.id,form.prato,form.tipoRefeicao,form.horaRefeicao,form.pesoAmostra,form.localArmazenamento,fD(dest)]);showToast("Amostra registada! Destruir em "+fD(dest));};
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Amostra de Testemunho</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Amostra de Testemunho</div><InfoBtn modId="testemunho"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Guardar 150g de cada refeição durante 72h a 0-3°C</div>
       <Cd>
         <Ip lb="Nome do Prato" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>
@@ -549,7 +624,7 @@ function Desinfecao({user,db,setDb,showToast}){
   const save=()=>{if(!form.alimento||!form.produto)return;setDb(p=>({...p,desinfecao:[...(p.desinfecao||[]),{...form,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Desinfeção",[gD(),user.turma,user.id,form.alimento,form.quantidade,form.produto,form.concentracao,form.tempoContacto,form.temperatura]);showToast("Desinfeção registada!");};
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Desinfeção Alimentos em Cru</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Desinfeção Alimentos em Cru</div><InfoBtn modId="desinfecao"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Vegetais e frutas servidos em cru</div>
       <Cd>
         <Ip lb="Alimento" val={form.alimento} onChange={v=>setForm(p=>({...p,alimento:v}))} ph="Ex: Alface, tomate"/>
@@ -573,7 +648,7 @@ function Manutencao({user,db,setDb,showToast}){
 
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Manutenção Equipamentos</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Manutenção Equipamentos</div><InfoBtn modId="manutencao"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Avarias e anomalias detetadas</div>
       <Cd>
         <Sl lb="Equipamento" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} opts={TODOS_EQ}/>
@@ -613,7 +688,7 @@ function Higienizacao({user,db,setDb,showToast}){
 
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Higienização</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Higienização</div><InfoBtn modId="higienizacao"/></div>
       
       <Cd>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -666,7 +741,7 @@ function NaoConf({user,db,setDb,showToast}){
   const corE={aberta:R,"em resolução":"#d35400",resolvida:"#f39c12",validada:V};
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Não Conformidades</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Não Conformidades</div><InfoBtn modId="naoConf"/></div>
       <B lb="+ Nova Não Conformidade" onClick={()=>setShow(!show)} cor={R}/>
       {show&&<Cd st={{marginTop:10}}><Ip lb="Zona / Equipamento" val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frigorifico 1"/><Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreva o problema..."/><Ta lb="Ação Corretiva" val={form.acaoCorretiva} onChange={v=>setForm(p=>({...p,acaoCorretiva:v}))} ph="Ação corretiva tomada..."/><Sl lb="Estado" val={form.estado} onChange={v=>setForm(p=>({...p,estado:v}))} opts={["aberta","em resolução","resolvida"]}/><B lb="Registar" onClick={save} cor={R}/></Cd>}
       {lista.slice(-5).reverse().map(nc=><Cd key={nc.id} st={{marginTop:10,borderLeft:"3px solid "+(corE[nc.estado]||R)}}><div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:600,fontSize:13}}>{nc.zona}</span><span style={{background:corE[nc.estado]||R,color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{nc.estado}</span></div><div style={{fontSize:12,color:GR}}>{nc.descricao}</div><div style={{fontSize:10,color:GR}}>{nc.date} - {nc.responsavel}</div></Cd>)}
@@ -736,7 +811,7 @@ function Encerramento({user,db,setDb,showToast}){
 
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Encerramento da Aula</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Encerramento da Aula</div><InfoBtn modId="encerramento"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Todos os pontos têm de estar verificados para encerrar.</div>
       <Cd>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
@@ -1555,7 +1630,7 @@ function HigienePessoal({user,db,setDb,showToast}){
 
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e",marginBottom:14}}>Higiene Pessoal</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e"}}>Higiene Pessoal</div><InfoBtn modId="higienePessoal"/></div>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["info","Informação"],["checklist","Checklist"]].map(([id,lb])=>(
           <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?"#0f766e":BE),background:aba===id?"#0f766e":LC,color:aba===id?W:"#0f766e",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",letterSpacing:.5}}>{lb}</button>
@@ -1609,7 +1684,7 @@ function Oleos({user,db,setDb,showToast}){
   };
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Controlo de Óleos</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Controlo de Óleos</div><InfoBtn modId="oleos"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Registar o estado do óleo de fritura antes e durante a utilização</div>
       <Cd>
         <Sl lb="Equipamento" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} opts={["Fritadeira 1","Fritadeira 2","Wok","Outro"]}/>
@@ -1650,7 +1725,7 @@ function Servico({user,db,setDb,showToast}){
   };
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Temperatura de Serviço</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Temperatura de Serviço</div><InfoBtn modId="servico"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:10}}>Registo de temperaturas durante o serviço de refeições</div>
       <div style={{display:"flex",gap:8,marginBottom:12}}>
         <div style={{flex:1,background:"#fef3c7",borderRadius:9,padding:10,textAlign:"center"}}>
@@ -1692,9 +1767,516 @@ function Servico({user,db,setDb,showToast}){
   );
 }
 
+function ConservacaoProd({user,db,setDb,showToast}){
+  const [aba,setAba]=useState("registo");
+  const [form,setForm]=useState({tipoProd:"fresco",produto:"",metodo:"refrigeracao",quantidade:"",dataProducao:new Date().toISOString().split("T")[0]});
+  const nomeAluno=(db.assinaturas&&db.assinaturas[user.id])||user.id;
+  const lista=(db.conservacaoProd||[]).filter(p=>p.turma===user.turma).slice(-8).reverse();
+
+  const calcData=()=>{
+    if(!form.produto||!form.dataProducao)return null;
+    const prod=form.produto;
+    const met=form.metodo;
+    let dias=null;
+    if(met==="vacuo_frig"&&VACUO_FRIG[prod])dias=VACUO_FRIG[prod].vacuo;
+    else if(met==="vacuo_cong"&&VACUO_CONG[prod])dias=VACUO_CONG[prod].vacuo;
+    else if(met==="refrigeracao"){
+      const entry=CONSERVACAO.flatMap(c=>c.items).find(i=>i.prod.toLowerCase().includes(prod.toLowerCase())||prod.toLowerCase().includes(i.prod.toLowerCase().split(" ")[0]));
+      if(entry)dias=entry.dias;
+    }
+    return dias;
+  };
+
+  const calcDataLimite=()=>{
+    const dias=calcData();
+    if(!dias||!form.dataProducao)return null;
+    const num=parseInt(dias.split(/[- ]/)[0]);
+    if(isNaN(num))return null;
+    const d=new Date(form.dataProducao);
+    if(form.metodo==="refrigeracao"||form.metodo.includes("frig")){d.setDate(d.getDate()+num);}
+    else if(form.metodo==="congelacao"||form.metodo.includes("cong")){d.setMonth(d.getMonth()+num);}
+    return d.toISOString().split("T")[0];
+  };
+
+  const save=()=>{
+    if(!form.produto)return;
+    const dataLimite=calcDataLimite();
+    const lote=String((db.conservacaoProd||[]).length+1).padStart(3,"0");
+    const reg={...form,dataLimite,lote,aluno:user.id,nomeAluno,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
+    setDb(p=>({...p,conservacaoProd:[...(p.conservacaoProd||[]),reg]}));
+    enviar("Conservação Produtos",[gD(),user.turma,user.id,form.tipoProd,form.produto,form.metodo,form.quantidade,form.dataProducao,dataLimite||"",lote]);
+    showToast("Produto registado! Lote: "+lote);
+    setForm({tipoProd:"fresco",produto:"",metodo:"refrigeracao",quantidade:"",dataProducao:new Date().toISOString().split("T")[0]});
+  };
+
+  const dataLimite=calcDataLimite();
+  const prazo=calcData();
+  const metodos=["refrigeracao","congelacao","vacuo_frig","vacuo_cong"];
+  const metNomes={"refrigeracao":"Refrigeração (0-4°C)","congelacao":"Congelação (≤-18°C)","vacuo_frig":"Vácuo + Frigorífico","vacuo_cong":"Vácuo + Congelador"};
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e"}}>Conservação de Produtos</div><InfoBtn modId="conservacao"/></div>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["registo","Registar"],["tabela","Tempos"],["vacuo","Vácuo"],["proibidos","Não Vácuo"]].map(([id,lb])=>(
+          <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:"8px 4px",borderRadius:8,border:"2px solid "+(aba===id?"#0891b2":BE),background:aba===id?"#0891b2":LC,color:aba===id?W:"#0369a1",fontWeight:700,fontSize:10,cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",letterSpacing:.3}}>{lb}</button>
+        ))}
+      </div>
+
+      {aba==="registo"&&<div>
+        <Cd>
+          <Sl lb="Tipo de produto" val={form.tipoProd} onChange={v=>setForm(p=>({...p,tipoProd:v}))} opts={["fresco","confeccionado"]}/>
+          <Ip lb="Produto" val={form.produto} onChange={v=>setForm(p=>({...p,produto:v}))} ph="Ex: Frango, Sopa de legumes, Queijo..."/>
+          <Sl lb="Método de conservação" val={form.metodo} onChange={v=>setForm(p=>({...p,metodo:v}))} opts={metodos.map(m=>m)} />
+          <div style={{fontSize:10,color:GR,marginBottom:10,marginTop:-6}}>
+            {{"refrigeracao":"Frigorífico 0-4°C","congelacao":"Congelador ≤-18°C","vacuo_frig":"Embalado a vácuo no frigorífico","vacuo_cong":"Embalado a vácuo no congelador"}[form.metodo]}
+          </div>
+          <Ip lb="Quantidade" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 2 kg, 4 doses..."/>
+          <Ip lb="Data de produção" type="date" val={form.dataProducao} onChange={v=>setForm(p=>({...p,dataProducao:v}))}/>
+          {prazo&&<div style={{background:"#e0f2fe",borderRadius:8,padding:10,marginBottom:10,fontSize:12,color:"#0369a1"}}>
+            Prazo estimado: <strong>{prazo}</strong>
+          </div>}
+        </Cd>
+        {form.produto&&dataLimite&&<div style={{background:"#0e7490",borderRadius:12,padding:14,marginBottom:14,color:W}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,opacity:.8,marginBottom:6}}>Etiqueta de Conservação</div>
+          <div style={{fontSize:16,fontWeight:800}}>{form.produto}</div>
+          <div style={{fontSize:12,marginTop:4,opacity:.9}}>Tipo: {form.tipoProd} | Método: {metNomes[form.metodo]}</div>
+          <div style={{fontSize:12,marginTop:2,opacity:.9}}>Produzido: {fD(form.dataProducao)}</div>
+          <div style={{fontSize:15,fontWeight:700,marginTop:4,color:"#bae6fd"}}>Consumir até: {fD(dataLimite)}</div>
+          {form.quantidade&&<div style={{fontSize:12,marginTop:2,opacity:.9}}>Quantidade: {form.quantidade}</div>}
+          <div style={{fontSize:12,marginTop:4,opacity:.9}}>Responsável: {nomeAluno}</div>
+        </div>}
+        <B lb="Guardar Registo" onClick={save} cor="#0891b2"/>
+        {lista.length>0&&<div style={{marginTop:14}}>
+          {lista.map(p=><div key={p.id} style={{padding:"8px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
+            <div><div style={{fontWeight:600,fontSize:13}}>{p.produto}</div><div style={{fontSize:11,color:GR}}>{p.metodo} — até {fD(p.dataLimite)}</div></div>
+            <span style={{background:"#0891b2",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>L{p.lote}</span>
+          </div>)}
+        </div>}
+      </div>}
+
+      {aba==="tabela"&&<div>
+        <div style={{fontSize:11,color:GR,marginBottom:10}}>Tempos de conservação por produto e método (fonte: FDA/USDA)</div>
+        {CONSERVACAO.map(cat=>(
+          <div key={cat.cat} style={{marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#0369a1",marginBottom:6,textTransform:"uppercase",letterSpacing:.5}}>{cat.cat}</div>
+            {cat.items.map(item=>(
+              <div key={item.prod} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f0f9ff",fontSize:11}}>
+                <span style={{color:"#334155",flex:2}}>{item.prod}</span>
+                <span style={{color:"#0e7490",fontWeight:600,flex:1,textAlign:"center"}}>{item.temp}</span>
+                <span style={{color:"#0369a1",fontWeight:600,flex:1,textAlign:"right"}}>{item.dias}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>}
+
+      {aba==="vacuo"&&<div>
+        <div style={{fontSize:11,color:GR,marginBottom:10}}>Comparação de prazos: embalagem normal vs selagem a vácuo</div>
+        <div style={{fontWeight:700,fontSize:12,color:"#0369a1",marginBottom:8}}>No Frigorífico</div>
+        {Object.entries(VACUO_FRIG).map(([prod,v])=>(
+          <div key={prod} style={{padding:"8px 0",borderBottom:"1px solid #f0f9ff"}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#0c4a6e"}}>{prod}</div>
+            <div style={{display:"flex",gap:16,marginTop:3,fontSize:11}}>
+              <span style={{color:GR}}>Normal: {v.normal}</span>
+              <span style={{color:"#0e7490",fontWeight:700}}>Vácuo: {v.vacuo}</span>
+            </div>
+          </div>
+        ))}
+        <div style={{fontWeight:700,fontSize:12,color:"#0369a1",marginBottom:8,marginTop:14}}>No Congelador</div>
+        {Object.entries(VACUO_CONG).map(([prod,v])=>(
+          <div key={prod} style={{padding:"8px 0",borderBottom:"1px solid #f0f9ff"}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#0c4a6e"}}>{prod}</div>
+            <div style={{display:"flex",gap:16,marginTop:3,fontSize:11}}>
+              <span style={{color:GR}}>Normal: {v.normal}</span>
+              <span style={{color:"#0e7490",fontWeight:700}}>Vácuo: {v.vacuo}</span>
+            </div>
+          </div>
+        ))}
+      </div>}
+
+      {aba==="proibidos"&&<div>
+        <div style={{background:"#fdecea",borderRadius:9,padding:10,marginBottom:12,fontSize:12,color:"#dc2626",fontWeight:600}}>
+          Atenção! Estes alimentos NÃO devem ser selados a vácuo.
+        </div>
+        {NAO_VACUO.map(item=>(
+          <Cd key={item.prod} st={{borderLeft:"4px solid #dc2626",marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#dc2626",marginBottom:5}}>{item.prod}</div>
+            <div style={{fontSize:12,color:"#334155",lineHeight:1.6}}>{item.motivo}</div>
+          </Cd>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+function calcPontos(db, userId, turma){
+  let pts = 0;
+  const hoje = gD();
+  // Each registration = 1 point
+  const tempI = db.temperaturas&&Object.values(db.temperaturas).filter(t=>t.aluno===userId).length||0;
+  const recs = (db.recepcao||[]).filter(r=>r.aluno===userId).length;
+  const prods = (db.conservacaoProd||[]).filter(p=>p.aluno===userId).length;
+  const tests = (db.testemunho||[]).filter(t=>t.responsavel===userId).length;
+  const desf = (db.desinfecao||[]).filter(d=>d.responsavel===userId).length;
+  const mans = (db.manutencao||[]).filter(m=>m.responsavel===userId).length;
+  const ncs = (db.ncs||[]).filter(n=>n.responsavel===userId).length;
+  const oleos = (db.oleos||[]).filter(o=>o.responsavel===userId).length;
+  const servico = (db.servico||[]).filter(s=>s.responsavel===userId).length;
+  const faltas = (db.faltas||[]).filter(f=>f.responsavel===userId).length;
+  pts = tempI + recs + prods + tests + desf + mans + ncs + oleos + servico + faltas;
+  // Higienizacao points
+  if(db.higienizacao){
+    Object.values(db.higienizacao).forEach(h=>{
+      if(h.turma===turma){
+        Object.values(h.registos||{}).forEach(r=>{
+          if(r.aluno===userId)pts++;
+        });
+      }
+    });
+  }
+  // Encerramento bonus = 5 points
+  if(db.encerramento){
+    Object.values(db.encerramento).forEach(e=>{
+      if(e.aluno===userId)pts+=5;
+    });
+  }
+  return pts;
+}
+
+function Ranking({db}){
+  // Calculate ranking from localStorage data
+  const assinaturas = db.assinaturas||{};
+  const turmas = ["T1","T2","T3"];
+
+  // Aluno ranking
+  const alunoRanking = Object.entries(assinaturas).map(([id,nome])=>{
+    const turma = id.split("-")[0];
+    const pts = calcPontos(db, id, turma);
+    return {id, nome, turma, pts};
+  }).sort((a,b)=>b.pts-a.pts).slice(0,10);
+
+  // Turma ranking
+  const turmaRanking = turmas.map(t=>{
+    const membros = Object.keys(assinaturas).filter(id=>id.startsWith(t));
+    const pts = membros.reduce((sum,id)=>sum+calcPontos(db,id,t),0);
+    return {turma:t, pts, membros:membros.length};
+  }).sort((a,b)=>b.pts-a.pts);
+
+  const medalhas=["1°","2°","3°"];
+  const cores=["#f59e0b","#94a3b8","#d97706"];
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e",marginBottom:14}}>Ranking HACCP</div>
+      <div style={{fontSize:11,color:GR,marginBottom:14}}>Ano letivo — pontos acumulados desde o início do ano</div>
+
+      <div style={{fontWeight:700,fontSize:13,color:V,marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Ranking de Turmas</div>
+      {turmaRanking.map((t,i)=>(
+        <div key={t.turma} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,background:i===0?"linear-gradient(135deg,#0e7490,#0891b2)":W,marginBottom:8,boxShadow:"0 2px 8px rgba(14,116,144,.1)",border:"1px solid #e0f2fe"}}>
+          <div style={{width:32,height:32,borderRadius:8,background:i===0?"rgba(255,255,255,.2)":cores[i]||LC,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:i===0?W:W,flexShrink:0}}>{medalhas[i]||i+1+"°"}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:16,fontWeight:800,color:i===0?W:"#0c4a6e"}}>Turma {t.turma}</div>
+            <div style={{fontSize:11,color:i===0?"rgba(255,255,255,.7)":GR}}>{t.membros} aluno(s) registados</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:22,fontWeight:800,color:i===0?W:V}}>{t.pts}</div>
+            <div style={{fontSize:10,color:i===0?"rgba(255,255,255,.7)":GR}}>pontos</div>
+          </div>
+        </div>
+      ))}
+
+      <div style={{fontWeight:700,fontSize:13,color:V,marginBottom:10,marginTop:14,textTransform:"uppercase",letterSpacing:.5}}>Top 10 Alunos</div>
+      {alunoRanking.length===0&&<div style={{textAlign:"center",padding:20,color:GR,fontSize:13}}>Ainda sem registos suficientes para ranking.</div>}
+      {alunoRanking.map((a,i)=>(
+        <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:12,background:i===0?"linear-gradient(135deg,#0e7490,#0891b2)":i<3?"#f0f9ff":W,marginBottom:6,border:"1px solid "+(i===0?"transparent":"#e0f2fe")}}>
+          <div style={{width:28,height:28,borderRadius:7,background:i===0?"rgba(255,255,255,.2)":i===1?"#94a3b8":i===2?"#d97706":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:i<3?W:"#0369a1",flexShrink:0}}>{i+1}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:700,color:i===0?W:"#0c4a6e"}}>{a.nome.split(" ")[0].charAt(0).toUpperCase()+a.nome.split(" ")[0].slice(1)+" "+((a.nome.split(" ")[1]||"").charAt(0).toUpperCase())+(a.nome.split(" ")[1]?".":"")}</div>
+            <div style={{fontSize:10,color:i===0?"rgba(255,255,255,.7)":GR}}>Turma {a.turma}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:18,fontWeight:800,color:i===0?W:V}}>{a.pts}</div>
+            <div style={{fontSize:9,color:i===0?"rgba(255,255,255,.7)":GR}}>pontos</div>
+          </div>
+        </div>
+      ))}
+      <div style={{marginTop:10,fontSize:10,color:GR,textAlign:"center"}}>1 ponto por registo • 5 pontos bónus por encerramento completo</div>
+    </div>
+  );
+}
+
+const INFO_HACCP={
+  temperaturas:{
+    titulo:"Controlo de Temperaturas — Porquê?",
+    texto:`O controlo de temperatura é um dos Pontos Críticos de Controlo (PCC) mais importantes no HACCP.
+
+ZONA DE PERIGO: Entre 5°C e 65°C as bactérias multiplicam-se rapidamente — algumas duplicam em apenas 20 minutos. Por isso os alimentos não devem permanecer nesta zona mais de 2 horas.
+
+FRIGORÍFICOS (0°C a 4°C): A 4°C o crescimento bacteriano abranda drasticamente. A legislação europeia estabelece limites específicos: carne de aves ≤4°C, carne de ungulados ≤7°C, carne picada ≤2°C, miudezas ≤3°C.
+
+CONGELADORES (≤-18°C): A -18°C as bactérias ficam inativas (não morrem, mas não se multiplicam). O valor -18°C é o mínimo legal — quanto mais frio melhor para a qualidade. Um congelador a -22°C está correto.
+
+REGISTO 2X POR DIA: O registo no início e no fim da aula garante rastreabilidade. Se houver uma intoxicação alimentar, os registos provam que os equipamentos estavam a funcionar corretamente.
+
+AÇÃO EM CASO DE DESVIO: Se um frigorífico estiver acima de 4°C, avaliar os alimentos armazenados, transferir para outro equipamento e registar como Não Conformidade.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | DGAV Esclarecimento Técnico n.º 8/2025"
+  },
+  higienePessoal:{
+    titulo:"Higiene Pessoal — A tua responsabilidade",
+    texto:`O manipulador de alimentos é uma das principais fontes de contaminação microbiológica em cozinhas profissionais.
+
+MÃOS: Transportam bactérias como Staphylococcus aureus, E. coli e Salmonella. Devem ser lavadas durante 20 segundos com água quente e sabão: antes de manipular alimentos, após usar a casa de banho, após tocar em alimentos crus, após assoar/tossir/espirrar.
+
+FARDA: Protege os alimentos de cabelos, pele e microrganismos. O avental deve estar limpo. A touca/rede impede que cabelos caiam nos alimentos.
+
+ADORNOS: Anéis, pulseiras e relógios acumulam bactérias em zonas difíceis de lavar. Podem também cair nos alimentos — contaminação física.
+
+UNHAS: Verniz pode descascar e contaminar os alimentos. Unhas compridas acumulam sujidade e microrganismos.
+
+DOENÇA: Diarreia, vómitos e infeções cutâneas nas mãos são razões para NÃO manipular alimentos. Informar sempre o professor.
+
+A higiene pessoal é uma Boa Prática de Higiene (BPH) obrigatória pelo Regulamento (CE) n.º 852/2004.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | Metodologia CHAC/4C's — ASAE"
+  },
+  recepcao:{
+    titulo:"Receção de Matérias-Primas — Porquê controlar?",
+    texto:`A receção é um ponto crítico onde podem entrar alimentos contaminados ou fora de temperatura na cozinha.
+
+O QUE VERIFICAR:
+• Temperatura dos alimentos à chegada (usar termómetro)
+• Estado das embalagens — sem amassados, abaulamentos ou ferrugem
+• Datas de validade e rotulagem obrigatória
+• Estado de limpeza do veículo de transporte
+• Rastreabilidade — número de lote, origem
+
+CADEIA DE FRIO: Alimentos refrigerados e congelados devem ser armazenados IMEDIATAMENTE após a receção. Cada minuto conta — a zona de perigo (5-65°C) permite multiplicação bacteriana rápida.
+
+REJEITAR SEMPRE: Produtos com temperatura incorreta, embalagens danificadas, validade expirada ou aspeto/cheiro anormal.
+
+REGISTO: Guardar fatura, nome do fornecedor, lote e temperatura de receção. Em caso de intoxicação alimentar, esta informação é essencial para rastreabilidade.`,
+    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
+  },
+  conservacao:{
+    titulo:"Conservação de Produtos — Ciência e Prática",
+    texto:`A conservação adequada é essencial para prevenir intoxicações alimentares.
+
+PORQUÊ O VÁCUO DURA MAIS:
+O oxigénio é necessário para que fungos, bactérias aeróbicas e bolores se desenvolvam. Ao remover o oxigénio da embalagem, estes microrganismos não conseguem sobreviver. Exemplo: carne no frigorífico dura 3-5 dias; selada a vácuo dura 30-40 dias.
+
+PORQUÊ O FRIO PRESERVA:
+A baixas temperaturas as enzimas e bactérias ficam inativas. Cada 10°C de descida reduz a velocidade de multiplicação bacteriana para metade.
+
+ETIQUETAGEM OBRIGATÓRIA:
+Nome do produto + Data de produção + Data limite + Responsável. Sem etiqueta não há rastreabilidade — em caso de problema não é possível identificar o responsável.
+
+SOBRAS: Acondicionar em recipiente tapado, etiquetar e consumir em max. 72h a ≤4°C.
+
+ATENÇÃO — NÃO SELAR A VÁCUO: Alho e cebola (risco botulismo), queijos moles (bactérias anaeróbias), cogumelos crus (libertam gases), vegetais crucíferos crus (brócolos, couve).`,
+    fonte:"FDA/USDA Food Safety | DGAV 2025 | Hamilton Beach"
+  },
+  testemunho:{
+    titulo:"Amostra Testemunho — Proteção Legal Obrigatória",
+    texto:`A amostra testemunho é OBRIGATÓRIA em restauração coletiva (cantinas, refeitórios, catering).
+
+O QUE É: Uma amostra de 150g de cada refeição servida, guardada durante 72 horas a 0-3°C.
+
+PARA QUE SERVE: Se ocorrer uma suspeita de intoxicação alimentar, a amostra é enviada para análise laboratorial. Permite identificar o agente causador (bactéria, vírus, toxina) e provar que os alimentos estavam ou não seguros.
+
+PROTEÇÃO LEGAL: Sem amostra testemunho, o estabelecimento não consegue provar que os alimentos estavam em conformidade. A ausência de amostras pode ser considerada incumprimento grave em caso de inspeção.
+
+DESTRUIÇÃO: Após 72 horas sem ocorrências, a amostra é destruída de forma higiénica. A data de destruição deve ser registada.
+
+TEMPERATURA: 0-3°C é diferente da temperatura normal do frigorífico (4°C) — idealmente num compartimento separado e dedicado.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | ASAE"
+  },
+  desinfecao:{
+    titulo:"Desinfeção de Alimentos em Cru — Porquê é Obrigatório?",
+    texto:`Frutos e vegetais consumidos em cru são um dos principais vetores de intoxicação alimentar pois não passam por nenhum processo de destruição de microrganismos (como a confeção).
+
+MICRORGANISMOS PRESENTES NA SUPERFÍCIE:
+• Salmonella — presente em solos e fezes de animais
+• E. coli — contaminação fecal, pode causar insuficiência renal
+• Listeria monocytogenes — perigosa para grávidas e imunodeprimidos
+• Vírus da Hepatite A — resistente a muitos desinfetantes
+• Cryptosporidium — parasita resistente ao cloro
+
+PROCESSO CORRETO:
+1. Lavar em água corrente (remove sujidade física)
+2. Imergir em solução desinfetante aprovada para uso alimentar (concentração e tempo conforme instruções)
+3. Passar em água corrente (remove resíduos do desinfetante)
+
+NUNCA: Lavar com detergente de loiça — deixa resíduos tóxicos. Nunca misturar com alimentos já confecionados.`,
+    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
+  },
+  oleos:{
+    titulo:"Controlo de Óleos — Segurança e Saúde",
+    texto:`O óleo de fritura degradado é um risco real para a saúde dos consumidores.
+
+O QUE ACONTECE AO ÓLEO COM O CALOR:
+A temperaturas elevadas e com uso repetido, o óleo sofre oxidação e forma compostos tóxicos: acroleína (irritante respiratório), aldeídos (cancerígenos) e polímeros. Estes compostos são absorvidos pelos alimentos fritos.
+
+SINAIS DE ÓLEO ALTERADO:
+• Cor escura (dourado claro → castanho escuro)
+• Espuma excessiva e persistente
+• Cheiro intenso e desagradável
+• Fumo a temperaturas normais de fritura
+• Sabor amargo ou rançoso nos alimentos
+
+TEMPERATURA MÁXIMA: 180°C. Acima desta temperatura a degradação é muito mais rápida. O ponto de fumo indica degradação avançada.
+
+TESTE DE OXIDAÇÃO: Permite medir objetivamente o grau de degradação. Resultado alterado = rejeitar imediatamente.
+
+AÇÃO: Óleo alterado deve ser rejeitado e enviado para recolha de óleos usados (não deitar pelo esgoto).`,
+    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
+  },
+  servico:{
+    titulo:"Temperatura de Serviço — A última linha de defesa",
+    texto:`A distribuição/serviço é o ÚLTIMO momento de controlo antes do consumo. Um erro aqui pode causar intoxicação alimentar mesmo que tudo o resto tenha sido feito corretamente.
+
+ALIMENTOS QUENTES (≥65°C):
+A legislação exige ≥65°C durante o serviço. Na prática serve-se a 63°C porque é o arrefecimento natural durante o transporte do prato até ao cliente (diferença de ~2°C).
+
+O banho-maria deve ser pré-aquecido a ~90°C para manter os alimentos a ≥65°C. Se estiver abaixo, os alimentos entram na zona de perigo (5-65°C).
+
+ALIMENTOS FRIOS (≤4°C):
+Saladas, sobremesas e outros alimentos frios devem estar a ≤4°C durante o serviço.
+
+SELF-SERVICE E BUFFET (max. 2 horas):
+Após 2 horas de exposição, os alimentos devem ser substituídos ou rejeitados — mesmo que pareçam estar bons. As bactérias não se veem nem se cheiram.
+
+REJEITAR: Alimentos que estiveram à temperatura ambiente mais de 30 minutos devem ser rejeitados.`,
+    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
+  },
+  higienizacao:{
+    titulo:"Higienização — Mais do que limpeza",
+    texto:`Higienização não é o mesmo que limpeza. A limpeza remove sujidade visível. A higienização destrói os microrganismos invisíveis.
+
+PROCESSO CORRETO (4 passos obrigatórios):
+1. PRÉ-LIMPEZA — remover resíduos sólidos
+2. LIMPEZA — detergente + água quente + esfregão
+3. ENXAGUAMENTO — remover resíduos do detergente
+4. DESINFECÇÃO — produto desinfetante aprovado + tempo de contacto
+5. ENXAGUAMENTO FINAL — remover resíduos do desinfetante
+
+BIOFILMES: Bactérias formam biofilmes em superfícies — camadas protetoras que resistem à limpeza simples. A higienização regular com produtos adequados é a única forma de controlar biofilmes.
+
+PANOS DE LIMPEZA: São os principais vetores de contaminação cruzada. Devem estar em solução desinfetante entre utilizações. Nunca usar o mesmo pano para superfícies e equipamentos.
+
+PLANO: Diário (bancadas, equipamentos usados, chão), semanal (frigoríficos interior, prateleiras, paredes), mensal (congeladores, fornos, limpeza profunda).`,
+    fonte:"Regulamento (CE) n.º 852/2004 | Plano de Higienização ECL"
+  },
+  manutencao:{
+    titulo:"Manutenção — Prevenir é mais barato que corrigir",
+    texto:`Equipamentos em mau estado comprometem diretamente a segurança alimentar.
+
+FRIGORÍFICO AVARIADO: Se a temperatura subir acima de 4°C, os alimentos entram na zona de perigo. Cada hora conta — após 2 horas na zona de perigo, os alimentos devem ser avaliados e possivelmente rejeitados.
+
+ILUMINAÇÃO: Lâmpadas partidas podem contaminar fisicamente os alimentos com vidros. Devem ser protegidas com capas de segurança.
+
+TERMÓMETROS: Devem ser calibrados regularmente. Um termómetro descalibrado dá falsas garantias de segurança.
+
+MANUTENÇÃO PREVENTIVA vs CORRETIVA:
+• Preventiva: programada, evita falhas inesperadas
+• Corretiva: após avaria, mais cara e arriscada
+
+REGISTO OBRIGATÓRIO: Todos os registos de manutenção devem ser conservados como parte do plano HACCP. Em inspeção, provam que o estabelecimento cumpre os requisitos de manutenção.
+
+CALIBRAÇÃO DE EQUIPAMENTOS: Thermómetros, balanças e sondas de temperatura devem ter calibração documentada.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | DGAV 2025"
+  },
+  naoConf:{
+    titulo:"Não Conformidades — O coração do HACCP",
+    texto:`Uma Não Conformidade (NC) é qualquer situação que não cumpre os requisitos do plano HACCP ou da legislação. Registar NCs não é um sinal de falha — é um sinal de que o sistema funciona.
+
+EXEMPLOS DE NC:
+• Temperatura de frigorífico acima de 4°C
+• Produto fora de validade encontrado
+• Equipamento avariado
+• Higienização insuficiente
+• Alimentos sem etiqueta
+• Temperatura de serviço abaixo de 65°C
+
+PORQUÊ REGISTAR:
+1. Conformidade legal — demonstra que os desvios são detetados e corrigidos
+2. Rastreabilidade — se houver uma intoxicação, os registos identificam a causa
+3. Melhoria contínua — padrões de NC permitem identificar problemas recorrentes
+4. Proteção legal — em caso de inspeção, provas de ação corretiva
+
+AÇÃO CORRETIVA: Cada NC deve ter uma ação corretiva documentada. Não basta detetar o problema — tem de ser resolvido e registado como resolvido.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | Codex Alimentarius | ASAE"
+  },
+  encerramento:{
+    titulo:"Encerramento da Aula — A última verificação",
+    texto:`O encerramento é a verificação final de todos os procedimentos HACCP do dia. É obrigatório e deve ser validado pelo professor.
+
+PORQUÊ É IMPORTANTE:
+• Equipamentos desligados — evita acidentes, incêndios e desperdício energético
+• Verificação do frio — garante que os produtos armazenados estão seguros para a próxima aula
+• Limpeza geral — evita contaminações cruzadas entre aulas (bactérias podem sobreviver horas em superfícies)
+• Economatos organizados — produtos no chão podem ser contaminados por pragas
+• Lixos despejados — atraem pragas e produzem gases nocivos
+
+TEMPERATURA FINAL: O registo de temperaturas no final da aula confirma que os equipamentos de frio voltaram aos valores normais após a utilização.
+
+VALIDAÇÃO DO PROFESSOR: A assinatura do professor confirma que verificou pessoalmente as condições de encerramento. É a última linha de controlo do sistema HACCP da cozinha pedagógica.
+
+DOCUMENTAÇÃO: O registo de encerramento faz parte do dossier HACCP do estabelecimento e pode ser solicitado em inspeção.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | Plano HACCP ECL"
+  },
+};
+
+function InfoBtn({modId}){
+  const [open,setOpen]=useState(false);
+  const info=INFO_HACCP[modId];
+  if(!info)return null;
+  return(
+    <div style={{display:"inline-block"}}>
+      <button onClick={()=>setOpen(!open)} style={{padding:"5px 12px",borderRadius:20,background:"#0e7490",border:"none",color:W,fontSize:11,fontWeight:700,cursor:"pointer",letterSpacing:.3,textTransform:"uppercase"}}>Saber mais</button>
+      {open&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setOpen(false)}>
+          <div style={{background:W,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{width:40,height:4,background:"#bae6fd",borderRadius:2,margin:"0 auto 16px"}}></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+              <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#0e7490",flex:1,paddingRight:10,lineHeight:1.3}}>{info.titulo}</div>
+              <button onClick={()=>setOpen(false)} style={{width:28,height:28,borderRadius:"50%",background:"#f0f9ff",border:"none",fontSize:18,cursor:"pointer",flexShrink:0,color:"#0369a1",fontWeight:700}}>×</button>
+            </div>
+            <div style={{fontSize:13,color:"#334155",lineHeight:1.8,marginBottom:14,whiteSpace:"pre-line"}}>{info.texto}</div>
+            <div style={{fontSize:10,color:GR,borderTop:"1px solid #e0f2fe",paddingTop:10,marginTop:4}}>Fonte: {info.fonte}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoBtn({modId}){
+  const [open,setOpen]=useState(false);
+  const info=INFO_HACCP[modId];
+  if(!info)return null;
+  return(
+    <div style={{display:"inline-block"}}>
+      <button onClick={()=>setOpen(!open)} style={{width:28,height:28,borderRadius:"50%",background:"#0e7490",border:"none",color:W,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>?</button>
+      {open&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:16}} onClick={()=>setOpen(false)}>
+          <div style={{background:W,borderRadius:"16px 16px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"70vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#0e7490",flex:1,paddingRight:10}}>{info.titulo}</div>
+              <button onClick={()=>setOpen(false)} style={{width:28,height:28,borderRadius:"50%",background:"#f0f9ff",border:"none",fontSize:16,cursor:"pointer",flexShrink:0}}>×</button>
+            </div>
+            <div style={{fontSize:13,color:"#334155",lineHeight:1.7,marginBottom:12}}>{info.texto}</div>
+            <div style={{fontSize:10,color:GR,borderTop:"1px solid #e0f2fe",paddingTop:8}}>Fonte: {info.fonte}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
+  const [showRanking,setShowRanking]=useState(false);
   const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");return s?JSON.parse(s):{}}catch{return{}}});
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
@@ -1715,6 +2297,8 @@ export default function App(){
   else if(mod==="manutencao")page=<Manutencao {...p}/>;
   else if(mod==="higienizacao")page=<Higienizacao {...p}/>;
   else if(mod==="equipamentos")page=<Equipamentos {...p}/>;
+  else if(mod==="conservacao")page=<ConservacaoProd {...p}/>;
+  else if(mod==="ranking")page=<Ranking db={db}/>;
   else if(mod==="faltas")page=<Faltas {...p}/>;
   else if(mod==="higienePessoal")page=<HigienePessoal {...p}/>;
   else if(mod==="oleos")page=<Oleos {...p}/>;
@@ -1727,7 +2311,7 @@ export default function App(){
   else page=<DashAluno {...p}/>;
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}>
-      <Hd user={user} onOut={logout}/>
+      <Hd user={user} onOut={logout} onRanking={()=>setMod("ranking")}/>
       <div style={{paddingBottom:36}}>
         {mod&&<div style={{padding:"11px 15px 3px"}}><button onClick={back} style={{background:"none",border:"1.5px solid "+BE,color:V,fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:7,padding:"5px 13px",fontFamily:"inherit"}}>Voltar</button></div>}
         {page}
