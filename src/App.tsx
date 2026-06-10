@@ -69,7 +69,7 @@ function Pg({val,max}){const pct=val/Math.max(max,1)*100;return <div style={{bac
 function Tt({msg,onClose}){useEffect(()=>{const t=setTimeout(onClose,2800);return()=>clearTimeout(t);},[onClose]);return <div style={{position:"fixed",bottom:22,left:"50%",transform:"translateX(-50%)",background:V,color:W,borderRadius:11,padding:"11px 22px",fontSize:13,fontWeight:500,zIndex:9999}}>{msg}</div>;}
 function Hd({user,onOut,onRanking}){return <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:99,boxShadow:"0 4px 20px rgba(14,116,144,.4)"}}><div><div style={{fontSize:20,fontWeight:800,letterSpacing:1,textTransform:"uppercase"}}>KitchenFlow <span style={{color:"#bae6fd"}}>ECL</span></div>{user&&<div style={{fontSize:10,opacity:.7,letterSpacing:.5,marginTop:1}}>{user.id} — {gD()}</div>}</div><div style={{display:"flex",gap:6}}>{user&&<button onClick={onRanking} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",letterSpacing:.3}}>Ranking</button>}{user&&<button onClick={onOut} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",letterSpacing:.5}}>SAIR</button>}</div></div>;}
 
-function Login({onLogin}){
+function Login({onLogin,db,showRanking,setShowRanking}){
   const [tipo,setTipo]=useState("aluno");
   const [turma,setTurma]=useState("");
   const [num,setNum]=useState("");
@@ -2270,7 +2270,7 @@ export default function App(){
   useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
   const logout=()=>{setUser(null);setMod(null);};
   const back=()=>setMod(null);
-  if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}}/>;
+  if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}} db={db} showRanking={showRanking} setShowRanking={setShowRanking}/>;
   if(user.tipo==="aluno"&&!(db.assinaturas&&db.assinaturas[user.id])){
     return(<div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
   }
