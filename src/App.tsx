@@ -142,6 +142,9 @@ function DashAluno({user,db,setModule}){
   const recepcao=!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h);
   const higienizacao=!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]);
 
+  const higK2="hig-"+user.turma+"-"+h;
+  const panosInicioD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["inicio"]);
+  const panosFinalD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["final"]);
   const feitoMap={
     higienePessoal:higPessoal,
     temperaturas:tempI&&tempF,
@@ -175,9 +178,9 @@ function DashAluno({user,db,setModule}){
   if(!encerrado){const now=new Date();if(now.getHours()>=14)avisos.push({msg:"Não esquecer o Encerramento da Aula!",mod:"encerramento",urgente:true});}
   // Panos aviso - inicio de aula
   const horaAtual=new Date().getHours();
-  const panosSolucao=db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos&&db.higienizacao["hig-"+user.turma+"-"+h].registos["Solucao desinfetante renovada"];
-  if(!panosSolucao&&horaAtual>=8&&horaAtual<12)avisos.push({msg:"Lembrete: Renovar solução desinfetante dos panos e esponjas!",mod:"higienizacao",urgente:false,panos:true});
-  if(!panosSolucao&&horaAtual>=14)avisos.push({msg:"Lembrete: Colocar panos e esponjas em solução desinfetante antes de sair!",mod:"higienizacao",urgente:false,panos:true});
+
+  if(!panosInicioD&&horaAtual>=8&&horaAtual<14)avisos.push({msg:"🧽 Renovar solução desinfetante dos panos e esponjas — Início de aula!",mod:"higienizacao",urgente:true});
+  if(!panosFinalD&&horaAtual>=14)avisos.push({msg:"🧽 Colocar panos e esponjas em solução desinfetante — Final de aula!",mod:"higienizacao",urgente:true});
 
   // Check amostra destruicao
   const hoje=new Date();
@@ -738,6 +741,7 @@ function Manutencao({user,db,setDb,showToast}){
 function Higienizacao({user,db,setDb,showToast}){
   const h=gD(),k="hig-"+user.turma+"-"+h;
   const regs=(db.higienizacao&&db.higienizacao[k])?db.higienizacao[k].registos:{};
+  const panos=(db.higienizacao&&db.higienizacao[k])?db.higienizacao[k].panos||{}:{};
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
   const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
@@ -747,21 +751,70 @@ function Higienizacao({user,db,setDb,showToast}){
       if(regs[item].aluno!==user.id&&regs[item].aluno!==nomeAluno){showToast("Marcado por "+regs[item].aluno);return;}
       if(!window.confirm("Desmarcar?"))return;
       const n={...regs};delete n[item];
-      setDb(p=>{const hg={...p.higienizacao};hg[k]={registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
+      setDb(p=>{const hg={...p.higienizacao};hg[k]={...hg[k],registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
       showToast("Desmarcado");return;
     }
     const n={...regs,[item]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
-    setDb(p=>{const hg={...p.higienizacao};hg[k]={registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
+    setDb(p=>{const hg={...p.higienizacao};hg[k]={...hg[k],registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
     enviar("Higienização",[h,gT(),user.turma,user.id,nomeAluno||user.id,item]);
     showToast("Verificado!");
   };
 
+  const marcarPanos=(momento)=>{
+    if(panos[momento]){showToast("Já registado às "+panos[momento].time);return;}
+    const np={...panos,[momento]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
+    setDb(p=>{const hg={...p.higienizacao};hg[k]={...hg[k],panos:np,turma:user.turma,date:h};return{...p,higienizacao:hg};});
+    enviar("Panos Solução",[h,gT(),user.turma,user.id,nomeAluno||user.id,momento]);
+    showToast("Panos e esponjas — "+momento+" registado!");
+  };
+
   const pct=Math.round(tF/Math.max(tI,1)*100);
+  const panosInicio=panos["inicio"];
+  const panosFinal=panos["final"];
 
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Higienização</div><InfoBtn modId="higienizacao"/></div>
-      
+
+      {/* BANNER PANOS */}
+      <div style={{background:"#7c3aed",borderRadius:14,padding:16,marginBottom:16,color:"#fff",boxShadow:"0 4px 16px rgba(124,58,237,.4)"}}>
+        <div style={{fontSize:13,fontWeight:800,textTransform:"uppercase",letterSpacing:1,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:18}}>🧽</span>
+          SOLUÇÃO DESINFETANTE — PANOS E ESPONJAS
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={()=>marcarPanos("inicio")} style={{flex:1,padding:"14px 8px",borderRadius:11,border:"2px solid "+(panosInicio?"#4ade80":"rgba(255,255,255,.4)"),background:panosInicio?"#16a34a":"rgba(255,255,255,.15)",color:"#fff",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>Início da Aula</div>
+            {panosInicio?(
+              <div>
+                <div style={{fontSize:18,fontWeight:800}}>✓ Feito</div>
+                <div style={{fontSize:10,opacity:.8,marginTop:2}}>{panosInicio.time} — {panosInicio.aluno}</div>
+              </div>
+            ):(
+              <div>
+                <div style={{fontSize:16,fontWeight:700,opacity:.7}}>Por fazer</div>
+                <div style={{fontSize:10,opacity:.6,marginTop:2}}>Toca para registar</div>
+              </div>
+            )}
+          </button>
+          <button onClick={()=>marcarPanos("final")} style={{flex:1,padding:"14px 8px",borderRadius:11,border:"2px solid "+(panosFinal?"#4ade80":"rgba(255,255,255,.4)"),background:panosFinal?"#16a34a":"rgba(255,255,255,.15)",color:"#fff",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>Final da Aula</div>
+            {panosFinal?(
+              <div>
+                <div style={{fontSize:18,fontWeight:800}}>✓ Feito</div>
+                <div style={{fontSize:10,opacity:.8,marginTop:2}}>{panosFinal.time} — {panosFinal.aluno}</div>
+              </div>
+            ):(
+              <div>
+                <div style={{fontSize:16,fontWeight:700,opacity:.7}}>Por fazer</div>
+                <div style={{fontSize:10,opacity:.6,marginTop:2}}>Toca para registar</div>
+              </div>
+            )}
+          </button>
+        </div>
+        <div style={{fontSize:10,opacity:.7,marginTop:10,textAlign:"center"}}>Solução desinfetante deve ser renovada no início e no final de cada aula</div>
+      </div>
+
       <Cd>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <span style={{fontSize:13,fontWeight:600,color:V}}>Progresso total</span>
@@ -827,9 +880,12 @@ function Encerramento({user,db,setDb,showToast}){
   const [checks,setChecks]=useState(sv?sv.checks:{});
   const done=!!sv;
 
+  const higK="hig-"+user.turma+"-"+h;
+  const panosFinalEnc=!!(db.higienizacao&&db.higienizacao[higK]&&db.higienizacao[higK].panos&&db.higienizacao[higK].panos["final"]);
   const ITEMS_OBG=[
     {id:"ti",l:"Temperaturas de início registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"])},
     {id:"tf",l:"Temperaturas de final registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"])},
+    {id:"panos",l:"Panos e esponjas em solução desinfetante — Final da aula",auto:panosFinalEnc},
     {id:"hig",l:"Higienização concluída",auto:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h])},
     {id:"val",l:"Validação do professor",auto:!!(db.validacoes&&db.validacoes["val-"+user.turma+"-"+h])},
   ];
