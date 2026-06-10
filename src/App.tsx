@@ -23,32 +23,35 @@ const ZONAS={
 "Bancadas":["Bancada 1 limpa e higienizada (cima e baixo)","Bancada 2 limpa e higienizada (cima e baixo)","Bancada 3 limpa e higienizada (cima e baixo)","Bancada 4 limpa e higienizada (cima e baixo)","Bancada 5 limpa e higienizada (cima e baixo)","Ralo cuba bancada 1 limpo","Ralo cuba bancada 2 limpo","Ralo cuba bancada 3 limpo","Ralo cuba bancada 4 limpo","Ralo cuba bancada 5 limpo","Bancadas laterais limpas e higienizadas"],
 "Equipamentos":["Abatedor 1 desligado e higienizado","Abatedor 2 desligado e higienizado","Maq. vacuo 1 limpa e desligada","Maq. vacuo 2 limpa e desligada","Amassadeira 1 desligada e protegida c/pelicula","Amassadeira 2 desligada e protegida c/pelicula","Batedeira desligada e protegida c/pelicula","Picadora limpa e protegida c/pelicula","Processadores limpos e protegidos","Fogoes todos desligados","Ar condicionado desligado"],
 "Frio":["Frigorifico vertical 1 verificado","Frigorifico vertical 2 verificado","Frigorifico vertical 3 verificado","Frigorifico vertical 4 verificado","Frigorifico bancada 1 verificado","Frigorifico bancada 2 verificado","Frigorifico bancada 3 verificado","Frigorifico bancada 4 verificado","Frigorifico bancada 5 verificado","Congelador 1 verificado","Congelador 2 verificado","Congelador 3 verificado","Temperaturas registadas"],
-"Copa":["Loica lavada e arrumada","Sem utensilios por lavar","Cuba higienizada","Maq. lavagem 1 drenada, porta aberta e higienizada","Maq. lavagem 2 drenada, porta aberta e higienizada","Inoxes em condicoes","Panos em solucao desinfetante"],
+"Copa":["Loica lavada e arrumada","Sem utensilios por lavar","Cuba higienizada","Maq. lavagem 1 drenada, porta aberta e higienizada","Maq. lavagem 2 drenada, porta aberta e higienizada","Inoxes em condicoes","Panos colocados em solucao desinfetante","Esponjas colocadas em solucao desinfetante","Solucao desinfetante renovada"],
 "Economatos":["Economato mat.-primas organizado","Mat.-primas devidamente armazenadas","Sem mat.-primas no chao","Economato material organizado","Material arrumado (nao no chao)","Chao economato em condicoes"],
 "Residuos":["Lixo organico despejado no local correto","Lixo reciclavel separado corretamente","Caixotes lavados e higienizados","Sacos novos colocados"],
 "Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"]
 };
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
 const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
-const MODS_HACCP=[
+const MODS_DIARIOS=[
+  {id:"higienePessoal",lb:"Higiene Pessoal",cor:"#0e7490"},
   {id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},
-  {id:"higienePessoal",lb:"Higiene Pessoal",cor:"#0f766e"},
-  {id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0369a1"},
-  {id:"conservacao",lb:"Conservação de Produtos",cor:"#0891b2"},
-  {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
-  {id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#059669"},
-  {id:"oleos",lb:"Controlo de Óleos",cor:"#d97706"},
-  {id:"servico",lb:"Temperatura de Serviço",cor:"#dc2626"},
+  {id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0e7490"},
   {id:"higienizacao",lb:"Higienização",cor:"#0e7490"},
+  {id:"encerramento",lb:"Encerramento da Aula",cor:"#0e7490"},
+];
+const MODS_ESPECIFICOS=[
+  {id:"conservacao",lb:"Conservação de Produtos",cor:"#6d28d9"},
+  {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
+  {id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#6d28d9"},
+  {id:"oleos",lb:"Controlo de Óleos",cor:"#6d28d9"},
+  {id:"servico",lb:"Temperatura de Serviço",cor:"#6d28d9"},
+  {id:"naoConf",lb:"Não Conformidades",cor:"#6d28d9"},
 ];
 const MODS_GESTAO=[
-  {id:"manutencao",lb:"Manutenção e Avarias",cor:"#0284c7"},
-  {id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#0f766e"},
-  {id:"naoConf",lb:"Não Conformidades",cor:"#dc2626"},
+  {id:"manutencao",lb:"Manutenção e Avarias",cor:"#b45309"},
+  {id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#b45309"},
   {id:"faltas",lb:"Faltas e Necessidades",cor:"#b45309"},
-  {id:"encerramento",lb:"Encerramento da Aula",cor:"#0369a1"},
 ];
-const MODS=[...MODS_HACCP,...MODS_GESTAO];
+const MODS_HACCP=[...MODS_DIARIOS,...MODS_ESPECIFICOS];
+const MODS=[...MODS_DIARIOS,...MODS_ESPECIFICOS,...MODS_GESTAO];
 
 const gD=()=>new Date().toLocaleDateString("pt-PT");
 const gT=()=>new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});
@@ -129,47 +132,102 @@ function DashAluno({user,db,setModule}){
   const h=gD();
   const [aba,setAba]=useState("modulos");
   const ncs=(db.ncs||[]).filter(n=>n.turma===user.turma&&n.date===h).length;
+  const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
+  const nome=nomeAluno?(nomeAluno.split(" ")[0].charAt(0).toUpperCase()+nomeAluno.split(" ")[0].slice(1)):user.id;
+
   const tempI=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"]);
   const tempF=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"]);
   const encerrado=!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]);
-  const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
+  const higPessoal=!!(db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h]);
+  const recepcao=!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h);
+  const higienizacao=!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]);
+
+  const feitoMap={
+    higienePessoal:higPessoal,
+    temperaturas:tempI&&tempF,
+    recepcao:recepcao,
+    higienizacao:higienizacao,
+    encerramento:encerrado,
+  };
+
   const avisos=[];
-  if(!tempI)avisos.push({msg:"Falta registo de temperaturas — Início de aula",mod:"temperaturas"});
-  if(!tempF)avisos.push({msg:"Falta registo de temperaturas — Final de aula",mod:"temperaturas"});
-  if(!encerrado){
-    const now=new Date();
-    if(now.getHours()>=14)avisos.push({msg:"Não esquecer o Encerramento da Aula!",mod:"encerramento",urgente:true});
+  if(!higPessoal)avisos.push({msg:"Verificar Higiene Pessoal antes de entrar!",mod:"higienePessoal",urgente:false});
+  // Check if temps already registered by any turma today
+  const todasTurmas=["T1","T2","T3"];
+  const tempIQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-inicio"]);
+  const tempFQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-final"]);
+  if(!tempI){
+    if(tempIQualquer&&tempIQualquer!==user.turma){
+      const regI=db.temperaturas["temp-"+tempIQualquer+"-"+h+"-inicio"];
+      avisos.push({msg:"Temperaturas início já registadas pela "+tempIQualquer+" às "+regI.time+" — "+regI.aluno,mod:"temperaturas",urgente:false,info:true});
+    } else {
+      avisos.push({msg:"Falta registo de temperaturas — Início de aula",mod:"temperaturas",urgente:false});
+    }
+  }
+  if(!tempF){
+    if(tempFQualquer&&tempFQualquer!==user.turma){
+      const regF=db.temperaturas["temp-"+tempFQualquer+"-"+h+"-final"];
+      avisos.push({msg:"Temperaturas final já registadas pela "+tempFQualquer+" às "+regF.time+" — "+regF.aluno,mod:"temperaturas",urgente:false,info:true});
+    } else {
+      avisos.push({msg:"Falta registo de temperaturas — Final de aula",mod:"temperaturas",urgente:false});
+    }
+  }
+  if(!encerrado){const now=new Date();if(now.getHours()>=14)avisos.push({msg:"Não esquecer o Encerramento da Aula!",mod:"encerramento",urgente:true});}
+  // Panos aviso - inicio de aula
+  const horaAtual=new Date().getHours();
+  const panosSolucao=db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos&&db.higienizacao["hig-"+user.turma+"-"+h].registos["Solucao desinfetante renovada"];
+  if(!panosSolucao&&horaAtual>=8&&horaAtual<12)avisos.push({msg:"Lembrete: Renovar solução desinfetante dos panos e esponjas!",mod:"higienizacao",urgente:false,panos:true});
+  if(!panosSolucao&&horaAtual>=14)avisos.push({msg:"Lembrete: Colocar panos e esponjas em solução desinfetante antes de sair!",mod:"higienizacao",urgente:false,panos:true});
+
+  // Check amostra destruicao
+  const hoje=new Date();
+  const amostrasDestruir=(db.testemunho||[]).filter(t=>{
+    if(!t.dataDestruicao)return false;
+    const d=new Date(t.dataDestruicao);
+    return d.toDateString()===hoje.toDateString();
+  });
+  if(amostrasDestruir.length>0){
+    amostrasDestruir.forEach(a=>avisos.push({msg:"Destruir amostra testemunho hoje: "+a.prato,mod:"testemunho",urgente:true}));
   }
 
-  const historico=[
-    {id:"ti",lb:"Temperaturas Início",ok:tempI,detalhe:tempI?db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"].time:""},
-    {id:"tf",lb:"Temperaturas Final",ok:tempF,detalhe:tempF?db.temperaturas["temp-"+user.turma+"-"+h+"-final"].time:""},
-    {id:"hp",lb:"Higiene Pessoal",ok:!!(db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h]),detalhe:""},
-    {id:"rec",lb:"Receção Matérias-Primas",ok:!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h),detalhe:(db.recepcao||[]).filter(r=>r.turma===user.turma&&r.date===h).length+" registo(s)"},
-    {id:"cons",lb:"Conservação de Produtos",ok:!!(db.conservacaoProd||[]).find(p=>p.turma===user.turma&&p.date===h),detalhe:(db.conservacaoProd||[]).filter(p=>p.turma===user.turma&&p.date===h).length+" produto(s)"},
-    {id:"test",lb:"Amostra Testemunho",ok:!!(db.testemunho||[]).find(t=>t.turma===user.turma&&t.date===h),detalhe:(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===h).length+" amostra(s)"},
-    {id:"des",lb:"Desinfeção Alimentos Cru",ok:!!(db.desinfecao||[]).find(d=>d.turma===user.turma&&d.date===h),detalhe:""},
-    {id:"hig",lb:"Higienização",ok:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]),detalhe:""},
-    {id:"enc",lb:"Encerramento da Aula",ok:encerrado,detalhe:""},
-  ];
-  const feitos=historico.filter(x=>x.ok).length;
+  const diariosDone=MODS_DIARIOS.filter(m=>feitoMap[m.id]).length;
+  const pct=Math.round(diariosDone/MODS_DIARIOS.length*100);
+
+  const grpStyle=(cor,feito)=>({
+    background:feito?"#16a34a":W,
+    border:"none",
+    borderRadius:13,
+    padding:"13px 11px",
+    cursor:"pointer",
+    textAlign:"left",
+    boxShadow:"0 3px 10px rgba(0,0,0,.08)",
+    borderLeft:"4px solid "+(feito?"#16a34a":cor),
+  });
 
   return(
     <div style={{padding:15}}>
       {avisos.length>0&&<div style={{marginBottom:12}}>
         {avisos.map((av,i)=>(
-          <div key={i} onClick={()=>setModule(av.mod)} style={{background:av.urgente?"#dc2626":"#fdecea",border:"2px solid "+(av.urgente?"#b91c1c":R),borderRadius:10,padding:"10px 13px",marginBottom:7,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:14,color:W,fontWeight:700,background:av.urgente?"#b91c1c":R,borderRadius:6,padding:"2px 7px",fontSize:11}}>(!)</span>
-            <span style={{fontSize:12,fontWeight:600,color:av.urgente?W:R,flex:1}}>{av.msg}</span>
-            <span style={{fontSize:11,color:av.urgente?W:R}}>Registar</span>
+          <div key={i} onClick={()=>setModule(av.mod)} style={{background:av.urgente?"#dc2626":av.info?"#e0f2fe":"#fdecea",border:"2px solid "+(av.urgente?"#b91c1c":av.info?"#0891b2":R),borderRadius:10,padding:"10px 13px",marginBottom:7,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:11,color:W,fontWeight:700,background:av.urgente?"#b91c1c":av.info?"#0891b2":R,borderRadius:6,padding:"2px 7px"}}>{av.info?"✓":"(!)"}</span>
+            <span style={{fontSize:12,fontWeight:600,color:av.urgente?W:av.info?"#0369a1":R,flex:1}}>{av.msg}</span>
+            {!av.info&&<span style={{fontSize:11,color:av.urgente?W:R}}>Registar</span>}
           </div>
         ))}
       </div>}
+
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {nomeAluno?(nomeAluno.split(" ")[0].charAt(0).toUpperCase()+nomeAluno.split(" ")[0].slice(1)):user.id}!</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {nome}!</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} — {h}</div>
-        <div style={{fontSize:11,opacity:.65,marginTop:4}}>{ncs} não conformidades hoje</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+          <div style={{fontSize:11,opacity:.8}}>Registos diários: {diariosDone}/{MODS_DIARIOS.length}</div>
+          <div style={{fontSize:16,fontWeight:800,color:pct===100?"#bbf7d0":W}}>{pct}%</div>
+        </div>
+        <div style={{background:"rgba(255,255,255,.2)",borderRadius:6,height:6,marginTop:6}}>
+          <div style={{background:pct===100?"#16a34a":"#bae6fd",height:6,borderRadius:6,width:pct+"%",transition:"width .3s"}}/>
+        </div>
       </div>
+
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["modulos","Módulos"],["historico","Histórico do Dia"]].map(([id,lb])=>(
           <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?V:BE),background:aba===id?V:LC,color:aba===id?W:GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
@@ -177,20 +235,35 @@ function DashAluno({user,db,setModule}){
       </div>
 
       {aba==="modulos"&&<div>
-        <div style={{fontSize:10,fontWeight:800,color:V,textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:2}}>Registos HACCP Obrigatórios</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-          {MODS_HACCP.map(m=>{
-            const feito=historico.find(h=>h.id===["ti","tf","hp","rec","cons","test","des","hig","enc"][MODS_HACCP.indexOf(m)])?.ok;
-            return(<button key={m.id} onClick={()=>setModule(m.id)} style={{background:W,border:"none",borderRadius:13,padding:"13px 11px",cursor:"pointer",textAlign:"left",boxShadow:"0 3px 10px rgba(14,116,144,.12)",borderLeft:"4px solid "+m.cor,borderTop:"1px solid #e0f2fe"}}>
-              <div style={{fontSize:11,fontWeight:700,color:m.cor,lineHeight:1.3,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
-            </button>);
+        <div style={{fontSize:11,fontWeight:800,color:"#0e7490",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:2,borderLeft:"3px solid #0e7490",paddingLeft:8}}>Registos HACCP Obrigatórios Diários</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+          {MODS_DIARIOS.map(m=>{
+            const feito=!!feitoMap[m.id];
+            return(
+              <button key={m.id} onClick={()=>setModule(m.id)} style={{background:feito?"#16a34a":"#0e7490",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(14,116,144,.3)"}}>
+                {feito&&<div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.8)",textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>✓ Feito</div>}
+                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+              </button>
+            );
           })}
         </div>
-        <div style={{fontSize:10,fontWeight:800,color:GR,textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:2}}>Gestão da Cozinha</div>
+
+        <div style={{fontSize:11,fontWeight:800,color:"#db2777",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:8,borderLeft:"3px solid #db2777"}}>Registos HACCP Específicos / Quando Aplicável</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+          {MODS_ESPECIFICOS.map(m=>(
+            <button key={m.id} onClick={()=>setModule(m.id)} style={{background:"#db2777",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(219,39,119,.25)"}}>
+              <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{fontSize:11,fontWeight:800,color:"#d97706",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:8,borderLeft:"3px solid #d97706"}}>Gestão da Cozinha</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {MODS_GESTAO.map(m=>(<button key={m.id} onClick={()=>setModule(m.id)} style={{background:"#f8fafc",border:"none",borderRadius:13,padding:"13px 11px",cursor:"pointer",textAlign:"left",boxShadow:"0 2px 6px rgba(0,0,0,.05)",borderLeft:"4px solid "+m.cor}}>
-            <div style={{fontSize:11,fontWeight:600,color:m.cor,lineHeight:1.3,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
-          </button>))}
+          {MODS_GESTAO.map(m=>(
+            <button key={m.id} onClick={()=>setModule(m.id)} style={{background:"#d97706",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(217,119,6,.25)"}}>
+              <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+            </button>
+          ))}
         </div>
       </div>}
 
@@ -198,23 +271,20 @@ function DashAluno({user,db,setModule}){
         <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:V,marginBottom:12}}>Histórico — {h}</div>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-            <span style={{fontSize:12,fontWeight:600,color:V}}>Progresso do dia</span>
-            <span style={{fontSize:12,fontWeight:700,color:feitos===historico.length?V:CA}}>{feitos}/{historico.length}</span>
+            <span style={{fontSize:12,fontWeight:600,color:V}}>Registos diários</span>
+            <span style={{fontSize:12,fontWeight:700,color:diariosDone===MODS_DIARIOS.length?V:CA}}>{diariosDone}/{MODS_DIARIOS.length}</span>
           </div>
-          <Pg val={feitos} max={historico.length}/>
+          <Pg val={diariosDone} max={MODS_DIARIOS.length}/>
         </div>
-        {historico.map(item=>(
-          <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid "+LC}}>
+        {MODS_DIARIOS.map(m=>(
+          <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid "+LC}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:22,height:22,borderRadius:6,background:item.ok?V:"transparent",border:"2px solid "+(item.ok?V:BE),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                {item.ok&&<span style={{color:W,fontSize:11,fontWeight:700}}>v</span>}
+              <div style={{width:22,height:22,borderRadius:6,background:feitoMap[m.id]?"#16a34a":"transparent",border:"2px solid "+(feitoMap[m.id]?"#16a34a":BE),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {feitoMap[m.id]&&<span style={{color:W,fontSize:11,fontWeight:700}}>v</span>}
               </div>
-              <div>
-                <div style={{fontSize:13,fontWeight:item.ok?600:400,color:item.ok?V:GR}}>{item.lb}</div>
-                {item.ok&&item.detalhe&&<div style={{fontSize:10,color:GR}}>{item.detalhe}</div>}
-              </div>
+              <div style={{fontSize:13,fontWeight:feitoMap[m.id]?600:400,color:feitoMap[m.id]?"#16a34a":GR}}>{m.lb}</div>
             </div>
-            <span style={{fontSize:12,fontWeight:700,color:item.ok?V:R}}>{item.ok?"OK":"Por fazer"}</span>
+            <span style={{fontSize:12,fontWeight:700,color:feitoMap[m.id]?"#16a34a":R}}>{feitoMap[m.id]?"OK":"Por fazer"}</span>
           </div>
         ))}
       </div>}
@@ -250,7 +320,8 @@ function Temperaturas({user,db,setDb,showToast}){
   const save=()=>{
     const cab=["Data","Turma","Aluno","Momento","Hora",...FRIOS.flatMap(eq=>[eq+" Temp",eq+" Conf"]),"Validado Prof"];
     const records=FRIOS.map(eq=>({equipamento:eq,temperatura:temps[eq]||"",conforme:iC(eq,temps[eq])}));
-    const linha=[h,user.turma,user.id,momento,gT(),...records.flatMap(r=>[r.temperatura,r.conforme===false?"NC":r.conforme===true?"OK":"---"]),""];
+    const nomeTemp=(db.assinaturas&&db.assinaturas[user.id])||"";
+    const linha=[h,gT(),user.turma,user.id,nomeTemp,momento,...records.flatMap(r=>[r.temperatura,r.conforme===false?"NC":r.conforme===true?"OK":"---"]),""];
     setDb(p=>{
       const te={...p.temperaturas};
       te[k]={temps,records,aluno:user.id,turma:user.turma,date:h,time:gT(),momento};
@@ -368,7 +439,8 @@ function Recepcao({user,db,setDb,showToast}){
     if(!form.fornecedor||!form.fatura)return;
     const rec={...form,produtos:prods,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,recepcao:[...(p.recepcao||[]),rec]}));
-    prods.forEach(p=>enviar("Receção Matérias-Primas",[gD(),user.turma,user.id,form.fornecedor,form.fatura,p.nome,p.categoria,p.quantidade,p.lote||"",p.validade,p.conforme]));
+    const nomeRec=(db.assinaturas&&db.assinaturas[user.id])||"";
+    prods.forEach(p=>enviar("Receção Matérias-Primas",[gD(),gT(),user.turma,user.id,nomeRec,form.fornecedor,form.fatura,p.nome,p.categoria,p.quantidade,p.lote||"",p.validade,p.conforme]));
     showToast("Receção registada!");
     // Clear form
     setStep("lista");
@@ -599,7 +671,7 @@ function Testemunho({user,db,setDb,showToast}){
   const [form,setForm]=useState({prato:"",dataRefeicao:new Date().toISOString().split("T")[0],horaRefeicao:gT(),tipoRefeicao:"almoço",pesoAmostra:"150",localArmazenamento:"Frig. Vert. 1"});
   const lista=(db.testemunho||[]).filter(t=>t.turma===user.turma).slice(-5).reverse();
   const cD=d=>{if(!d)return"";const x=new Date(d);x.setDate(x.getDate()+3);return x.toISOString().split("T")[0];};
-  const save=()=>{if(!form.prato)return;const dest=cD(form.dataRefeicao);setDb(p=>({...p,testemunho:[...(p.testemunho||[]),{...form,dataDestruicao:dest,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Amostra Testemunho",[gD(),user.turma,user.id,form.prato,form.tipoRefeicao,form.horaRefeicao,form.pesoAmostra,form.localArmazenamento,fD(dest)]);showToast("Amostra registada! Destruir em "+fD(dest));};
+  const save=()=>{if(!form.prato)return;const dest=cD(form.dataRefeicao);const nomeT=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,testemunho:[...(p.testemunho||[]),{...form,dataDestruicao:dest,responsavel:user.id,nomeAluno:nomeT,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Amostra Testemunho",[gD(),gT(),user.turma,user.id,nomeT,form.prato,form.tipoRefeicao,form.horaRefeicao,form.pesoAmostra,form.localArmazenamento,fD(dest)]);showToast("Amostra registada! Destruir em "+fD(dest));};
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Amostra de Testemunho</div><InfoBtn modId="testemunho"/></div>
@@ -621,7 +693,7 @@ function Testemunho({user,db,setDb,showToast}){
 function Desinfecao({user,db,setDb,showToast}){
   const [form,setForm]=useState({alimento:"",quantidade:"",produto:"",concentracao:"",tempoContacto:"5",temperatura:""});
   const lista=(db.desinfecao||[]).filter(d=>d.turma===user.turma).slice(-5).reverse();
-  const save=()=>{if(!form.alimento||!form.produto)return;setDb(p=>({...p,desinfecao:[...(p.desinfecao||[]),{...form,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Desinfeção",[gD(),user.turma,user.id,form.alimento,form.quantidade,form.produto,form.concentracao,form.tempoContacto,form.temperatura]);showToast("Desinfeção registada!");};
+  const save=()=>{if(!form.alimento||!form.produto)return;const nomeD=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,desinfecao:[...(p.desinfecao||[]),{...form,responsavel:user.id,nomeAluno:nomeD,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Desinfeção",[gD(),gT(),user.turma,user.id,nomeD,form.alimento,form.quantidade,form.produto,form.concentracao,form.tempoContacto,form.temperatura]);showToast("Desinfeção registada!");};
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Desinfeção Alimentos em Cru</div><InfoBtn modId="desinfecao"/></div>
@@ -644,7 +716,7 @@ function Manutencao({user,db,setDb,showToast}){
   const [form,setForm]=useState({equipamento:"",tipoOcorrencia:"avaria",descricao:"",acaoImediata:"",estado:"reportado"});
   const lista=(db.manutencao||[]).filter(m=>m.turma===user.turma).slice(-6).reverse();
   const corE={reportado:"#2c5f8a","em reparação":"#d35400",resolvido:V,"aguarda técnico":R};
-  const save=()=>{if(!form.equipamento||!form.descricao)return;setDb(p=>({...p,manutencao:[...(p.manutencao||[]),{...form,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Manutenção, Avarias e Prevenção",[gD(),user.turma,user.id,form.equipamento,form.tipoOcorrencia,form.descricao,form.acaoImediata,form.estado]);showToast("Ocorrencia registada!");};
+  const save=()=>{if(!form.equipamento||!form.descricao)return;const nomeM=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,manutencao:[...(p.manutencao||[]),{...form,responsavel:user.id,nomeAluno:nomeM,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Manutenção, Avarias e Prevenção",[gD(),gT(),user.turma,user.id,nomeM,form.equipamento,form.tipoOcorrencia,form.descricao,form.acaoImediata,form.estado]);showToast("Ocorrencia registada!");};
 
   return(
     <div style={{padding:15}}>
@@ -680,7 +752,7 @@ function Higienizacao({user,db,setDb,showToast}){
     }
     const n={...regs,[item]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
     setDb(p=>{const hg={...p.higienizacao};hg[k]={registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
-    enviar("Higienização",[h,user.turma,nomeAluno||user.id,item]);
+    enviar("Higienização",[h,gT(),user.turma,user.id,nomeAluno||user.id,item]);
     showToast("Verificado!");
   };
 
@@ -737,7 +809,7 @@ function NaoConf({user,db,setDb,showToast}){
   const [show,setShow]=useState(false);
   const [form,setForm]=useState({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta"});
   const lista=(db.ncs||[]).filter(n=>n.turma===user.turma);
-  const save=()=>{if(!form.zona||!form.descricao)return;const nc={...form,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now(),professor:""};setDb(p=>({...p,ncs:[...(p.ncs||[]),nc]}));setShow(false);setForm({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta"});enviar("NãoConformidades",[gD(),user.turma,user.id,form.zona,form.descricao,form.acaoCorretiva,form.estado]);showToast("NC registada!");};
+  const save=()=>{if(!form.zona||!form.descricao)return;const nomeN=(db.assinaturas&&db.assinaturas[user.id])||"";const nc={...form,responsavel:user.id,nomeAluno:nomeN,turma:user.turma,date:gD(),time:gT(),id:Date.now(),professor:""};setDb(p=>({...p,ncs:[...(p.ncs||[]),nc]}));setShow(false);setForm({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta"});enviar("NãoConformidades",[gD(),gT(),user.turma,user.id,nomeN,form.zona,form.descricao,form.acaoCorretiva,form.estado]);showToast("NC registada!");};
   const corE={aberta:R,"em resolução":"#d35400",resolvida:"#f39c12",validada:V};
   return(
     <div style={{padding:15}}>
@@ -1468,7 +1540,8 @@ function Faltas({user,db,setDb,showToast}){
     if(!form.descricao)return;
     const falta={...form,responsavel:user.id,turma:user.turma||"",date:gD(),time:gT(),id:Date.now(),estado:"pendente"};
     setDb(p=>({...p,faltas:[...(p.faltas||[]),falta]}));
-    enviar("Faltas e Necessidades",[gD(),user.id,form.tipo,form.descricao,form.urgencia,"pendente"]);
+    const nomeFalt=(db.assinaturas&&db.assinaturas[user.id])||"";
+    enviar("Faltas e Necessidades",[gD(),gT(),user.turma||"",user.id,nomeFalt,form.tipo,form.descricao,form.urgencia,"pendente"]);
     showToast("Falta registada! Notificação enviada.");
     setForm({tipo:"equipamento",descricao:"",urgencia:"normal"});
   };
@@ -1604,6 +1677,7 @@ function HigienePessoal({user,db,setDb,showToast}){
     {titulo:"Lavagem das Mãos",desc:"Lavar as mãos durante pelo menos 20 segundos com água quente e sabão: antes de manipular alimentos, após usar a casa de banho, após tocar em alimentos crus, após assoar, tossir ou espirrar."},
     {titulo:"Farda Completa",desc:"Usar sempre: avental limpo, touca ou rede no cabelo, calçado adequado e antiderrapante."},
     {titulo:"Sem Adornos",desc:"Retirar obrigatoriamente: anéis, pulseiras, relógios, brincos. Podem cair nos alimentos e causar contaminação física."},
+    {titulo:"Proibido: Unhas e Pestanas Postiças",desc:"Unhas postiças e pestanas postiças são PROIBIDAS na cozinha. Podem desprender-se durante a manipulação de alimentos e causar contaminação física. Unhas naturais devem estar curtas, limpas e sem verniz."},
     {titulo:"Unhas",desc:"Unhas curtas, limpas e sem verniz. O verniz pode descascar e contaminar os alimentos."},
     {titulo:"Proibições",desc:"É proibido: comer, beber, fumar ou mascar pastilha na cozinha. Também é proibido tossir ou espirrar sobre os alimentos."},
     {titulo:"Doença",desc:"Não trabalhar com alimentos se tiver: diarreia, vómitos, febre, tosse intensa ou feridas infetadas nas mãos. Informar o professor imediatamente."},
@@ -1613,7 +1687,8 @@ function HigienePessoal({user,db,setDb,showToast}){
     {id:"touca",l:"Cabelo apanhado / touca colocada"},
     {id:"maos",l:"Mãos lavadas antes de entrar"},
     {id:"adornos",l:"Sem anéis, pulseiras ou relógio"},
-    {id:"unhas",l:"Unhas curtas e sem verniz"},
+    {id:"unhas",l:"Unhas curtas, sem verniz e sem unhas postiças"},
+    {id:"pestanas",l:"Sem pestanas postiças"},
     {id:"calcado",l:"Calçado adequado"},
     {id:"sem_doenca",l:"Sem sintomas de doença"},
     {id:"sem_perfume",l:"Sem perfume excessivo"},
@@ -1624,7 +1699,9 @@ function HigienePessoal({user,db,setDb,showToast}){
   const [aba,setAba]=useState("info");
 
   const guardar=()=>{
-    setDb(p=>{const hp={...p.higPessoal};hp[k]={checks,aluno:user.id,date:h,time:gT()};return{...p,higPessoal:hp};});
+    const nomeHig=(db.assinaturas&&db.assinaturas[user.id])||user.id;
+    setDb(p=>{const hp={...p.higPessoal};hp[k]={checks,aluno:user.id,nomeAluno:nomeHig,date:h,time:gT()};return{...p,higPessoal:hp};});
+    enviar("Higiene Pessoal",[h,gT(),user.turma,user.id,nomeHig,"Confirmado"]);
     showToast("Higiene pessoal confirmada!");
   };
 
@@ -1675,7 +1752,8 @@ function Oleos({user,db,setDb,showToast}){
     const alterado=form.cor!=="normal"||form.espuma==="sim"||form.cheiro!=="normal"||form.teste!=="ok";
     const reg={...form,alterado,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,oleos:[...(p.oleos||[]),reg]}));
-    enviar("Controlo Óleos",[gD(),user.turma,user.id,form.equipamento,form.temperatura,form.cor,form.espuma,form.cheiro,form.teste,form.acao,alterado?"ALTERADO":"OK"]);
+    const nomeOleos=(db.assinaturas&&db.assinaturas[user.id])||"";
+    enviar("Controlo Óleos",[gD(),gT(),user.turma,user.id,nomeOleos,form.equipamento,form.temperatura,form.cor,form.espuma,form.cheiro,form.teste,form.acao,alterado?"ALTERADO":"OK"]);
     if(alterado){
       setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:form.equipamento,descricao:"Óleo alterado — "+[form.cor!=="normal"?"cor alterada":"",form.espuma==="sim"?"espuma":"",form.cheiro!=="normal"?"cheiro":""].filter(Boolean).join(", "),acaoCorretiva:form.acao,responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     }
@@ -1716,7 +1794,8 @@ function Servico({user,db,setDb,showToast}){
     const tempOk=form.tipo==="quente"?parseFloat(form.temperatura)>=65:parseFloat(form.temperatura)<=4;
     const reg={...form,tempOk,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,servico:[...(p.servico||[]),reg]}));
-    enviar("Temperatura Serviço",[gD(),user.turma,user.id,form.prato,form.tipo,form.temperatura,tempOk?"OK":"NC",form.tempInicio,form.equipamento]);
+    const nomeServ=(db.assinaturas&&db.assinaturas[user.id])||"";
+    enviar("Temperatura Serviço",[gD(),gT(),user.turma,user.id,nomeServ,form.prato,form.tipo,form.temperatura,tempOk?"OK":"NC",form.tempInicio,form.equipamento]);
     if(!tempOk){
       setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:"Serviço — "+form.prato,descricao:"Temp. serviço NC: "+form.temperatura+"°C ("+form.tipo+")",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     }
@@ -1767,9 +1846,69 @@ function Servico({user,db,setDb,showToast}){
   );
 }
 
+function EtiquetaConservacao({produto,tipoProd,metodo,dataProducao,dataLimite,notas,responsavel}){
+  const [open,setOpen]=useState(false);
+  const card=(
+    <div style={{background:W,borderRadius:12,border:"2px solid #0e7490",padding:20,marginBottom:14,cursor:"pointer"}} onClick={()=>setOpen(true)}>
+      <div style={{fontSize:10,fontWeight:700,color:"#0e7490",textTransform:"uppercase",letterSpacing:1,marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span>Etiqueta de Conservação</span>
+        <span style={{fontSize:10,color:GR,fontWeight:400}}>Clica para ampliar</span>
+      </div>
+      <div style={{fontSize:22,fontWeight:800,color:"#0c4a6e",marginBottom:6}}>{produto}</div>
+      {notas&&<div style={{fontSize:14,color:"#334155",fontStyle:"italic",marginBottom:8}}>"{notas}"</div>}
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <div style={{flex:1,background:"#f0f9ff",borderRadius:8,padding:"8px 10px"}}>
+          <div style={{fontSize:10,color:GR,textTransform:"uppercase",letterSpacing:.5,marginBottom:2}}>Produzido em</div>
+          <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e"}}>{dataProducao}</div>
+        </div>
+        <div style={{flex:1,background:"#fef2f2",borderRadius:8,padding:"8px 10px",border:"2px solid #fca5a5"}}>
+          <div style={{fontSize:10,color:"#dc2626",textTransform:"uppercase",letterSpacing:.5,marginBottom:2}}>Consumir até</div>
+          <div style={{fontSize:18,fontWeight:800,color:"#dc2626"}}>{dataLimite}</div>
+        </div>
+      </div>
+      <div style={{fontSize:13,color:GR}}>Responsável: <strong style={{color:"#0c4a6e"}}>{responsavel}</strong></div>
+    </div>
+  );
+  return(
+    <div>
+      {card}
+      {open&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setOpen(false)}>
+          <div style={{background:W,borderRadius:16,padding:30,width:"100%",maxWidth:500,border:"3px solid #0e7490"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:12,fontWeight:700,color:"#0e7490",textTransform:"uppercase",letterSpacing:1,marginBottom:16,textAlign:"center"}}>Etiqueta de Conservação HACCP</div>
+            <div style={{fontSize:32,fontWeight:800,color:"#0c4a6e",marginBottom:10,textAlign:"center",lineHeight:1.2}}>{produto}</div>
+            {notas&&<div style={{fontSize:18,color:"#334155",fontStyle:"italic",marginBottom:16,textAlign:"center",padding:"10px",background:"#f8fafc",borderRadius:8}}>"{notas}"</div>}
+            <div style={{display:"flex",gap:12,marginBottom:16}}>
+              <div style={{flex:1,background:"#f0f9ff",borderRadius:10,padding:"14px",textAlign:"center",border:"1.5px solid #bae6fd"}}>
+                <div style={{fontSize:12,color:GR,textTransform:"uppercase",letterSpacing:.5,marginBottom:6}}>Produzido em</div>
+                <div style={{fontSize:24,fontWeight:800,color:"#0c4a6e"}}>{dataProducao}</div>
+              </div>
+              <div style={{flex:1,background:"#fef2f2",borderRadius:10,padding:"14px",textAlign:"center",border:"2px solid #fca5a5"}}>
+                <div style={{fontSize:12,color:"#dc2626",textTransform:"uppercase",letterSpacing:.5,marginBottom:6}}>Consumir até</div>
+                <div style={{fontSize:26,fontWeight:800,color:"#dc2626"}}>{dataLimite}</div>
+              </div>
+            </div>
+            <div style={{background:"#f8fafc",borderRadius:10,padding:14,marginBottom:16}}>
+              <div style={{fontSize:12,color:GR,marginBottom:4}}>Método de conservação</div>
+              <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e"}}>{metodo}</div>
+              <div style={{fontSize:13,color:GR,marginTop:6}}>Tipo: {tipoProd}</div>
+            </div>
+            <div style={{textAlign:"center",padding:"12px",background:"#e0f2fe",borderRadius:10}}>
+              <div style={{fontSize:12,color:GR,marginBottom:4}}>Responsável</div>
+              <div style={{fontSize:20,fontWeight:700,color:"#0c4a6e",fontStyle:"italic"}}>{responsavel}</div>
+            </div>
+            <button onClick={()=>setOpen(false)} style={{width:"100%",marginTop:16,padding:14,borderRadius:10,background:"#0e7490",color:W,border:"none",fontSize:15,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Fechar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function ConservacaoProd({user,db,setDb,showToast}){
   const [aba,setAba]=useState("registo");
-  const [form,setForm]=useState({tipoProd:"fresco",produto:"",metodo:"refrigeracao",quantidade:"",dataProducao:new Date().toISOString().split("T")[0]});
+  const [form,setForm]=useState({tipoProd:"fresco",produto:"",metodo:"refrigeracao",quantidade:"",notas:"",dataProducao:new Date().toISOString().split("T")[0]});
   const nomeAluno=(db.assinaturas&&db.assinaturas[user.id])||user.id;
   const lista=(db.conservacaoProd||[]).filter(p=>p.turma===user.turma).slice(-8).reverse();
 
@@ -1804,15 +1943,15 @@ function ConservacaoProd({user,db,setDb,showToast}){
     const lote=String((db.conservacaoProd||[]).length+1).padStart(3,"0");
     const reg={...form,dataLimite,lote,aluno:user.id,nomeAluno,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,conservacaoProd:[...(p.conservacaoProd||[]),reg]}));
-    enviar("Conservação Produtos",[gD(),user.turma,user.id,form.tipoProd,form.produto,form.metodo,form.quantidade,form.dataProducao,dataLimite||"",lote]);
+    enviar("Conservação Produtos",[gD(),gT(),user.turma,user.id,nomeAluno,form.tipoProd,form.produto,form.metodo,form.quantidade,form.notas||"",form.dataProducao,dataLimite||"",lote]);
     showToast("Produto registado! Lote: "+lote);
-    setForm({tipoProd:"fresco",produto:"",metodo:"refrigeracao",quantidade:"",dataProducao:new Date().toISOString().split("T")[0]});
+    setForm({tipoProd:"fresco",produto:"",metodo:"refrigeracao",quantidade:"",notas:"",dataProducao:new Date().toISOString().split("T")[0]});
   };
 
   const dataLimite=calcDataLimite();
   const prazo=calcData();
   const metodos=["refrigeracao","congelacao","vacuo_frig","vacuo_cong"];
-  const metNomes={"refrigeracao":"Refrigeração (0-4°C)","congelacao":"Congelação (≤-18°C)","vacuo_frig":"Vácuo + Frigorífico","vacuo_cong":"Vácuo + Congelador"};
+  const metNomes={"refrigeracao":"Refrigeração (0-4°C)","congelacao":"Congelação (≤-18°C)","vacuo_frig":"Vácuo + Frigorífico (sem ar)","vacuo_cong":"Vácuo + Congelador (sem ar)"};
   const metEmbalagem={
     "refrigeracao":{emb:"Caixa hermética / Película aderente / Recipiente tapado",cor:"#0369a1",dica:"Selar bem para evitar absorção de odores e contaminação cruzada."},
     "congelacao":{emb:"Saco de congelação / Caixa hermética para congelador",cor:"#6d28d9",dica:"Retirar o máximo de ar antes de fechar. Não recongelar após descongelar."},
@@ -1831,29 +1970,23 @@ function ConservacaoProd({user,db,setDb,showToast}){
 
       {aba==="registo"&&<div>
         <Cd>
-          <Sl lb="Tipo de produto" val={form.tipoProd} onChange={v=>setForm(p=>({...p,tipoProd:v}))} opts={["fresco","confeccionado"]}/>
+          <Sl lb="Tipo de produto" val={form.tipoProd} onChange={v=>setForm(p=>({...p,tipoProd:v}))} opts={["fresco","confeccionado","regeneração"]}/>
+          {form.tipoProd==="regeneração"&&<div style={{background:"#fef3c7",borderRadius:9,padding:"10px 12px",marginBottom:10,marginTop:-8,borderLeft:"3px solid #d97706"}}><div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:3}}>O que é regeneração?</div><div style={{fontSize:12,color:"#78350f",lineHeight:1.6}}>Regeneração é o processo de reaquecimento de alimentos já confecionados e previamente armazenados. O alimento deve atingir uma temperatura interna mínima de <strong>75°C</strong> antes de ser servido. O reaquecimento deve ser rápido e feito uma única vez — nunca regenerar o mesmo alimento duas vezes.</div></div>}
           <Ip lb="Produto" val={form.produto} onChange={v=>setForm(p=>({...p,produto:v}))} ph="Ex: Frango, Sopa de legumes, Queijo..."/>
-          <Sl lb="Método de conservação" val={form.metodo} onChange={v=>setForm(p=>({...p,metodo:v}))} opts={metodos.map(m=>m)} />
+          <div style={{marginBottom:12}}><div style={{fontSize:10,fontWeight:700,color:CA,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Método de Conservação</div><select value={form.metodo} onChange={e=>setForm(p=>({...p,metodo:e.target.value}))} style={{width:"100%",padding:"12px 14px",borderRadius:10,border:"1.5px solid #bae6fd",fontSize:14,background:"#f0f9ff",color:"#0c4a6e",outline:"none",fontFamily:"inherit"}}><option value="refrigeracao">Refrigeração (0-4°C)</option><option value="congelacao">Congelação (≤-18°C)</option><option value="vacuo_frig">Vácuo + Frigorífico (sem ar)</option><option value="vacuo_cong">Vácuo + Congelador (sem ar)</option></select></div>
           {form.metodo&&metEmbalagem[form.metodo]&&<div style={{background:"#f0f9ff",borderRadius:10,padding:"10px 12px",marginBottom:10,marginTop:-4,borderLeft:"3px solid "+metEmbalagem[form.metodo].cor}}>
             <div style={{fontSize:11,fontWeight:700,color:metEmbalagem[form.metodo].cor,marginBottom:3}}>Embalagem recomendada:</div>
             <div style={{fontSize:12,color:"#0c4a6e",fontWeight:600,marginBottom:4}}>{metEmbalagem[form.metodo].emb}</div>
             <div style={{fontSize:11,color:GR,fontStyle:"italic"}}>{metEmbalagem[form.metodo].dica}</div>
           </div>}
           <Ip lb="Quantidade" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 2 kg, 4 doses..."/>
+          <Ta lb="Notas (opcional)" val={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} ph="Ex: Sabor a laranja, receita especial, observações..."/>
           <Ip lb="Data de produção" type="date" val={form.dataProducao} onChange={v=>setForm(p=>({...p,dataProducao:v}))}/>
           {prazo&&<div style={{background:"#e0f2fe",borderRadius:8,padding:10,marginBottom:10,fontSize:12,color:"#0369a1"}}>
             Prazo estimado: <strong>{prazo}</strong>
           </div>}
         </Cd>
-        {form.produto&&dataLimite&&<div style={{background:"#0e7490",borderRadius:12,padding:14,marginBottom:14,color:W}}>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,opacity:.8,marginBottom:6}}>Etiqueta de Conservação</div>
-          <div style={{fontSize:16,fontWeight:800}}>{form.produto}</div>
-          <div style={{fontSize:12,marginTop:4,opacity:.9}}>Tipo: {form.tipoProd} | Método: {metNomes[form.metodo]}</div>
-          <div style={{fontSize:12,marginTop:2,opacity:.9}}>Produzido: {fD(form.dataProducao)}</div>
-          <div style={{fontSize:15,fontWeight:700,marginTop:4,color:"#bae6fd"}}>Consumir até: {fD(dataLimite)}</div>
-          {form.quantidade&&<div style={{fontSize:12,marginTop:2,opacity:.9}}>Quantidade: {form.quantidade}</div>}
-          <div style={{fontSize:12,marginTop:4,opacity:.9}}>Responsável: {nomeAluno}</div>
-        </div>}
+        {form.produto&&dataLimite&&<EtiquetaConservacao produto={form.produto} tipoProd={form.tipoProd} metodo={metNomes[form.metodo]} dataProducao={fD(form.dataProducao)} dataLimite={fD(dataLimite)} notas={form.notas} responsavel={nomeAluno}/>}
         <B lb="Guardar Registo" onClick={save} cor="#0891b2"/>
         {lista.length>0&&<div style={{marginTop:14}}>
           {lista.map(p=><div key={p.id} style={{padding:"8px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
@@ -2051,19 +2184,45 @@ A higiene pessoal é uma Boa Prática de Higiene (BPH) obrigatória pelo Regulam
     titulo:"Receção de Matérias-Primas — Porquê controlar?",
     texto:`A receção é um ponto crítico onde podem entrar alimentos contaminados ou fora de temperatura na cozinha.
 
-O QUE VERIFICAR:
-• Temperatura dos alimentos à chegada (usar termómetro)
-• Estado das embalagens — sem amassados, abaulamentos ou ferrugem
-• Datas de validade e rotulagem obrigatória
-• Estado de limpeza do veículo de transporte
-• Rastreabilidade — número de lote, origem
+CARNES FRESCAS — O que verificar:
+• Cor vermelho vivo (carne de vaca), rosa claro (porco/frango)
+• Sem cheiro ácido, azedo ou pútrido
+• Textura firme ao toque — sem viscosidade
+• Temperatura de receção: ≤4°C (aves), ≤7°C (bovino)
+• Rejeitar: cor acinzentada, esverdeada ou manchas escuras
 
-CADEIA DE FRIO: Alimentos refrigerados e congelados devem ser armazenados IMEDIATAMENTE após a receção. Cada minuto conta — a zona de perigo (5-65°C) permite multiplicação bacteriana rápida.
+PEIXE FRESCO — O que verificar:
+• Olhos brilhantes, salientes e transparentes — olhos encovados = rejeitar
+• Guelras de cor vermelha intensa, sem muco
+• Cheiro a mar fresco, iodo — cheiro amoniacal = rejeitar
+• Carne firme e elástica ao toque
+• Escamas brilhantes e bem aderentes
 
-REJEITAR SEMPRE: Produtos com temperatura incorreta, embalagens danificadas, validade expirada ou aspeto/cheiro anormal.
+FRUTAS E LEGUMES — O que verificar:
+• Aparência brilhante, cor viva e uniforme
+• Firmes ao toque, sem partes moles ou machucadas
+• Sem bolores, manchas escuras ou deterioração
+• Rejeitar: fruta muito madura, com feridas ou insetos
 
-REGISTO: Guardar fatura, nome do fornecedor, lote e temperatura de receção. Em caso de intoxicação alimentar, esta informação é essencial para rastreabilidade.`,
-    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
+CONGELADOS — O que verificar:
+• Embalagens intactas, sem rasgos ou abaulamentos
+• Sem cristais de gelo excessivos (indica descongelação anterior)
+• Temperatura de receção: ≤-18°C
+• Rejeitar: produto parcialmente descongelado ou com gelo acumulado
+
+LATICÍNIOS — O que verificar:
+• Embalagem íntegra e dentro da validade
+• Temperatura: ≤4°C
+• Queijos: sem bolores não característicos, textura adequada
+• Rejeitar: embalagem abaulada (indica fermentação bacteriana)
+
+MERCEARIA SECA — O que verificar:
+• Embalagens sem humidade, insetos ou sinais de abertura
+• Datas de validade legíveis e dentro do prazo
+• Sacos sem rasgos ou orifícios
+
+CADEIA DE FRIO: Armazenar IMEDIATAMENTE após receção. A zona de perigo (5-65°C) permite duplicação bacteriana a cada 20 minutos.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | ASAE CHAC/4C's | Codex Alimentarius CAC/RCP 1-1969"
   },
   conservacao:{
     titulo:"Conservação de Produtos — Ciência e Prática",
@@ -2121,22 +2280,30 @@ NUNCA: Lavar com detergente de loiça — deixa resíduos tóxicos. Nunca mistur
     titulo:"Controlo de Óleos — Segurança e Saúde",
     texto:`O óleo de fritura degradado é um risco real para a saúde dos consumidores.
 
+ESCALA DE CORES — TESTE OleoTest / Testo 270:
+🟢 VERDE — menos de 17% CPT: Óleo em bom estado, pode continuar a utilizar
+🟡 AMARELO/LARANJA — entre 17% e 24% CPT: Atenção! Próximo do limite legal. Planear substituição
+🔴 VERMELHO — mais de 24% CPT: REJEITAR OBRIGATORIAMENTE (limite legal Portaria 1135/95)
+
+CPT = Compostos Polares Totais — medida oficial de degradação do óleo
+
+MONITOR 3M (tira de papel com 4 faixas):
+• Faixas mantêm-se AZUIS → óleo OK
+• Faixas ficam AMARELAS → REJEITAR imediatamente
+
 O QUE ACONTECE AO ÓLEO COM O CALOR:
-A temperaturas elevadas e com uso repetido, o óleo sofre oxidação e forma compostos tóxicos: acroleína (irritante respiratório), aldeídos (cancerígenos) e polímeros. Estes compostos são absorvidos pelos alimentos fritos.
+A temperaturas elevadas o óleo forma compostos tóxicos: acroleína (irritante respiratório), aldeídos (cancerígenos) e polímeros. Estes compostos são absorvidos pelos alimentos fritos.
 
-SINAIS DE ÓLEO ALTERADO:
-• Cor escura (dourado claro → castanho escuro)
-• Espuma excessiva e persistente
-• Cheiro intenso e desagradável
-• Fumo a temperaturas normais de fritura
-• Sabor amargo ou rançoso nos alimentos
+SINAIS VISUAIS DE ÓLEO ALTERADO:
+• Cor escura: dourado claro → âmbar → castanho escuro → REJEITAR
+• Espuma excessiva e persistente ao aquecer
+• Cheiro intenso, ranço ou queimado
+• Fumo a temperaturas normais de fritura (abaixo de 180°C)
 
-TEMPERATURA MÁXIMA: 180°C. Acima desta temperatura a degradação é muito mais rápida. O ponto de fumo indica degradação avançada.
+TEMPERATURA MÁXIMA: 180°C. Acima desta temperatura a degradação é muito mais rápida.
 
-TESTE DE OXIDAÇÃO: Permite medir objetivamente o grau de degradação. Resultado alterado = rejeitar imediatamente.
-
-AÇÃO: Óleo alterado deve ser rejeitado e enviado para recolha de óleos usados (não deitar pelo esgoto).`,
-    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
+AÇÃO: Óleo rejeitado deve ser enviado para recolha de óleos usados — NUNCA deitar pelo esgoto.`,
+    fonte:"OleoTest — Bioanalitica.pt | Testo 270 | Portaria 1135/95 | ASAE CHAC/4C's"
   },
   servico:{
     titulo:"Temperatura de Serviço — A última linha de defesa",
