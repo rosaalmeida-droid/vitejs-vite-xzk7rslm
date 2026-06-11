@@ -2395,8 +2395,8 @@ function Ranking({db,user}){
     fetch(SHEET_URL+"?tabela=Ranking")
       .then(r=>r.json())
       .then(data=>{
-        if(data.ok&&data.dados&&data.dados.length>1){
-          const rows=data.dados.slice(1).map(r=>({
+        if(data.ok&&data.dados&&data.dados.length>4){
+          const rows=data.dados.slice(4).map(r=>({
             id:String(r[0]),
             nome:String(r[1]),
             turma:String(r[2]),
