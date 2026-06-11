@@ -75,35 +75,65 @@ function Pg({val,max}){const pct=val/Math.max(max,1)*100;return <div style={{bac
 function Tt({msg,onClose}){useEffect(()=>{const t=setTimeout(onClose,2800);return()=>clearTimeout(t);},[onClose]);return <div style={{position:"fixed",bottom:22,left:"50%",transform:"translateX(-50%)",background:V,color:W,borderRadius:11,padding:"11px 22px",fontSize:13,fontWeight:500,zIndex:9999}}>{msg}</div>;}
 function Hd({user,onOut,onRanking}){return <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:99,boxShadow:"0 4px 20px rgba(14,116,144,.4)"}}><div><div style={{fontSize:20,fontWeight:800,letterSpacing:1,textTransform:"uppercase"}}>KitchenFlow <span style={{color:"#bae6fd"}}>ECL</span></div>{user&&<div style={{fontSize:10,opacity:.7,letterSpacing:.5,marginTop:1}}>{user.id} — {gD()}</div>}</div><div style={{display:"flex",gap:6}}>{user&&<button onClick={onRanking} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",letterSpacing:.3}}>Ranking</button>}{user&&<button onClick={onOut} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",color:W,borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer",letterSpacing:.5}}>SAIR</button>}</div></div>;}
 
-function Login({onLogin,db,showRanking,setShowRanking}){
+function Login({onLogin,db,setDb,showRanking,setShowRanking}){
   const [tipo,setTipo]=useState("aluno");
-  const [turma,setTurma]=useState("");
+  const [turma,setTurma]=useState("1º ACP");
   const [num,setNum]=useState("");
-  const [prof,setProf]=useState("");
   const [pin,setPin]=useState("");
+  const [pinNovo,setPinNovo]=useState("");
+  const [pinNovo2,setPinNovo2]=useState("");
+  const [prof,setProf]=useState("");
   const [err,setErr]=useState("");
+  const [criarPin,setCriarPin]=useState(false);
+  const TURMAS=["1º ACP","2º ACP","3º ACP"];
+
+  const findAluno=()=>{
+    const lista=db.alunosList||[];
+    return lista.find(a=>String(a.numero)===String(num)&&a.turma===turma);
+  };
+
   const go=()=>{
     setErr("");
     if(tipo==="aluno"){
-      if(!turma||!num||!pin){setErr("Preenche todos os campos.");return;}
-      if(pin!=="1234"){setErr("PIN incorreto: 1234");return;}
-      // Verify code exists in alunos list
-      const alunosList=db.alunosList||[];
-      const aluno=alunosList.find(a=>a.codigo===num&&a.turma===turma);
-      if(!aluno){setErr("Código não encontrado nesta turma.");return;}
+      if(!num||!pin){setErr("Preenche todos os campos.");return;}
+      const aluno=findAluno();
+      if(!aluno){setErr("Número não encontrado nesta turma.");return;}
+      if(!aluno.pin){
+        setErr("Ainda não tens PIN. Cria o teu PIN pessoal.");
+        setCriarPin(true);
+        return;
+      }
+      if(pin!==aluno.pin){setErr("PIN incorreto.");return;}
       onLogin({tipo:"aluno",id:turma+"-"+num,turma,nomeAluno:aluno.nome});
-    } else if(tipo==="professor") {
+    } else if(tipo==="professor"){
       if(!prof||!pin){setErr("Preenche todos os campos.");return;}
-      if(pin!=="1111"){setErr("PIN incorreto: 1111");return;}
+      if(pin!=="1111"){setErr("PIN incorreto.");return;}
       onLogin({tipo:"professor",id:prof});
-    } else if(tipo==="coord") {
-      if(pin!=="1006"){setErr("PIN incorreto: 1006");return;}
+    } else if(tipo==="coord"){
+      if(pin!=="1006"){setErr("PIN incorreto.");return;}
       onLogin({tipo:"coord",id:"Coord."});
     } else {
-      if(pin!=="2222"){setErr("PIN incorreto: 2222");return;}
+      if(pin!=="2222"){setErr("PIN incorreto.");return;}
       onLogin({tipo:"auxiliar",id:"Auxiliar"});
     }
   };
+
+  const criarPinAluno=()=>{
+    setErr("");
+    if(!pinNovo||pinNovo.length!==4){setErr("PIN deve ter 4 dígitos.");return;}
+    if(pinNovo!==pinNovo2){setErr("PINs não coincidem.");return;}
+    const lista=(db.alunosList||[]).map(a=>
+      String(a.numero)===String(num)&&a.turma===turma?{...a,pin:pinNovo}:a
+    );
+    setDb(p=>({...p,alunosList:lista}));
+    // Save to Sheets
+    const aluno=lista.find(a=>String(a.numero)===String(num)&&a.turma===turma);
+    enviar("Alunos",[aluno.numero,aluno.nome,aluno.turma,"PIN criado",new Date().toLocaleDateString("pt-PT")]);
+    setCriarPin(false);
+    setErr("PIN criado com sucesso! Podes entrar agora.");
+    setPinNovo("");setPinNovo2("");
+  };
+
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0c4a6e,#0e7490,#0891b2)",display:"flex",alignItems:"center",justifyContent:"center",padding:22}}>
       <div style={{width:"100%",maxWidth:380}}>
@@ -113,19 +143,45 @@ function Login({onLogin,db,showRanking,setShowRanking}){
           <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}}>ESCOLA DE COMÉRCIO DE LISBOA</div>
         </div>
         {showRanking&&<div style={{background:"rgba(255,255,255,.95)",borderRadius:16,padding:16,marginBottom:16,maxHeight:"50vh",overflowY:"auto"}}><Ranking db={db}/></div>}
-        <div style={{background:W,borderRadius:20,padding:28,boxShadow:"0 20px 60px rgba(14,116,144,.3)",border:"1px solid rgba(186,230,253,.3)"}}>
+        <div style={{background:W,borderRadius:20,padding:28,boxShadow:"0 20px 60px rgba(14,116,144,.3)"}}>
           <div style={{display:"flex",gap:6,marginBottom:16}}>
             {[["aluno","Aluno"],["professor","Prof."],["coord","Coord."],["auxiliar","Aux."]].map(([t,lb])=>(
-              <button key={t} onClick={()=>{setTipo(t);setErr("");setPin("");}} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(tipo===t?V:BE),background:tipo===t?V:LC,color:tipo===t?W:GR,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
+              <button key={t} onClick={()=>{setTipo(t);setErr("");setPin("");setCriarPin(false);}} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(tipo===t?V:BE),background:tipo===t?V:LC,color:tipo===t?W:GR,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
             ))}
           </div>
-          {tipo==="aluno"&&<><Sl lb="Turma" val={turma} onChange={setTurma} opts={["1º ACP","2º ACP","3º ACP"]}/><Ip lb="Código do aluno (4 dígitos)" type="text" val={num} onChange={setNum} ph="Ex: 1234"/></>}
-          {tipo==="professor"&&<Sl lb="Professor" val={prof} onChange={setProf} opts={["P01","P02","P03"]}/>}
+
+          {tipo==="aluno"&&!criarPin&&<>
+            <div style={{display:"flex",gap:6,marginBottom:12}}>
+              {TURMAS.map(t=>(
+                <button key={t} onClick={()=>setTurma(t)} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:LC,color:turma===t?W:GR,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
+              ))}
+            </div>
+            <Ip lb="Número de aluno" type="number" val={num} onChange={setNum} ph="Ex: 5220"/>
+            <Ip lb="PIN pessoal (4 dígitos)" type="password" val={pin} onChange={setPin} ph="O teu PIN"/>
+            <div style={{fontSize:11,color:GR,marginBottom:10,textAlign:"center"}}>Primeira vez? Introduz o número e clica Entrar para criar o teu PIN.</div>
+          </>}
+
+          {tipo==="aluno"&&criarPin&&<>
+            <div style={{background:"#e0f2fe",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#0369a1",fontWeight:600}}>
+              Olá {findAluno()?.nome}! Cria o teu PIN pessoal de 4 dígitos.
+            </div>
+            <Ip lb="Novo PIN (4 dígitos)" type="password" val={pinNovo} onChange={setPinNovo} ph="Escolhe 4 dígitos"/>
+            <Ip lb="Confirmar PIN" type="password" val={pinNovo2} onChange={setPinNovo2} ph="Repete o PIN"/>
+            <B lb="Criar PIN" onClick={criarPinAluno} cor="#0f766e"/>
+            <button onClick={()=>{setCriarPin(false);setErr("");}} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>← Voltar</button>
+          </>}
+
+          {tipo==="professor"&&<><Sl lb="Professor" val={prof} onChange={setProf} opts={["P01","P02","P03"]}/></>}
           {tipo==="coord"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Coordenadora — PIN: 1006</div>}
           {tipo==="auxiliar"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Auxiliar de Apoio — PIN: 2222</div>}
-          <Ip lb="PIN" type="text" val={pin} onChange={setPin} ph={tipo==="aluno"?"PIN: 1234":"PIN: 1111"}/>
-          {err&&<div style={{color:R,fontSize:12,marginBottom:8,textAlign:"center"}}>{err}</div>}
-          <B lb="Entrar" onClick={go}/>
+
+          {!criarPin&&<>
+            {tipo!=="aluno"&&<Ip lb="PIN" type="password" val={pin} onChange={setPin} ph="PIN"/>}
+            {err&&<div style={{color:err.includes("sucesso")?"#16a34a":"#dc2626",fontSize:12,marginBottom:8,textAlign:"center"}}>{err}</div>}
+            <B lb="Entrar" onClick={go}/>
+          </>}
+          {criarPin&&err&&<div style={{color:err.includes("sucesso")?"#16a34a":"#dc2626",fontSize:12,marginTop:8,textAlign:"center"}}>{err}</div>}
+
           <button onClick={()=>setShowRanking(!showRanking)} style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #bae6fd",background:"transparent",color:"#0369a1",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginTop:8,textTransform:"uppercase",letterSpacing:.5}}>{showRanking?"Fechar Ranking":"Ver Ranking"}</button>
         </div>
       </div>
@@ -1109,18 +1165,21 @@ function AssinaturaDigital({onSave}){
 }
 
 function GestaoAlunos({db,setDb}){
-  const [form,setForm]=useState({nome:"",turma:"1º ACP",codigo:""});
+  const [form,setForm]=useState({nome:"",turma:"1º ACP",numero:""});
   const [err,setErr]=useState("");
   const alunosList=db.alunosList||[];
+  const TURMAS=["1º ACP","2º ACP","3º ACP"];
 
   const addAluno=()=>{
     setErr("");
-    if(!form.nome||!form.codigo){setErr("Preenche o nome e o código.");return;}
-    if(form.codigo.length!==4){setErr("O código deve ter 4 dígitos.");return;}
-    if(!/^\d{4}$/.test(form.codigo)){setErr("O código deve ter apenas números.");return;}
-    if(alunosList.find(a=>a.codigo===form.codigo&&a.turma===form.turma)){setErr("Este código já existe nesta turma.");return;}
-    setDb(p=>({...p,alunosList:[...(p.alunosList||[]),{...form,id:Date.now()}]}));
-    setForm({nome:"",turma:form.turma,codigo:""});
+    if(!form.nome||!form.numero){setErr("Preenche o nome e o número.");return;}
+    if(alunosList.find(a=>String(a.numero)===String(form.numero)&&a.turma===form.turma)){
+      setErr("Este número já existe nesta turma.");return;
+    }
+    const novoAluno={id:Date.now(),nome:form.nome,turma:form.turma,numero:form.numero,pin:""};
+    setDb(p=>({...p,alunosList:[...(p.alunosList||[]),novoAluno]}));
+    enviar("Alunos",[form.numero,form.nome,form.turma,"Sem PIN",new Date().toLocaleDateString("pt-PT")]);
+    setForm({nome:"",turma:form.turma,numero:""});
   };
 
   const removeAluno=(id)=>{
@@ -1128,43 +1187,60 @@ function GestaoAlunos({db,setDb}){
     setDb(p=>({...p,alunosList:(p.alunosList||[]).filter(a=>a.id!==id)}));
   };
 
-  const turmas=["1º ACP","2º ACP","3º ACP"];
+  const resetPin=(id)=>{
+    if(!window.confirm("Resetar PIN deste aluno?"))return;
+    setDb(p=>({...p,alunosList:(p.alunosList||[]).map(a=>a.id===id?{...a,pin:""}:a)}));
+  };
 
   return(
     <div>
       <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c5c3a",marginBottom:14}}>Gestão de Alunos</div>
-      
+
       <Cd>
         <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:10}}>Adicionar Aluno</div>
         <Ip lb="Nome completo" val={form.nome} onChange={v=>setForm(p=>({...p,nome:v}))} ph="Ex: Maria Silva"/>
         <div style={{display:"flex",gap:8,marginBottom:10}}>
-          {turmas.map(t=>(
+          {TURMAS.map(t=>(
             <button key={t} onClick={()=>setForm(p=>({...p,turma:t}))} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"2px solid "+(form.turma===t?V:BE),background:form.turma===t?V:LC,color:form.turma===t?W:"#0369a1",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>{t}</button>
           ))}
         </div>
-        <Ip lb="Código (4 dígitos)" type="text" val={form.codigo} onChange={v=>setForm(p=>({...p,codigo:v}))} ph="Ex: 1234"/>
+        <Ip lb="Número de aluno" type="number" val={form.numero} onChange={v=>setForm(p=>({...p,numero:v}))} ph="Ex: 5220"/>
         {err&&<div style={{color:"#dc2626",fontSize:12,marginBottom:8}}>{err}</div>}
         <B lb="+ Adicionar Aluno" onClick={addAluno} cor="#7c5c3a"/>
       </Cd>
 
-      {turmas.map(t=>{
-        const alunos=alunosList.filter(a=>a.turma===t).sort((a,b)=>a.codigo-b.codigo);
+      {TURMAS.map(t=>{
+        const alunos=alunosList.filter(a=>a.turma===t).sort((a,b)=>Number(a.numero)-Number(b.numero));
         return(
           <div key={t} style={{marginBottom:14}}>
             <div style={{background:"#7c5c3a",color:W,borderRadius:"10px 10px 0 0",padding:"8px 14px",fontSize:12,fontWeight:700}}>{t} — {alunos.length} aluno(s)</div>
             <div style={{background:W,borderRadius:"0 0 10px 10px",border:"1px solid #e0f2fe",borderTop:"none"}}>
               {alunos.length===0&&<div style={{padding:"12px 14px",fontSize:12,color:GR}}>Sem alunos registados</div>}
               {alunos.map(a=>(
-                <div key={a.id} style={{display:"flex",alignItems:"center",padding:"10px 14px",borderBottom:"1px solid #f0f9ff"}}>
-                  <div style={{width:50,height:28,borderRadius:7,background:"#0e7490",color:W,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,marginRight:12,flexShrink:0}}>{a.codigo}</div>
-                  <div style={{flex:1,fontSize:13,fontWeight:600,color:"#0c4a6e"}}>{a.nome}</div>
-                  <button onClick={()=>removeAluno(a.id)} style={{padding:"4px 10px",borderRadius:6,border:"1.5px solid #fca5a5",background:"transparent",color:"#dc2626",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Remover</button>
+                <div key={a.id} style={{display:"flex",alignItems:"center",padding:"10px 14px",borderBottom:"1px solid #f0f9ff",gap:10}}>
+                  <div style={{width:55,height:28,borderRadius:7,background:"#0e7490",color:W,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,flexShrink:0}}>{a.numero}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600,color:"#0c4a6e"}}>{a.nome}</div>
+                    <div style={{fontSize:10,color:a.pin?"#16a34a":"#dc2626"}}>{a.pin?"PIN definido":"Sem PIN — deve criar no primeiro login"}</div>
+                  </div>
+                  <button onClick={()=>resetPin(a.id)} style={{padding:"4px 8px",borderRadius:6,border:"1.5px solid #bae6fd",background:"transparent",color:"#0369a1",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Reset PIN</button>
+                  <button onClick={()=>removeAluno(a.id)} style={{padding:"4px 8px",borderRadius:6,border:"1.5px solid #fca5a5",background:"transparent",color:"#dc2626",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Remover</button>
                 </div>
               ))}
             </div>
           </div>
         );
       })}
+
+      <Cd st={{marginTop:14,background:"#fef3c7",borderLeft:"4px solid #d97706"}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:6}}>ℹ️ Como funciona o PIN</div>
+        <div style={{fontSize:11,color:"#78350f",lineHeight:1.7}}>
+          1. A Coordenadora adiciona o aluno com o número<br/>
+          2. Na primeira vez que o aluno entra, cria o seu PIN pessoal<br/>
+          3. O PIN é secreto — só o aluno sabe<br/>
+          4. Se o aluno esquecer o PIN, a Coordenadora faz Reset PIN
+        </div>
+      </Cd>
     </div>
   );
 }
@@ -2965,7 +3041,7 @@ export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
   const [showRanking,setShowRanking]=useState(false);
-  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º ACP",codigo:"1111"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º ACP",codigo:"1111"}]}}});
+  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}]}}});
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
   useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
