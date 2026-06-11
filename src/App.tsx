@@ -3042,6 +3042,28 @@ export default function App(){
   const [mod,setMod]=useState(null);
   const [showRanking,setShowRanking]=useState(false);
   const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}]}}});
+
+  // Load alunos from Sheets on startup
+  useEffect(()=>{
+    fetch(SHEET_URL+"?tabela=Alunos")
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.ok&&data.dados&&data.dados.length>4){
+          const alunos=data.dados.slice(4).filter(r=>r[0]&&String(r[0]).trim()).map(r=>({
+            id:String(r[0]),
+            numero:String(r[0]).trim(),
+            nome:String(r[1]).trim(),
+            turma:String(r[2]).trim(),
+            pin:String(r[3]).trim(),
+            estado:String(r[4]).trim()
+          }));
+          if(alunos.length>0){
+            setDb(p=>({...p,alunosList:alunos}));
+          }
+        }
+      })
+      .catch(()=>{});
+  },[]);
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
   useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
