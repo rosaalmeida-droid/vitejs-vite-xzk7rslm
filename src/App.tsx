@@ -2420,7 +2420,7 @@ function Ranking({db,user}){
   };
 
   // Load on mount
-  useState(()=>{carregarRanking();},[]);
+  useEffect(()=>{carregarRanking();},[]);
 
   // Use Sheets data if available, otherwise fall back to localStorage
   const usarSheets=rankingSheets&&rankingSheets.length>0;
