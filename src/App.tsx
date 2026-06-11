@@ -41,7 +41,7 @@ const MODS_DIARIOS=[
 ];
 const MODS_ESPECIFICOS=[
   {id:"conservacao",lb:"Conservação de Produtos",cor:"#6d28d9"},
-  {id:"regeneracao",lb:"Regeneração",cor:"#6d28d9"},
+  {id:"regeneracao",lb:"Regeneração de Produtos Confeccionados",cor:"#6d28d9"},
   {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
   {id:"desinfecao",lb:"Desinfeção Alimentos em Cru",cor:"#6d28d9"},
   {id:"oleos",lb:"Controlo de Óleos",cor:"#6d28d9"},
