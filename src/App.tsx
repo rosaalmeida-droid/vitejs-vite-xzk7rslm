@@ -1,4 +1,4 @@
-// KitchenFlow ECL v2.1 - Regeneracao + Tabela Completa
+// KitchenFlow ECL v3.0 - Ranking Sheets + Regeneracao + Tabela Completa
 import { useState, useEffect, useCallback } from "react";
 
 // Load Barlow Condensed font
@@ -43,7 +43,7 @@ const MODS_ESPECIFICOS=[
   {id:"conservacao",lb:"Conservação de Produtos",cor:"#6d28d9"},
   {id:"regeneracao",lb:"Regeneração",cor:"#6d28d9"},
   {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
-  {id:"desinfecao",lb:"Desinfeção Alimentos Consumo em Cru",cor:"#6d28d9"},
+  {id:"desinfecao",lb:"Desinfeção Alimentos em Cru",cor:"#6d28d9"},
   {id:"oleos",lb:"Controlo de Óleos",cor:"#6d28d9"},
   {id:"servico",lb:"Temperatura de Serviço",cor:"#6d28d9"},
   {id:"naoConf",lb:"Não Conformidades",cor:"#6d28d9"},
