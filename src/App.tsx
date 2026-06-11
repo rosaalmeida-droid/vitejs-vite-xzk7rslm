@@ -2109,7 +2109,7 @@ function ConservacaoProd({user,db,setDb,showToast}){
 
 function calcPontos(db, userId, turma){
   let pts = 0;
-  const hoje = gD();
+  const nomeAluno = db.assinaturas&&db.assinaturas[userId];
   // Each registration = 1 point
   const tempI = db.temperaturas&&Object.values(db.temperaturas).filter(t=>t.aluno===userId).length||0;
   const recs = (db.recepcao||[]).filter(r=>r.aluno===userId).length;
@@ -2122,12 +2122,24 @@ function calcPontos(db, userId, turma){
   const servico = (db.servico||[]).filter(s=>s.responsavel===userId).length;
   const faltas = (db.faltas||[]).filter(f=>f.responsavel===userId).length;
   pts = tempI + recs + prods + tests + desf + mans + ncs + oleos + servico + faltas;
+  // Higiene pessoal points
+  if(db.higPessoal){
+    Object.values(db.higPessoal).forEach(h=>{
+      if(h.aluno===userId)pts++;
+    });
+  }
   // Higienizacao points
   if(db.higienizacao){
     Object.values(db.higienizacao).forEach(h=>{
-      if(h.turma===turma){
-        Object.values(h.registos||{}).forEach(r=>{
-          if(r.aluno===userId)pts++;
+      if(h.turma===turma&&h.registos){
+        Object.values(h.registos).forEach(r=>{
+          if(r.aluno===userId||r.aluno===nomeAluno)pts++;
+        });
+      }
+      // Panos e esponjas points
+      if(h.turma===turma&&h.panos){
+        Object.values(h.panos).forEach(p=>{
+          if(p.aluno===userId||p.aluno===nomeAluno)pts++;
         });
       }
     });
