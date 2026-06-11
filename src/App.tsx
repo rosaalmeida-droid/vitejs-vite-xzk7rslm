@@ -128,7 +128,7 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
     setDb(p=>({...p,alunosList:lista}));
     // Save to Sheets
     const aluno=lista.find(a=>String(a.numero)===String(num)&&a.turma===turma);
-    enviar("Alunos",[aluno.numero,aluno.nome,aluno.turma,"PIN criado",new Date().toLocaleDateString("pt-PT")]);
+    enviar("Alunos",[aluno.numero,aluno.nome,aluno.turma,pinNovo,"ativo",new Date().toLocaleDateString("pt-PT")]);
     setCriarPin(false);
     setErr("PIN criado com sucesso! Podes entrar agora.");
     setPinNovo("");setPinNovo2("");
