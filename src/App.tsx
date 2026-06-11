@@ -612,8 +612,6 @@ const TABELA_ALIMENTOS={
 };
 const VACUO_FRIG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.frig_vacuo&&p.frig_vacuo!=="-").map(p=>[p.prod,{normal:p.frig_normal,vacuo:p.frig_vacuo}]));
 const VACUO_CONG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.cong_vacuo&&p.cong_vacuo!=="-").map(p=>[p.prod,{normal:p.cong_normal,vacuo:p.cong_vacuo}]));
-const VACUO_FRIG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.frig_vacuo!=="-").map(p=>[p.prod,{normal:p.frig_normal,vacuo:p.frig_vacuo}]));
-const VACUO_CONG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.cong_vacuo!=="-").map(p=>[p.prod,{normal:p.cong_normal,vacuo:p.cong_vacuo}]));
 const NAO_VACUO=[
   {prod:"Alho e cebola",motivo:"Libertam gases que podem criar condições para botulismo. Perigoso à temperatura ambiente em vácuo."},
   {prod:"Queijos moles (Brie, Ricotta, Camembert)",motivo:"Desenvolvem bactérias anaeróbias sem oxigénio. Guardar na embalagem original ou embalagem respirável."},
