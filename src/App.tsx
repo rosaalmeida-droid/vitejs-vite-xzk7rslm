@@ -140,7 +140,7 @@ function DashAluno({user,db,setModule}){
   const encerrado=!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]);
   const higPessoal=!!(db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h]);
   const recepcao=!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h);
-  const higienizacao=!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]);
+  const higienizacao=!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos);
 
   const higK2="hig-"+user.turma+"-"+h;
   const panosInicioD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["inicio"]);
@@ -743,7 +743,7 @@ function Higienizacao({user,db,setDb,showToast}){
   const regs=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].registos)?db.higienizacao[k].registos:{};
   const panos=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].panos)?db.higienizacao[k].panos:{};
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
-  const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
+  const tI=Object.values(ZONAS).flat().length,tF=regs?Object.keys(regs).length:0;
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
 
   const mk=item=>{
@@ -886,7 +886,7 @@ function Encerramento({user,db,setDb,showToast}){
     {id:"ti",l:"Temperaturas de início registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"])},
     {id:"tf",l:"Temperaturas de final registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"])},
     {id:"panos",l:"Panos e esponjas em solução desinfetante — Final da aula",auto:panosFinalEnc},
-    {id:"hig",l:"Higienização concluída",auto:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h])},
+    {id:"hig",l:"Higienização concluída",auto:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos)},
     {id:"val",l:"Validação do professor",auto:!!(db.validacoes&&db.validacoes["val-"+user.turma+"-"+h])},
   ];
 
@@ -1631,8 +1631,8 @@ function Faltas({user,db,setDb,showToast}){
 
 function Auxiliar({user,db,setDb,showToast}){
   const h=gD(),k="aux-"+h;
-  const regs=(db.auxHig&&db.auxHig[k])?db.auxHig[k].registos:{};
-  const notas=(db.auxHig&&db.auxHig[k])?db.auxHig[k].notas||{}:{};
+  const regs=(db.auxHig&&db.auxHig[k]&&db.auxHig[k].registos)?db.auxHig[k].registos:{};
+  const notas=(db.auxHig&&db.auxHig[k]&&db.auxHig[k].notas)?db.auxHig[k].notas:{};
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
   const [notaEdit,setNotaEdit]=useState("");
   const [showNota,setShowNota]=useState(false);
