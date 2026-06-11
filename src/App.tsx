@@ -13,6 +13,7 @@ document.head.appendChild(fontStyle);
 
 
 
+// Apps Script trigger deve estar configurado para "Head" para não precisar atualizar após cada deploy
 const SHEET_URL="https://script.google.com/macros/s/AKfycbyQjtMs5k1aK0yDJVNOg0l-i6WExp3M19JeDkCP2IKcy8xPRo6H4HmE4emwbZXmev89rw/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
@@ -42,7 +43,7 @@ const MODS_ESPECIFICOS=[
   {id:"conservacao",lb:"Conservação de Produtos",cor:"#6d28d9"},
   {id:"regeneracao",lb:"Regeneração",cor:"#6d28d9"},
   {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
-  {id:"desinfecao",lb:"Desinfeção de Alimentos para Consumo em Cru",cor:"#6d28d9"},
+  {id:"desinfecao",lb:"Desinfeção Alimentos Consumo em Cru",cor:"#6d28d9"},
   {id:"oleos",lb:"Controlo de Óleos",cor:"#6d28d9"},
   {id:"servico",lb:"Temperatura de Serviço",cor:"#6d28d9"},
   {id:"naoConf",lb:"Não Conformidades",cor:"#6d28d9"},
@@ -1018,7 +1019,9 @@ function Encerramento({user,db,setDb,showToast}){
 
   const save=()=>{
     if(!todosOk){showToast("Faltam itens obrigatórios!");return;}
-    setDb(p=>{const e={...p.encerramento};e[k]={obs,checks,aluno:user.id,turma:user.turma,date:h,time:gT()};return{...p,encerramento:e};});
+    const nomeEnc=(db.assinaturas&&db.assinaturas[user.id])||"";
+    setDb(p=>{const e={...p.encerramento};e[k]={obs,checks,aluno:user.id,nomeAluno:nomeEnc,turma:user.turma,date:h,time:gT()};return{...p,encerramento:e};});
+    enviar("Encerramento",[h,gT(),user.turma,user.id,nomeEnc,"Concluído"]);
     showToast("Encerramento de aula prática registado!");
   };
 
@@ -2383,339 +2386,124 @@ function calcPontos(db, userId, turma){
   return pts;
 }
 
-function Ranking({db}){
-  // Calculate ranking from localStorage data
-  const assinaturas = db.assinaturas||{};
-  const turmas = ["T1","T2","T3"];
+function Ranking({db,user}){
+  const [rankingSheets,setRankingSheets]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [erro,setErro]=useState(null);
 
-  // Aluno ranking
-  const alunoRanking = Object.entries(assinaturas).map(([id,nome])=>{
-    const turma = id.split("-")[0];
-    const pts = calcPontos(db, id, turma);
-    return {id, nome, turma, pts};
+  const carregarRanking=()=>{
+    setLoading(true);
+    setErro(null);
+    fetch(SHEET_URL+"?tabela=Ranking")
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.ok&&data.dados&&data.dados.length>1){
+          const rows=data.dados.slice(1).map(r=>({
+            id:String(r[0]),
+            nome:String(r[1]),
+            turma:String(r[2]),
+            pts:parseInt(r[3])||0,
+            regs:parseInt(r[4])||0,
+            enc:parseInt(r[5])||0,
+            updated:String(r[6])
+          })).filter(r=>r.id&&r.pts>0).sort((a,b)=>b.pts-a.pts);
+          setRankingSheets(rows);
+        } else {
+          setRankingSheets([]);
+        }
+        setLoading(false);
+      })
+      .catch(()=>{
+        setErro("Não foi possível carregar o ranking do servidor.");
+        setLoading(false);
+      });
+  };
+
+  // Load on mount
+  useState(()=>{carregarRanking();},[]);
+
+  // Use Sheets data if available, otherwise fall back to localStorage
+  const usarSheets=rankingSheets&&rankingSheets.length>0;
+  
+  // LocalStorage fallback
+  const assinaturas=db.assinaturas||{};
+  const turmas=["T1","T2","T3"];
+  const alunoRankingLocal=Object.entries(assinaturas).map(([id,nome])=>{
+    const turma=id.split("-")[0];
+    const pts=calcPontos(db,id,turma);
+    return{id,nome,turma,pts};
   }).sort((a,b)=>b.pts-a.pts).slice(0,10);
 
-  // Turma ranking
-  const turmaRanking = turmas.map(t=>{
-    const membros = Object.keys(assinaturas).filter(id=>id.startsWith(t));
-    const pts = membros.reduce((sum,id)=>sum+calcPontos(db,id,t),0);
-    return {turma:t, pts, membros:membros.length};
+  const turmaRanking=turmas.map(t=>{
+    if(usarSheets){
+      const membros=rankingSheets.filter(r=>r.turma===t);
+      const pts=membros.reduce((s,r)=>s+r.pts,0);
+      return{turma:t,pts,membros:membros.length};
+    }
+    const membros=Object.keys(assinaturas).filter(id=>id.startsWith(t));
+    const pts=membros.reduce((sum,id)=>sum+calcPontos(db,id,t),0);
+    return{turma:t,pts,membros:membros.length};
   }).sort((a,b)=>b.pts-a.pts);
+
+  const alunoRanking=usarSheets?rankingSheets.slice(0,10):alunoRankingLocal;
 
   const medalhas=["1°","2°","3°"];
   const cores=["#f59e0b","#94a3b8","#d97706"];
 
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e",marginBottom:14}}>Ranking HACCP</div>
-      <div style={{fontSize:11,color:GR,marginBottom:14}}>Ano letivo — pontos acumulados desde o início do ano</div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Ranking HACCP</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:11,color:GR}}>{usarSheets?"Dados do servidor (Google Sheets)":"Dados locais — conecta para ver ranking completo"}</div>
+        <button onClick={carregarRanking} disabled={loading} style={{padding:"6px 12px",borderRadius:7,border:"1.5px solid #bae6fd",background:LC,color:V,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+          {loading?"A carregar...":"↻ Atualizar"}
+        </button>
+      </div>
 
-      <div style={{fontWeight:700,fontSize:13,color:V,marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Ranking de Turmas</div>
-      {turmaRanking.map((t,i)=>(
-        <div key={t.turma} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,background:i===0?"linear-gradient(135deg,#0e7490,#0891b2)":W,marginBottom:8,boxShadow:"0 2px 8px rgba(14,116,144,.1)",border:"1px solid #e0f2fe"}}>
-          <div style={{width:32,height:32,borderRadius:8,background:i===0?"rgba(255,255,255,.2)":cores[i]||LC,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:i===0?W:W,flexShrink:0}}>{medalhas[i]||i+1+"°"}</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:16,fontWeight:800,color:i===0?W:"#0c4a6e"}}>Turma {t.turma}</div>
-            <div style={{fontSize:11,color:i===0?"rgba(255,255,255,.7)":GR}}>{t.membros} aluno(s) registados</div>
-          </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:22,fontWeight:800,color:i===0?W:V}}>{t.pts}</div>
-            <div style={{fontSize:10,color:i===0?"rgba(255,255,255,.7)":GR}}>pontos</div>
-          </div>
-        </div>
-      ))}
+      {erro&&<div style={{background:"#fdecea",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"#dc2626"}}>{erro}</div>}
 
-      <div style={{fontWeight:700,fontSize:13,color:V,marginBottom:10,marginTop:14,textTransform:"uppercase",letterSpacing:.5}}>Top 10 Alunos</div>
-      {alunoRanking.length===0&&<div style={{textAlign:"center",padding:20,color:GR,fontSize:13}}>Ainda sem registos suficientes para ranking.</div>}
-      {alunoRanking.map((a,i)=>(
-        <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:12,background:i===0?"linear-gradient(135deg,#0e7490,#0891b2)":i<3?"#f0f9ff":W,marginBottom:6,border:"1px solid "+(i===0?"transparent":"#e0f2fe")}}>
-          <div style={{width:28,height:28,borderRadius:7,background:i===0?"rgba(255,255,255,.2)":i===1?"#94a3b8":i===2?"#d97706":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:i<3?W:"#0369a1",flexShrink:0}}>{i+1}</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:700,color:i===0?W:"#0c4a6e"}}>{a.nome.split(" ")[0].charAt(0).toUpperCase()+a.nome.split(" ")[0].slice(1)+" "+((a.nome.split(" ")[1]||"").charAt(0).toUpperCase())+(a.nome.split(" ")[1]?".":"")}</div>
-            <div style={{fontSize:10,color:i===0?"rgba(255,255,255,.7)":GR}}>Turma {a.turma}</div>
+      {loading&&<div style={{textAlign:"center",padding:30,color:GR,fontSize:13}}>A carregar ranking do servidor...</div>}
+
+      {!loading&&<div>
+        <div style={{fontWeight:700,fontSize:13,color:V,marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Ranking de Turmas</div>
+        {turmaRanking.map((t,i)=>(
+          <div key={t.turma} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,background:i===0?"linear-gradient(135deg,#0e7490,#0891b2)":W,marginBottom:8,boxShadow:"0 2px 8px rgba(14,116,144,.1)",border:"1px solid #e0f2fe"}}>
+            <div style={{width:32,height:32,borderRadius:8,background:i===0?"rgba(255,255,255,.2)":cores[i]||LC,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:W,flexShrink:0}}>{medalhas[i]||i+1+"°"}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:16,fontWeight:800,color:i===0?W:"#0c4a6e"}}>Turma {t.turma}</div>
+              <div style={{fontSize:11,color:i===0?"rgba(255,255,255,.7)":GR}}>{t.membros} aluno(s)</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:22,fontWeight:800,color:i===0?W:V}}>{t.pts}</div>
+              <div style={{fontSize:10,color:i===0?"rgba(255,255,255,.7)":GR}}>pontos</div>
+            </div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:18,fontWeight:800,color:i===0?W:V}}>{a.pts}</div>
-            <div style={{fontSize:9,color:i===0?"rgba(255,255,255,.7)":GR}}>pontos</div>
-          </div>
-        </div>
-      ))}
-      <div style={{marginTop:10,fontSize:10,color:GR,textAlign:"center"}}>1 ponto por registo • 5 pontos bónus por encerramento completo</div>
+        ))}
+
+        <div style={{fontWeight:700,fontSize:13,color:V,marginBottom:10,marginTop:14,textTransform:"uppercase",letterSpacing:.5}}>Top 10 Alunos</div>
+        {alunoRanking.length===0&&<div style={{textAlign:"center",padding:20,color:GR,fontSize:13}}>Ainda sem registos suficientes.</div>}
+        {alunoRanking.map((a,i)=>{
+          const nomeDisplay=a.nome?(a.nome.split(" ")[0].charAt(0).toUpperCase()+a.nome.split(" ")[0].slice(1)+" "+((a.nome.split(" ")[1]||"").charAt(0).toUpperCase())+(a.nome.split(" ")[1]?".":"")):a.id;
+          return(
+            <div key={a.id||i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:12,background:i===0?"linear-gradient(135deg,#0e7490,#0891b2)":i<3?"#f0f9ff":W,marginBottom:6,border:"1px solid "+(i===0?"transparent":"#e0f2fe")}}>
+              <div style={{width:28,height:28,borderRadius:7,background:i===0?"rgba(255,255,255,.2)":i===1?"#94a3b8":i===2?"#d97706":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:i<3?W:"#0369a1",flexShrink:0}}>{i+1}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:700,color:i===0?W:"#0c4a6e"}}>{nomeDisplay}</div>
+                <div style={{fontSize:10,color:i===0?"rgba(255,255,255,.7)":GR}}>Turma {a.turma}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:18,fontWeight:800,color:i===0?W:V}}>{a.pts}</div>
+                <div style={{fontSize:9,color:i===0?"rgba(255,255,255,.7)":GR}}>pontos</div>
+              </div>
+            </div>
+          );
+        })}
+        <div style={{marginTop:10,fontSize:10,color:GR,textAlign:"center"}}>1 ponto por registo • 5 pontos bónus por encerramento completo</div>
+        {usarSheets&&rankingSheets.length>0&&<div style={{fontSize:10,color:GR,textAlign:"center",marginTop:4}}>Última atualização: {rankingSheets[0]?.updated||"-"}</div>}
+      </div>}
     </div>
   );
 }
-
-const INFO_HACCP={
-  temperaturas:{
-    titulo:"Controlo de Temperaturas — Porquê?",
-    texto:`O controlo de temperatura é um dos Pontos Críticos de Controlo (PCC) mais importantes no HACCP.
-
-ZONA DE PERIGO: Entre 5°C e 65°C as bactérias multiplicam-se rapidamente — algumas duplicam em apenas 20 minutos. Por isso os alimentos não devem permanecer nesta zona mais de 2 horas.
-
-FRIGORÍFICOS (0°C a 4°C): A 4°C o crescimento bacteriano abranda drasticamente. A legislação europeia estabelece limites específicos: carne de aves ≤4°C, carne de ungulados ≤7°C, carne picada ≤2°C, miudezas ≤3°C.
-
-CONGELADORES (≤-18°C): A -18°C as bactérias ficam inativas (não morrem, mas não se multiplicam). O valor -18°C é o mínimo legal — quanto mais frio melhor para a qualidade. Um congelador a -22°C está correto.
-
-REGISTO 2X POR DIA: O registo no início e no fim da aula garante rastreabilidade. Se houver uma intoxicação alimentar, os registos provam que os equipamentos estavam a funcionar corretamente.
-
-AÇÃO EM CASO DE DESVIO: Se um frigorífico estiver acima de 4°C, avaliar os alimentos armazenados, transferir para outro equipamento e registar como Não Conformidade.`,
-    fonte:"Regulamento (CE) n.º 852/2004 | DGAV Esclarecimento Técnico n.º 8/2025"
-  },
-  higienePessoal:{
-    titulo:"Higiene Pessoal — A tua responsabilidade",
-    texto:`O manipulador de alimentos é uma das principais fontes de contaminação microbiológica em cozinhas profissionais.
-
-MÃOS: Transportam bactérias como Staphylococcus aureus, E. coli e Salmonella. Devem ser lavadas durante 20 segundos com água quente e sabão: antes de manipular alimentos, após usar a casa de banho, após tocar em alimentos crus, após assoar/tossir/espirrar.
-
-FARDA: Protege os alimentos de cabelos, pele e microrganismos. O avental deve estar limpo. A touca/rede impede que cabelos caiam nos alimentos.
-
-ADORNOS: Anéis, pulseiras e relógios acumulam bactérias em zonas difíceis de lavar. Podem também cair nos alimentos — contaminação física.
-
-UNHAS: Verniz pode descascar e contaminar os alimentos. Unhas compridas acumulam sujidade e microrganismos.
-
-DOENÇA: Diarreia, vómitos e infeções cutâneas nas mãos são razões para NÃO manipular alimentos. Informar sempre o professor.
-
-A higiene pessoal é uma Boa Prática de Higiene (BPH) obrigatória pelo Regulamento (CE) n.º 852/2004.`,
-    fonte:"Regulamento (CE) n.º 852/2004 | Metodologia CHAC/4C's — ASAE"
-  },
-  recepcao:{
-    titulo:"Receção de Matérias-Primas — Porquê controlar?",
-    texto:`A receção é um ponto crítico onde podem entrar alimentos contaminados ou fora de temperatura na cozinha.
-
-CARNES FRESCAS — O que verificar:
-• Cor vermelho vivo (carne de vaca), rosa claro (porco/frango)
-• Sem cheiro ácido, azedo ou pútrido
-• Textura firme ao toque — sem viscosidade
-• Temperatura de receção: ≤4°C (aves), ≤7°C (bovino)
-• Rejeitar: cor acinzentada, esverdeada ou manchas escuras
-
-PEIXE FRESCO — O que verificar:
-• Olhos brilhantes, salientes e transparentes — olhos encovados = rejeitar
-• Guelras de cor vermelha intensa, sem muco
-• Cheiro a mar fresco, iodo — cheiro amoniacal = rejeitar
-• Carne firme e elástica ao toque
-• Escamas brilhantes e bem aderentes
-
-FRUTAS E LEGUMES — O que verificar:
-• Aparência brilhante, cor viva e uniforme
-• Firmes ao toque, sem partes moles ou machucadas
-• Sem bolores, manchas escuras ou deterioração
-• Rejeitar: fruta muito madura, com feridas ou insetos
-
-CONGELADOS — O que verificar:
-• Embalagens intactas, sem rasgos ou abaulamentos
-• Sem cristais de gelo excessivos (indica descongelação anterior)
-• Temperatura de receção: ≤-18°C
-• Rejeitar: produto parcialmente descongelado ou com gelo acumulado
-
-LATICÍNIOS — O que verificar:
-• Embalagem íntegra e dentro da validade
-• Temperatura: ≤4°C
-• Queijos: sem bolores não característicos, textura adequada
-• Rejeitar: embalagem abaulada (indica fermentação bacteriana)
-
-MERCEARIA SECA — O que verificar:
-• Embalagens sem humidade, insetos ou sinais de abertura
-• Datas de validade legíveis e dentro do prazo
-• Sacos sem rasgos ou orifícios
-
-CADEIA DE FRIO: Armazenar IMEDIATAMENTE após receção. A zona de perigo (5-65°C) permite duplicação bacteriana a cada 20 minutos.`,
-    fonte:"Regulamento (CE) n.º 852/2004 | ASAE CHAC/4C's | Codex Alimentarius CAC/RCP 1-1969"
-  },
-  conservacao:{
-    titulo:"Conservação de Produtos — Ciência e Prática",
-    texto:`A conservação adequada é essencial para prevenir intoxicações alimentares.
-
-PORQUÊ O VÁCUO DURA MAIS:
-O oxigénio é necessário para que fungos, bactérias aeróbicas e bolores se desenvolvam. Ao remover o oxigénio da embalagem, estes microrganismos não conseguem sobreviver. Exemplo: carne no frigorífico dura 3-5 dias; selada a vácuo dura 30-40 dias.
-
-PORQUÊ O FRIO PRESERVA:
-A baixas temperaturas as enzimas e bactérias ficam inativas. Cada 10°C de descida reduz a velocidade de multiplicação bacteriana para metade.
-
-ETIQUETAGEM OBRIGATÓRIA:
-Nome do produto + Data de produção + Data limite + Responsável. Sem etiqueta não há rastreabilidade — em caso de problema não é possível identificar o responsável.
-
-SOBRAS: Acondicionar em recipiente tapado, etiquetar e consumir em max. 72h a ≤4°C.
-
-ATENÇÃO — NÃO SELAR A VÁCUO: Alho e cebola (risco botulismo), queijos moles (bactérias anaeróbias), cogumelos crus (libertam gases), vegetais crucíferos crus (brócolos, couve).`,
-    fonte:"FDA/USDA Food Safety | DGAV 2025 | Hamilton Beach"
-  },
-  testemunho:{
-    titulo:"Amostra Testemunho — Proteção Legal Obrigatória",
-    texto:`A amostra testemunho é OBRIGATÓRIA em restauração coletiva (cantinas, refeitórios, catering).
-
-O QUE É: Uma amostra de 150g de cada refeição servida, guardada durante 72 horas a 0-3°C.
-
-PARA QUE SERVE: Se ocorrer uma suspeita de intoxicação alimentar, a amostra é enviada para análise laboratorial. Permite identificar o agente causador (bactéria, vírus, toxina) e provar que os alimentos estavam ou não seguros.
-
-PROTEÇÃO LEGAL: Sem amostra testemunho, o estabelecimento não consegue provar que os alimentos estavam em conformidade. A ausência de amostras pode ser considerada incumprimento grave em caso de inspeção.
-
-DESTRUIÇÃO: Após 72 horas sem ocorrências, a amostra é destruída de forma higiénica. A data de destruição deve ser registada.
-
-TEMPERATURA: 0-3°C é diferente da temperatura normal do frigorífico (4°C) — idealmente num compartimento separado e dedicado.`,
-    fonte:"Regulamento (CE) n.º 852/2004 | ASAE"
-  },
-  desinfecao:{
-    titulo:"Desinfeção de Alimentos em Cru — Porquê é Obrigatório?",
-    texto:`Frutos e vegetais consumidos em cru são um dos principais vetores de intoxicação alimentar pois não passam por nenhum processo de destruição de microrganismos (como a confeção).
-
-MICRORGANISMOS PRESENTES NA SUPERFÍCIE:
-• Salmonella — presente em solos e fezes de animais
-• E. coli — contaminação fecal, pode causar insuficiência renal
-• Listeria monocytogenes — perigosa para grávidas e imunodeprimidos
-• Vírus da Hepatite A — resistente a muitos desinfetantes
-• Cryptosporidium — parasita resistente ao cloro
-
-PROCESSO CORRETO:
-1. Lavar em água corrente (remove sujidade física)
-2. Imergir em solução desinfetante aprovada para uso alimentar (concentração e tempo conforme instruções)
-3. Passar em água corrente (remove resíduos do desinfetante)
-
-NUNCA: Lavar com detergente de loiça — deixa resíduos tóxicos. Nunca misturar com alimentos já confecionados.`,
-    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
-  },
-  oleos:{
-    titulo:"Controlo de Óleos — Segurança e Saúde",
-    texto:`O óleo de fritura degradado é um risco real para a saúde dos consumidores.
-
-ESCALA DE CORES — TESTE OleoTest / Testo 270:
-🟢 VERDE — menos de 17% CPT: Óleo em bom estado, pode continuar a utilizar
-🟡 AMARELO/LARANJA — entre 17% e 24% CPT: Atenção! Próximo do limite legal. Planear substituição
-🔴 VERMELHO — mais de 24% CPT: REJEITAR OBRIGATORIAMENTE (limite legal Portaria 1135/95)
-
-CPT = Compostos Polares Totais — medida oficial de degradação do óleo
-
-MONITOR 3M (tira de papel com 4 faixas):
-• Faixas mantêm-se AZUIS → óleo OK
-• Faixas ficam AMARELAS → REJEITAR imediatamente
-
-O QUE ACONTECE AO ÓLEO COM O CALOR:
-A temperaturas elevadas o óleo forma compostos tóxicos: acroleína (irritante respiratório), aldeídos (cancerígenos) e polímeros. Estes compostos são absorvidos pelos alimentos fritos.
-
-SINAIS VISUAIS DE ÓLEO ALTERADO:
-• Cor escura: dourado claro → âmbar → castanho escuro → REJEITAR
-• Espuma excessiva e persistente ao aquecer
-• Cheiro intenso, ranço ou queimado
-• Fumo a temperaturas normais de fritura (abaixo de 180°C)
-
-TEMPERATURA MÁXIMA: 180°C. Acima desta temperatura a degradação é muito mais rápida.
-
-AÇÃO: Óleo rejeitado deve ser enviado para recolha de óleos usados — NUNCA deitar pelo esgoto.`,
-    fonte:"OleoTest — Bioanalitica.pt | Testo 270 | Portaria 1135/95 | ASAE CHAC/4C's"
-  },
-  servico:{
-    titulo:"Temperatura de Serviço — A última linha de defesa",
-    texto:`A distribuição/serviço é o ÚLTIMO momento de controlo antes do consumo. Um erro aqui pode causar intoxicação alimentar mesmo que tudo o resto tenha sido feito corretamente.
-
-ALIMENTOS QUENTES (≥65°C):
-A legislação exige ≥65°C durante o serviço. Na prática serve-se a 63°C porque é o arrefecimento natural durante o transporte do prato até ao cliente (diferença de ~2°C).
-
-O banho-maria deve ser pré-aquecido a ~90°C para manter os alimentos a ≥65°C. Se estiver abaixo, os alimentos entram na zona de perigo (5-65°C).
-
-ALIMENTOS FRIOS (≤4°C):
-Saladas, sobremesas e outros alimentos frios devem estar a ≤4°C durante o serviço.
-
-SELF-SERVICE E BUFFET (max. 2 horas):
-Após 2 horas de exposição, os alimentos devem ser substituídos ou rejeitados — mesmo que pareçam estar bons. As bactérias não se veem nem se cheiram.
-
-REJEITAR: Alimentos que estiveram à temperatura ambiente mais de 30 minutos devem ser rejeitados.`,
-    fonte:"Metodologia CHAC/4C's — ASAE | Regulamento (CE) n.º 852/2004"
-  },
-  higienizacao:{
-    titulo:"Higienização — Mais do que limpeza",
-    texto:`Higienização não é o mesmo que limpeza. A limpeza remove sujidade visível. A higienização destrói os microrganismos invisíveis.
-
-PROCESSO CORRETO (4 passos obrigatórios):
-1. PRÉ-LIMPEZA — remover resíduos sólidos
-2. LIMPEZA — detergente + água quente + esfregão
-3. ENXAGUAMENTO — remover resíduos do detergente
-4. DESINFECÇÃO — produto desinfetante aprovado + tempo de contacto
-5. ENXAGUAMENTO FINAL — remover resíduos do desinfetante
-
-BIOFILMES: Bactérias formam biofilmes em superfícies — camadas protetoras que resistem à limpeza simples. A higienização regular com produtos adequados é a única forma de controlar biofilmes.
-
-PANOS DE LIMPEZA: São os principais vetores de contaminação cruzada. Devem estar em solução desinfetante entre utilizações. Nunca usar o mesmo pano para superfícies e equipamentos.
-
-PLANO: Diário (bancadas, equipamentos usados, chão), semanal (frigoríficos interior, prateleiras, paredes), mensal (congeladores, fornos, limpeza profunda).`,
-    fonte:"Regulamento (CE) n.º 852/2004 | Plano de Higienização ECL"
-  },
-  manutencao:{
-    titulo:"Manutenção — Prevenir é mais barato que corrigir",
-    texto:`Equipamentos em mau estado comprometem diretamente a segurança alimentar.
-
-FRIGORÍFICO AVARIADO: Se a temperatura subir acima de 4°C, os alimentos entram na zona de perigo. Cada hora conta — após 2 horas na zona de perigo, os alimentos devem ser avaliados e possivelmente rejeitados.
-
-ILUMINAÇÃO: Lâmpadas partidas podem contaminar fisicamente os alimentos com vidros. Devem ser protegidas com capas de segurança.
-
-TERMÓMETROS: Devem ser calibrados regularmente. Um termómetro descalibrado dá falsas garantias de segurança.
-
-MANUTENÇÃO PREVENTIVA vs CORRETIVA:
-• Preventiva: programada, evita falhas inesperadas
-• Corretiva: após avaria, mais cara e arriscada
-
-REGISTO OBRIGATÓRIO: Todos os registos de manutenção devem ser conservados como parte do plano HACCP. Em inspeção, provam que o estabelecimento cumpre os requisitos de manutenção.
-
-CALIBRAÇÃO DE EQUIPAMENTOS: Thermómetros, balanças e sondas de temperatura devem ter calibração documentada.`,
-    fonte:"Regulamento (CE) n.º 852/2004 | DGAV 2025"
-  },
-  naoConf:{
-    titulo:"Não Conformidades — O coração do HACCP",
-    texto:`Uma Não Conformidade (NC) é qualquer situação que não cumpre os requisitos do plano HACCP ou da legislação. Registar NCs não é um sinal de falha — é um sinal de que o sistema funciona.
-
-EXEMPLOS DE NC:
-• Temperatura de frigorífico acima de 4°C
-• Produto fora de validade encontrado
-• Equipamento avariado
-• Higienização insuficiente
-• Alimentos sem etiqueta
-• Temperatura de serviço abaixo de 65°C
-
-PORQUÊ REGISTAR:
-1. Conformidade legal — demonstra que os desvios são detetados e corrigidos
-2. Rastreabilidade — se houver uma intoxicação, os registos identificam a causa
-3. Melhoria contínua — padrões de NC permitem identificar problemas recorrentes
-4. Proteção legal — em caso de inspeção, provas de ação corretiva
-
-AÇÃO CORRETIVA: Cada NC deve ter uma ação corretiva documentada. Não basta detetar o problema — tem de ser resolvido e registado como resolvido.`,
-    fonte:"Regulamento (CE) n.º 852/2004 | Codex Alimentarius | ASAE"
-  },
-  regeneracao:{
-    titulo:"Regeneração — Reaquecimento Seguro",
-    texto:`A regeneração é o processo de reaquecimento de alimentos já confecionados e armazenados. É uma etapa crítica do HACCP.
-
-TEMPERATURA MÍNIMA: 75°C internos em menos de 2 horas. Esta temperatura garante a destruição das bactérias que possam ter crescido durante o armazenamento.
-
-REGRAS OBRIGATÓRIAS:
-• O alimento deve atingir 75°C no centro (não apenas na superfície)
-• O reaquecimento deve ser feito em menos de 2 horas
-• Após regenerar: servir imediatamente — nunca guardar novamente
-• NUNCA recongelar um alimento que já foi regenerado
-• Fazer apenas uma vez — nunca regenerar o mesmo alimento duas vezes
-
-ZONA DE PERIGO: Durante o reaquecimento o alimento passa pela zona de perigo (5°C a 65°C). Quanto mais rápido este processo, melhor.
-
-EQUIPAMENTOS: Forno, fogão, banho-maria, micro-ondas (verificar que o alimento aquece de forma uniforme). Usar termómetro para confirmar a temperatura interna.`,
-    fonte:"USDA Food Safety | AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
-  },
-  encerramento:{
-    titulo:"Encerramento da Aula — A última verificação",
-    texto:`O encerramento é a verificação final de todos os procedimentos HACCP do dia. É obrigatório e deve ser validado pelo professor.
-
-PORQUÊ É IMPORTANTE:
-• Equipamentos desligados — evita acidentes, incêndios e desperdício energético
-• Verificação do frio — garante que os produtos armazenados estão seguros para a próxima aula
-• Limpeza geral — evita contaminações cruzadas entre aulas (bactérias podem sobreviver horas em superfícies)
-• Economatos organizados — produtos no chão podem ser contaminados por pragas
-• Lixos despejados — atraem pragas e produzem gases nocivos
-
-TEMPERATURA FINAL: O registo de temperaturas no final da aula confirma que os equipamentos de frio voltaram aos valores normais após a utilização.
-
-VALIDAÇÃO DO PROFESSOR: A assinatura do professor confirma que verificou pessoalmente as condições de encerramento. É a última linha de controlo do sistema HACCP da cozinha pedagógica.
-
-DOCUMENTAÇÃO: O registo de encerramento faz parte do dossier HACCP do estabelecimento e pode ser solicitado em inspeção.`,
-    fonte:"Regulamento (CE) n.º 852/2004 | Plano HACCP ECL"
-  },
-};
 
 function InfoBtn({modId}){
   const [open,setOpen]=useState(false);
