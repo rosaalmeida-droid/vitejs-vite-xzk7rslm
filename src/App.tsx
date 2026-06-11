@@ -14,7 +14,7 @@ document.head.appendChild(fontStyle);
 
 
 // Apps Script trigger deve estar configurado para "Head" para não precisar atualizar após cada deploy
-const SHEET_URL="https://script.google.com/macros/s/AKfycbwl76qQrCyQVLQPnHzP69wHFsdhNLbiQaFLl1SL6jOgMcVkoDKaS9kcaNGTVoZliTfVLQ/exec";
+const SHEET_URL="https://script.google.com/macros/s/AKfycbyzV5EFHNU5Zw0YyQAnz91x1hpHmZ81g_eUyz8AYWe7JGYKxn8BQVIFeVZdd7XsQO2URg/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
