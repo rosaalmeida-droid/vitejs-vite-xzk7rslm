@@ -740,8 +740,8 @@ function Manutencao({user,db,setDb,showToast}){
 
 function Higienizacao({user,db,setDb,showToast}){
   const h=gD(),k="hig-"+user.turma+"-"+h;
-  const regs=(db.higienizacao&&db.higienizacao[k])?db.higienizacao[k].registos:{};
-  const panos=(db.higienizacao&&db.higienizacao[k])?db.higienizacao[k].panos||{}:{};
+  const regs=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].registos)?db.higienizacao[k].registos:{};
+  const panos=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].panos)?db.higienizacao[k].panos:{};
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
   const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
@@ -763,7 +763,7 @@ function Higienizacao({user,db,setDb,showToast}){
   const marcarPanos=(momento)=>{
     if(panos[momento]){showToast("Já registado às "+panos[momento].time);return;}
     const np={...panos,[momento]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
-    setDb(p=>{const hg={...p.higienizacao};hg[k]={...hg[k],panos:np,turma:user.turma,date:h};return{...p,higienizacao:hg};});
+    setDb(p=>{const hg={...(p.higienizacao||{})};const existing=hg[k]||{registos:{},turma:user.turma,date:h};hg[k]={...existing,panos:np,turma:user.turma,date:h};return{...p,higienizacao:hg};});
     enviar("Panos Solução",[h,gT(),user.turma,user.id,nomeAluno||user.id,momento]);
     showToast("Panos e esponjas — "+momento+" registado!");
   };
