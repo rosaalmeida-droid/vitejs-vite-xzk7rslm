@@ -41,7 +41,7 @@ const MODS_DIARIOS=[
 ];
 const MODS_ESPECIFICOS=[
   {id:"conservacao",lb:"Conservação de Produtos",cor:"#6d28d9"},
-  {id:"regeneracao",lb:"Regeneração de Produtos Confeccionados",cor:"#6d28d9"},
+  {id:"regeneracao",lb:"Regeneração/Cook-Chill",cor:"#6d28d9"},
   {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
   {id:"desinfecao",lb:"Desinfeção Alimentos em Cru",cor:"#6d28d9"},
   {id:"oleos",lb:"Controlo de Óleos",cor:"#6d28d9"},
@@ -2541,26 +2541,30 @@ ETIQUETAGEM: Todo o produto armazenado deve ter etiqueta com: nome do produto, d
     fonte:"FDA Food Safety | USDA | Hamilton Beach | MR Vácuo | Diário do Chef"
   },
   regeneracao:{
-    titulo:"Regeneração — Reaquecimento Seguro de Alimentos",
-    texto:`A regeneração é o processo de reaquecimento de alimentos já confecionados e armazenados. É uma etapa crítica do HACCP.
+    titulo:"Regeneração/Cook-Chill — Reaquecimento Seguro",
+    texto:`A regeneração é o reaquecimento de alimentos já confecionados e refrigerados/congelados para consumo quente, garantindo a sua segurança e qualidade organolética.
 
-TEMPERATURA MÍNIMA OBRIGATÓRIA: 75°C no centro do alimento, em menos de 2 horas.
+TEMPERATURA MÍNIMA OBRIGATÓRIA: ≥ 75°C no centro do alimento, no prazo máximo de 60 minutos após retirado do equipamento de frio.
 
-TEMPERATURAS MÍNIMAS POR TIPO (USDA/AHRESP):
-• Aves (frango, peru, pato) — 74°C durante 15 segundos
-• Sobras e alimentos pré-cozinhados — 75°C em menos de 2 horas
-• Porco, bacon, salsicha — 63°C durante 15 segundos
-• Carne moída / hambúrguer — 68°C durante 15 segundos
-• Peixe e marisco — 63°C durante 15 segundos
-• Vegetais a servir quentes — 60°C durante 15 segundos
+EQUIPAMENTOS PERMITIDOS: Forno convector/regenerador (com ou sem vapor), fogão/marmita (sopas), micro-ondas (doses individuais — 3 a 6 minutos na potência máxima 1000W).
+
+ONDE MONITORIZAR: Temperatura no interior de TODOS os componentes — componente principal, guarnição, legumes e sopa.
 
 REGRAS OBRIGATÓRIAS:
-• Temperatura no CENTRO do alimento — usar termómetro
-• Reaquecimento em menos de 2 horas
-• Após regenerar: servir IMEDIATAMENTE
+• Pré-aquecer o equipamento ≈ 10 minutos antes
+• Temperatura ≥ 75°C no centro — usar termómetro sonda
+• Máximo 60 minutos desde a saída do frio até atingir 75°C
+• Após regeneração: servir em máximo 30 minutos
+• Manter a ≥ 65°C até ao momento de servir
 • NUNCA recongelar após regenerar
-• Fazer apenas UMA VEZ`,
-    fonte:"USDA Food Safety | AHRESP Código de Boas Práticas 2018 | Regulamento (CE) n.º 852/2004"
+• Refeições não consumidas após regeneração → destruir obrigatoriamente
+
+TEMPERATURA NÃO CONFORME:
+• Se < 75°C → voltar ao calor até atingir 75°C
+• Se > 60 minutos → reportar imediatamente por escrito ao responsável
+
+MICROONDAS: 3 a 6 minutos por dose na potência máxima (1000W). Verificar que aquece uniformemente — mexer a meio e verificar temperatura em vários pontos.`,
+    fonte:"Procedimento R-020/B v.4 (22/03/2018) | USDA Food Safety | AHRESP | Regulamento (CE) n.º 852/2004"
   },
   testemunho:{
     titulo:"Amostra Testemunho — HACCP",
@@ -2722,14 +2726,14 @@ function Regeneracao({user,db,setDb,showToast}){
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e"}}>Regeneração</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e"}}>Regeneração/Cook-Chill</div>
         <InfoBtn modId="regeneracao"/>
       </div>
 
       <div style={{background:"#fef3c7",borderRadius:10,padding:"12px 14px",marginBottom:14,borderLeft:"4px solid #d97706"}}>
         <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:6}}>♨️ O que é Regeneração?</div>
         <div style={{fontSize:11,color:"#78350f",lineHeight:1.7}}>
-          Regeneração é o reaquecimento de alimentos já confecionados e armazenados. O alimento deve atingir uma temperatura interna mínima de <strong>75°C em menos de 2 horas</strong>. O reaquecimento deve ser feito apenas uma vez — <strong>nunca recongelar após regenerar.</strong>
+          Reaquecimento de alimentos confecionados e refrigerados/congelados. O alimento deve atingir <strong>≥ 75°C no centro</strong> no prazo máximo de <strong>60 minutos</strong> após sair do frio. Após regenerar, servir em máximo <strong>30 minutos</strong>. Refeições não consumidas → <strong>destruir obrigatoriamente.</strong>
         </div>
       </div>
 
@@ -2759,7 +2763,7 @@ function Regeneracao({user,db,setDb,showToast}){
         </div>}
         <Ta lb="Observações" val={form.obs} onChange={v=>setForm(p=>({...p,obs:v}))} ph="Notas adicionais..."/>
         <B lb="Registar Regeneração" onClick={save} cor="#d97706"/>
-        <div style={{fontSize:10,color:"#dc2626",marginTop:8,textAlign:"center",fontWeight:600}}>Após regeneração: servir imediatamente — nunca recongelar!</div>
+        <div style={{fontSize:10,color:"#dc2626",marginTop:8,textAlign:"center",fontWeight:600}}>Após regeneração: servir em máx. 30 min — manter ≥65°C — nunca recongelar — refeições não consumidas: destruir!</div>
       </Cd>
 
       {lista.length>0&&<div>
