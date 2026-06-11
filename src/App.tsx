@@ -2692,36 +2692,68 @@ function InfoBtn({modId}){
 
 
 function Regeneracao({user,db,setDb,showToast}){
-  const [form,setForm]=useState({prato:"",tipoProd:"",tempInicial:"",tempFinal:"",hora:gT(),equipamento:"",obs:""});
-  const lista=(db.regeneracao||[]).filter(r=>r.turma===user.turma&&r.date===gD()).slice(-6).reverse();
+  const [step,setStep]=useState(1);
+  const [form,setForm]=useState({
+    prato:"",tipoProd:"",
+    horaInicio:gT(),horaFim:"",
+    tempFinal:"",tempServico:"",
+    equipamento:"",obs:"",
+    conservacaoAnterior:"refrigerado",
+    dataConfeacao:new Date().toISOString().split("T")[0],
+    embalagem:"normal"
+  });
+  const lista=(db.regeneracao||[]).filter(r=>r.turma===user.turma&&r.date===gD()).slice(-5).reverse();
+  const nomeAluno=(db.assinaturas&&db.assinaturas[user.id])||"";
 
-  const TEMPS_MIN=[
-    {tipo:"Aves (frango, peru, pato)",temp:"74°C",nota:"durante 15 segundos"},
-    {tipo:"Carne recheada / pratos com carne e aves",temp:"74°C",nota:"durante 15 segundos"},
-    {tipo:"Alimentos pré-cozinhados / sobras",temp:"75°C",nota:"em menos de 2 horas"},
-    {tipo:"Porco, bacon, salsicha",temp:"63°C",nota:"durante 15 segundos"},
-    {tipo:"Carne moída / hambúrguer",temp:"68°C",nota:"durante 15 segundos"},
-    {tipo:"Bife de vaca / carneiro / vitela",temp:"63°C",nota:"durante 15 segundos"},
-    {tipo:"Peixe e marisco",temp:"63°C",nota:"durante 15 segundos"},
-    {tipo:"Vegetais a servir quentes",temp:"60°C",nota:"durante 15 segundos"},
-    {tipo:"Presunto pré-cozido",temp:"74°C",nota:"durante 15 segundos"},
-    {tipo:"Qualquer alimento no microondas",temp:"74°C",nota:"durante 15 segundos"},
-  ];
+  const calcTempo=()=>{
+    if(!form.horaInicio||!form.horaFim)return null;
+    const [h1,m1]=form.horaInicio.split(":").map(Number);
+    const [h2,m2]=form.horaFim.split(":").map(Number);
+    return(h2*60+m2)-(h1*60+m1);
+  };
 
   const tempOk=form.tempFinal&&parseFloat(form.tempFinal)>=75;
+  const tempServicoOk=form.tempServico&&parseFloat(form.tempServico)>=65;
+  const tempoDecorrido=calcTempo();
+  const tempoOk=tempoDecorrido!==null&&tempoDecorrido<=60;
+
+  const calcValidade=()=>{
+    if(!form.dataConfeacao)return null;
+    const d=new Date(form.dataConfeacao);
+    const base=form.conservacaoAnterior==="congelado"?30:5;
+    const dias=form.embalagem==="vacuo"?base*5:base;
+    d.setDate(d.getDate()+dias);
+    return{dias,data:d.toISOString().split("T")[0]};
+  };
+  const validade=calcValidade();
+  const dentroValidade=validade&&new Date()<=new Date(validade.data);
 
   const save=()=>{
     if(!form.prato||!form.tempFinal)return;
-    const nomeR=(db.assinaturas&&db.assinaturas[user.id])||"";
-    const reg={...form,tempOk,responsavel:user.id,nomeAluno:nomeR,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
+    const reg={...form,tempOk,tempServicoOk,tempoDecorrido,tempoOk,dentroValidade,responsavel:user.id,nomeAluno,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,regeneracao:[...(p.regeneracao||[]),reg]}));
-    enviar("Regeneração",[gD(),gT(),user.turma,user.id,nomeR,form.prato,form.tipoProd,form.tempInicial,form.tempFinal,tempOk?"OK":"NC",form.hora,form.equipamento,form.obs]);
-    if(!tempOk){
-      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Temperatura de regeneração insuficiente: "+form.tempFinal+"°C (mín. 75°C)",acaoCorretiva:"Continuar aquecimento até atingir 75°C",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
-    }
-    showToast(tempOk?"Regeneração OK — 75°C atingidos!":"NC — Temperatura insuficiente!");
-    setForm({prato:"",tipoProd:"",tempInicial:"",tempFinal:"",hora:gT(),equipamento:"",obs:""});
+    enviar("Regeneração",[gD(),gT(),user.turma,user.id,nomeAluno,form.prato,form.tipoProd,form.tempFinal,tempOk?"OK":"NC",form.horaInicio,form.horaFim,tempoDecorrido?tempoDecorrido+"min":"",form.tempServico,tempServicoOk?"OK":"NC",form.equipamento,form.conservacaoAnterior,form.embalagem,form.dataConfeacao,form.obs]);
+    if(!tempOk)setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Temp. NC: "+form.tempFinal+"°C (mín. 75°C)",acaoCorretiva:"Continuar a aquecer até 75°C",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+    if(tempoDecorrido&&tempoDecorrido>60)setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now()+1,date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Tempo NC: "+tempoDecorrido+"min (máx. 60min)",acaoCorretiva:"Reportar ao responsável",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+    showToast(tempOk?"Regeneração registada!":"NC criada!");
+    setForm({prato:"",tipoProd:"",horaInicio:gT(),horaFim:"",tempFinal:"",tempServico:"",equipamento:"",obs:"",conservacaoAnterior:"refrigerado",dataConfeacao:new Date().toISOString().split("T")[0],embalagem:"normal"});
+    setStep(1);
   };
+
+  const stepBar=(
+    <div style={{display:"flex",gap:4,marginBottom:16}}>
+      {[1,2,3,4,5].map(s=>(
+        <div key={s} style={{flex:1,height:5,borderRadius:3,background:step>=s?"#d97706":"#fef3c7",transition:"background .2s"}}/>
+      ))}
+    </div>
+  );
+
+  const btnGrande=(label,onClick,icon="",cor="#f0f9ff",corTxt="#0c4a6e")=>(
+    <button onClick={onClick} style={{width:"100%",padding:"18px 16px",marginBottom:10,borderRadius:14,border:"2px solid #e0f2fe",background:cor,color:corTxt,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit",textAlign:"left",display:"flex",alignItems:"center",gap:12}}>
+      {icon&&<span style={{fontSize:24}}>{icon}</span>}
+      <span>{label}</span>
+    </button>
+  );
 
   return(
     <div style={{padding:15}}>
@@ -2730,51 +2762,135 @@ function Regeneracao({user,db,setDb,showToast}){
         <InfoBtn modId="regeneracao"/>
       </div>
 
-      <div style={{background:"#fef3c7",borderRadius:10,padding:"12px 14px",marginBottom:14,borderLeft:"4px solid #d97706"}}>
-        <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:6}}>♨️ O que é Regeneração?</div>
-        <div style={{fontSize:11,color:"#78350f",lineHeight:1.7}}>
-          Reaquecimento de alimentos confecionados e refrigerados/congelados. O alimento deve atingir <strong>≥ 75°C no centro</strong> no prazo máximo de <strong>60 minutos</strong> após sair do frio. Após regenerar, servir em máximo <strong>30 minutos</strong>. Refeições não consumidas → <strong>destruir obrigatoriamente.</strong>
-        </div>
-      </div>
+      {stepBar}
 
-      <div style={{background:W,borderRadius:11,border:"1px solid #e0f2fe",marginBottom:14,overflow:"hidden"}}>
-        <div style={{background:"#0e7490",color:W,padding:"8px 14px",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.5}}>Temperaturas Mínimas de Segurança — USDA/AHRESP</div>
-        {TEMPS_MIN.map((t,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 14px",borderBottom:"1px solid #f0f9ff",background:i%2===0?W:"#f8faff"}}>
-            <span style={{fontSize:12,color:"#334155",flex:2}}>{t.tipo}</span>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:14,fontWeight:800,color:"#dc2626"}}>{t.temp}</div>
-              <div style={{fontSize:9,color:GR}}>{t.nota}</div>
+      {/* PASSO 1 — Verificar validade */}
+      {step===1&&<div>
+        <Cd>
+          <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Passo 1 — O produto está dentro do prazo?</div>
+          <div style={{fontSize:12,color:GR,marginBottom:14}}>Indica quando foi confeccionado e como foi guardado</div>
+          <Ip lb="Data de confeção" type="date" val={form.dataConfeacao} onChange={v=>setForm(p=>({...p,dataConfeacao:v}))}/>
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            {["refrigerado","congelado"].map(v=>(
+              <button key={v} onClick={()=>setForm(p=>({...p,conservacaoAnterior:v}))} style={{flex:1,padding:"14px 8px",borderRadius:11,border:"2px solid "+(form.conservacaoAnterior===v?"#d97706":"#e0f2fe"),background:form.conservacaoAnterior===v?"#fef3c7":"#f0f9ff",color:form.conservacaoAnterior===v?"#92400e":"#0c4a6e",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+                {v==="refrigerado"?"❄️ Frigorífico":"🧊 Congelador"}
+              </button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8,marginBottom:14}}>
+            {["normal","vacuo"].map(v=>(
+              <button key={v} onClick={()=>setForm(p=>({...p,embalagem:v}))} style={{flex:1,padding:"14px 8px",borderRadius:11,border:"2px solid "+(form.embalagem===v?"#d97706":"#e0f2fe"),background:form.embalagem===v?"#fef3c7":"#f0f9ff",color:form.embalagem===v?"#92400e":"#0c4a6e",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+                {v==="normal"?"⬜ Sem Vácuo":"🔵 Com Vácuo"}
+              </button>
+            ))}
+          </div>
+          {validade&&<div style={{background:dentroValidade?"#e0f2fe":"#fdecea",borderRadius:12,padding:"14px 16px",marginBottom:14,textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:dentroValidade?"#0369a1":"#dc2626",marginBottom:4}}>
+              {dentroValidade?"✅ DENTRO DO PRAZO":"❌ FORA DO PRAZO"}
             </div>
-          </div>
-        ))}
-      </div>
-
-      <Cd>
-        <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:12}}>Registar Regeneração</div>
-        <Ip lb="Nome do prato / produto" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado, Sopa de legumes..."/>
-        <Sl lb="Tipo de produto" val={form.tipoProd} onChange={v=>setForm(p=>({...p,tipoProd:v}))} opts={["Aves","Carne bovina/suína","Peixe e marisco","Sopa/Caldo","Prato com molho","Vegetais","Outro"]}/>
-        <Ip lb="Hora de início do reaquecimento" type="time" val={form.hora} onChange={v=>setForm(p=>({...p,hora:v}))}/>
-        <Ip lb="Temperatura inicial (°C)" type="number" val={form.tempInicial} onChange={v=>setForm(p=>({...p,tempInicial:v}))} ph="Temperatura antes de aquecer"/>
-        <Ip lb="Equipamento utilizado" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} ph="Ex: Forno, micro-ondas, fogão..."/>
-        <Ip lb="Temperatura final atingida (°C)" type="number" val={form.tempFinal} onChange={v=>setForm(p=>({...p,tempFinal:v}))} ph="Mínimo 75°C"/>
-        {form.tempFinal&&<div style={{background:tempOk?"#e0f2fe":"#fdecea",borderRadius:8,padding:10,marginBottom:10,fontSize:13,fontWeight:700,textAlign:"center",color:tempOk?"#0369a1":"#dc2626"}}>
-          {tempOk?"✓ OK — Temperatura mínima de 75°C atingida":"⚠️ NC — Temperatura insuficiente! Continuar a aquecer."}
+            <div style={{fontSize:13,color:dentroValidade?"#0369a1":"#dc2626",fontWeight:600}}>
+              {dentroValidade?`Válido até ${fD(validade.data)}`:`Venceu em ${fD(validade.data)} — REJEITAR!`}
+            </div>
+            <div style={{fontSize:11,color:GR,marginTop:4}}>{form.embalagem==="vacuo"?`Com vácuo: ${validade.dias} dias`:`Sem vácuo: ${validade.dias} dias`}</div>
+          </div>}
+          {dentroValidade&&<button onClick={()=>setStep(2)} style={{width:"100%",padding:14,borderRadius:11,border:"none",background:"#d97706",color:W,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Continuar →</button>}
+          {validade&&!dentroValidade&&<div style={{background:"#fdecea",borderRadius:10,padding:12,textAlign:"center",fontSize:13,fontWeight:700,color:"#dc2626"}}>Produto fora do prazo — não pode ser regenerado!</div>}
+        </Cd>
+        {lista.length>0&&<div>
+          <div style={{fontSize:11,fontWeight:700,color:GR,marginBottom:8,textTransform:"uppercase"}}>Registos de hoje</div>
+          {lista.map(r=><div key={r.id} style={{padding:"8px 0",borderBottom:"1px solid #e0f2fe",display:"flex",justifyContent:"space-between"}}>
+            <div><div style={{fontWeight:600,fontSize:13}}>{r.prato}</div><div style={{fontSize:11,color:GR}}>{r.tempFinal}°C • {r.tempoDecorrido}min</div></div>
+            <span style={{background:r.tempOk?"#16a34a":"#dc2626",color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:700}}>{r.tempOk?"OK":"NC"}</span>
+          </div>)}
         </div>}
-        <Ta lb="Observações" val={form.obs} onChange={v=>setForm(p=>({...p,obs:v}))} ph="Notas adicionais..."/>
-        <B lb="Registar Regeneração" onClick={save} cor="#d97706"/>
-        <div style={{fontSize:10,color:"#dc2626",marginTop:8,textAlign:"center",fontWeight:600}}>Após regeneração: servir em máx. 30 min — manter ≥65°C — nunca recongelar — refeições não consumidas: destruir!</div>
-      </Cd>
+      </div>}
 
-      {lista.length>0&&<div>
-        <div style={{fontSize:11,fontWeight:700,color:GR,marginBottom:8,textTransform:"uppercase"}}>Registos de hoje</div>
-        {lista.map(r=><Cd key={r.id} st={{marginBottom:8,borderLeft:"3px solid "+(r.tempOk?"#16a34a":"#dc2626")}}>
-          <div style={{display:"flex",justifyContent:"space-between"}}>
-            <span style={{fontWeight:600,fontSize:13}}>{r.prato}</span>
-            <span style={{background:r.tempOk?"#16a34a":"#dc2626",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{r.tempOk?"OK":"NC"}</span>
+      {/* PASSO 2 — Que prato */}
+      {step===2&&<Cd>
+        <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Passo 2 — Qual é o prato?</div>
+        <Ip lb="Nome do prato" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado, Sopa..."/>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
+          {["Aves","Carne","Peixe","Sopa","Legumes","Outro"].map(t=>(
+            <button key={t} onClick={()=>setForm(p=>({...p,tipoProd:t}))} style={{padding:"10px 14px",borderRadius:10,border:"2px solid "+(form.tipoProd===t?"#d97706":"#e0f2fe"),background:form.tipoProd===t?"#fef3c7":"#f0f9ff",color:form.tipoProd===t?"#92400e":"#0c4a6e",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+              {t}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setStep(1)} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #e0f2fe",background:"transparent",color:GR,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar</button>
+          <button onClick={()=>{if(form.prato)setStep(3);}} disabled={!form.prato} style={{flex:2,padding:12,borderRadius:10,border:"none",background:form.prato?"#d97706":"#ccc",color:W,fontSize:14,fontWeight:700,cursor:form.prato?"pointer":"not-allowed",fontFamily:"inherit"}}>Continuar →</button>
+        </div>
+      </Cd>}
+
+      {/* PASSO 3 — Equipamento e horas */}
+      {step===3&&<Cd>
+        <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Passo 3 — Como vais aquecer?</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
+          {["Forno combinado","Fogão/Marmita","Micro-ondas","Banho-maria"].map(eq=>(
+            <button key={eq} onClick={()=>setForm(p=>({...p,equipamento:eq}))} style={{padding:"12px 14px",borderRadius:11,border:"2px solid "+(form.equipamento===eq?"#d97706":"#e0f2fe"),background:form.equipamento===eq?"#fef3c7":"#f0f9ff",color:form.equipamento===eq?"#92400e":"#0c4a6e",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+              {eq}
+            </button>
+          ))}
+        </div>
+        <div style={{background:"#fef3c7",borderRadius:9,padding:"10px 12px",marginBottom:14,fontSize:11,color:"#92400e"}}>
+          ⏱ Tens máximo <strong>60 minutos</strong> desde que retiraste do frio até atingir 75°C
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{flex:1}}><Ip lb="Hora de início" type="time" val={form.horaInicio} onChange={v=>setForm(p=>({...p,horaInicio:v}))}/></div>
+          <div style={{flex:1}}><Ip lb="Hora de fim" type="time" val={form.horaFim} onChange={v=>setForm(p=>({...p,horaFim:v}))}/></div>
+        </div>
+        {tempoDecorrido!==null&&<div style={{background:tempoOk?"#e0f2fe":"#fdecea",borderRadius:9,padding:10,marginBottom:10,fontSize:13,fontWeight:700,textAlign:"center",color:tempoOk?"#0369a1":"#dc2626"}}>
+          ⏱ {tempoDecorrido} minutos {tempoOk?"✅ OK":"❌ NC — ultrapassou 60 min!"}
+        </div>}
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setStep(2)} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #e0f2fe",background:"transparent",color:GR,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar</button>
+          <button onClick={()=>setStep(4)} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#d97706",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Continuar →</button>
+        </div>
+      </Cd>}
+
+      {/* PASSO 4 — Temperaturas */}
+      {step===4&&<Cd>
+        <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Passo 4 — Temperaturas</div>
+        <div style={{background:"#fdecea",borderRadius:9,padding:"10px 12px",marginBottom:14,fontSize:12,color:"#dc2626",fontWeight:700,textAlign:"center"}}>
+          Temperatura mínima no CENTRO do alimento: <span style={{fontSize:18}}>75°C</span>
+        </div>
+        <Ip lb="🌡️ Temperatura no centro do alimento (°C)" type="number" val={form.tempFinal} onChange={v=>setForm(p=>({...p,tempFinal:v}))} ph="Mínimo 75°C"/>
+        {form.tempFinal&&<div style={{background:tempOk?"#e0f2fe":"#fdecea",borderRadius:12,padding:"14px",marginBottom:14,textAlign:"center"}}>
+          <div style={{fontSize:28,fontWeight:800,color:tempOk?"#0369a1":"#dc2626"}}>{form.tempFinal}°C</div>
+          <div style={{fontSize:14,fontWeight:700,color:tempOk?"#0369a1":"#dc2626",marginTop:4}}>{tempOk?"✅ OK — Temperatura atingida!":"❌ Continua a aquecer!"}</div>
+        </div>}
+        <Ip lb="🌡️ Temperatura de serviço (°C)" type="number" val={form.tempServico} onChange={v=>setForm(p=>({...p,tempServico:v}))} ph="Mínimo 65°C"/>
+        {form.tempServico&&<div style={{background:tempServicoOk?"#e0f2fe":"#fdecea",borderRadius:9,padding:10,marginBottom:10,fontSize:13,fontWeight:700,textAlign:"center",color:tempServicoOk?"#0369a1":"#dc2626"}}>
+          {tempServicoOk?"✅ Serviço OK — ≥65°C":"❌ Temperatura de serviço insuficiente!"}
+        </div>}
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setStep(3)} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #e0f2fe",background:"transparent",color:GR,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar</button>
+          <button onClick={()=>{if(form.tempFinal)setStep(5);}} disabled={!form.tempFinal} style={{flex:2,padding:12,borderRadius:10,border:"none",background:form.tempFinal?"#d97706":"#ccc",color:W,fontSize:14,fontWeight:700,cursor:form.tempFinal?"pointer":"not-allowed",fontFamily:"inherit"}}>Continuar →</button>
+        </div>
+      </Cd>}
+
+      {/* PASSO 5 — Confirmar */}
+      {step===5&&<div>
+        <Cd>
+          <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e",marginBottom:14}}>Passo 5 — Confirmar</div>
+          <div style={{background:tempOk&&tempoOk?"#e0f2fe":"#fdecea",borderRadius:12,padding:16,marginBottom:14,textAlign:"center"}}>
+            <div style={{fontSize:24,fontWeight:800,color:tempOk&&tempoOk?"#0369a1":"#dc2626"}}>{tempOk&&tempoOk?"✅ REGENERAÇÃO OK":"❌ NÃO CONFORME"}</div>
           </div>
-          <div style={{fontSize:11,color:GR}}>{r.tempFinal}°C — {r.hora} — {r.nomeAluno||r.responsavel}</div>
-        </Cd>)}
+          <div style={{fontSize:12,color:"#334155",lineHeight:1.8}}>
+            <div>🍽️ <strong>{form.prato}</strong> — {form.tipoProd}</div>
+            <div>🌡️ Temperatura: <strong style={{color:tempOk?"#0369a1":"#dc2626"}}>{form.tempFinal}°C</strong></div>
+            <div>⏱ Tempo: <strong style={{color:tempoOk?"#0369a1":"#dc2626"}}>{tempoDecorrido}min</strong></div>
+            <div>🍽️ Serviço: <strong style={{color:tempServicoOk?"#0369a1":"#dc2626"}}>{form.tempServico}°C</strong></div>
+          </div>
+          <div style={{background:"#fef3c7",borderRadius:9,padding:"10px 12px",marginTop:10,fontSize:11,color:"#92400e",fontWeight:600}}>
+            Servir em máx. 30 min • manter ≥65°C • não recongelar • sobras: destruir!
+          </div>
+          <Ta lb="Observações (opcional)" val={form.obs} onChange={v=>setForm(p=>({...p,obs:v}))} ph="Notas..."/>
+        </Cd>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setStep(4)} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #e0f2fe",background:"transparent",color:GR,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar</button>
+          <button onClick={save} style={{flex:2,padding:14,borderRadius:11,border:"none",background:"#d97706",color:W,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Registo</button>
+        </div>
       </div>}
     </div>
   );
