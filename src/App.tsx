@@ -2503,6 +2503,164 @@ function Ranking({db,user}){
   );
 }
 
+const INFO_HACCP={
+  higienePessoal:{
+    titulo:"Higiene Pessoal — HACCP",
+    texto:`A higiene pessoal é a primeira linha de defesa na segurança alimentar. Os manipuladores de alimentos são uma das principais fontes de contaminação.
+
+LAVAGEM DAS MÃOS: Lavar durante pelo menos 20 segundos com água quente e sabão: antes de manipular alimentos, após usar a casa de banho, após tocar em alimentos crus, após assoar, tossir ou espirrar.
+
+FARDA: Usar sempre avental limpo, touca ou rede no cabelo, calçado adequado e antiderrapante.
+
+PROIBIÇÕES: Anéis, pulseiras, relógios, brincos, unhas postiças e pestanas postiças são PROIBIDOS. Também é proibido comer, beber, fumar ou mascar pastilha na cozinha.
+
+DOENÇA: Não trabalhar com alimentos se tiver diarreia, vómitos, febre, tosse intensa ou feridas infetadas.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | AHRESP Código de Boas Práticas"
+  },
+  temperaturas:{
+    titulo:"Controlo de Temperaturas — HACCP",
+    texto:`O controlo de temperatura é um dos pontos críticos mais importantes do HACCP.
+
+ZONA DE PERIGO: Entre 5°C e 65°C as bactérias multiplicam-se rapidamente. Os alimentos devem estar o menor tempo possível nesta zona.
+
+REFRIGERAÇÃO: 0°C a 4°C — retarda o crescimento bacteriano mas não o elimina.
+CONGELAÇÃO: ≤ -18°C — suspende o crescimento bacteriano.
+
+FREQUÊNCIA: Registar no início e no final de cada aula. Em caso de NC, registar imediatamente e reportar ao professor.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | DGAV"
+  },
+  conservacao:{
+    titulo:"Conservação de Produtos — HACCP",
+    texto:`A correta conservação dos alimentos é essencial para prevenir intoxicações alimentares.
+
+REGRA DAS 2 HORAS: Qualquer produto que esteve mais de 2 horas na zona de perigo (5°C a 65°C) deve ser rejeitado — não pode ser conservado.
+
+VÁCUO: A embalagem a vácuo remove o oxigénio, impedindo o crescimento de bactérias aeróbias. O prazo de validade é aproximadamente 5× superior ao normal.
+
+ETIQUETAGEM: Todo o produto armazenado deve ter etiqueta com: nome do produto, data de produção, data limite de consumo e responsável.`,
+    fonte:"FDA Food Safety | USDA | Hamilton Beach | MR Vácuo | Diário do Chef"
+  },
+  regeneracao:{
+    titulo:"Regeneração — Reaquecimento Seguro de Alimentos",
+    texto:`A regeneração é o processo de reaquecimento de alimentos já confecionados e armazenados. É uma etapa crítica do HACCP.
+
+TEMPERATURA MÍNIMA OBRIGATÓRIA: 75°C no centro do alimento, em menos de 2 horas.
+
+TEMPERATURAS MÍNIMAS POR TIPO (USDA/AHRESP):
+• Aves (frango, peru, pato) — 74°C durante 15 segundos
+• Sobras e alimentos pré-cozinhados — 75°C em menos de 2 horas
+• Porco, bacon, salsicha — 63°C durante 15 segundos
+• Carne moída / hambúrguer — 68°C durante 15 segundos
+• Peixe e marisco — 63°C durante 15 segundos
+• Vegetais a servir quentes — 60°C durante 15 segundos
+
+REGRAS OBRIGATÓRIAS:
+• Temperatura no CENTRO do alimento — usar termómetro
+• Reaquecimento em menos de 2 horas
+• Após regenerar: servir IMEDIATAMENTE
+• NUNCA recongelar após regenerar
+• Fazer apenas UMA VEZ`,
+    fonte:"USDA Food Safety | AHRESP Código de Boas Práticas 2018 | Regulamento (CE) n.º 852/2004"
+  },
+  testemunho:{
+    titulo:"Amostra Testemunho — HACCP",
+    texto:`A amostra testemunho é uma amostra de cada refeição guardada durante 72 horas para análise em caso de suspeita de intoxicação alimentar.
+
+QUANTIDADE: Mínimo 150g de cada prato servido.
+TEMPERATURA: 0°C a 3°C (frigorífico dedicado).
+PRAZO: Guardar durante 72 horas após o serviço.
+DESTRUIÇÃO: Após 72 horas, destruir a amostra.
+
+OBRIGATORIEDADE: Em estabelecimentos de restauração coletiva é obrigatório por lei.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | ASAE"
+  },
+  desinfecao:{
+    titulo:"Desinfeção de Alimentos para Consumo em Cru",
+    texto:`Todos os produtos hortícolas e frutícolas servidos crus devem ser lavados e desinfetados.
+
+PROCEDIMENTO:
+1. Rejeitar folhas exteriores e partes danificadas
+2. Lavar em água fria corrente
+3. Mergulhar em solução desinfetante apropriada
+4. Passar novamente por água fria corrente
+5. Guardar no frio até ao momento de servir
+
+PRODUTOS: Usar desinfetante alimentar aprovado, seguindo as indicações de dosagem e tempo de contacto.`,
+    fonte:"AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
+  },
+  higienizacao:{
+    titulo:"Higienização de Equipamentos e Utensílios",
+    texto:`A higienização correta dos equipamentos e superfícies é fundamental para prevenir contaminações cruzadas.
+
+PANOS E ESPONJAS: Devem ser colocados em solução desinfetante no início e no final de cada aula. São uma das principais fontes de contaminação cruzada.
+
+PROCEDIMENTO: Limpar → Lavar → Desinfetar → Secar
+Nunca usar o mesmo pano em zonas diferentes sem desinfetar.`,
+    fonte:"AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
+  },
+  oleos:{
+    titulo:"Controlo de Óleos de Fritura",
+    texto:`O aquecimento prolongado do óleo a altas temperaturas origina compostos químicos tóxicos.
+
+SINAIS DE ÓLEO ALTERADO: Cor escura, espuma excessiva, cheiro intenso ou fumo a temperaturas normais.
+
+TEMPERATURA MÁXIMA: Nunca ultrapassar 180°C.
+FILTRAGEM: Filtrar após cada utilização.
+PROIBIÇÃO: Nunca misturar óleo novo com usado.
+
+TESTE: Usar tiras de teste OleoTest ou equipamento Testo 270.
+Verde (<17% CPT) = OK | Amarelo (17-24%) = atenção | Vermelho (>24%) = rejeitar.`,
+    fonte:"ASAE | Regulamento (CE) n.º 852/2004 | AHRESP"
+  },
+  servico:{
+    titulo:"Temperatura de Serviço — HACCP",
+    texto:`Durante o serviço os alimentos devem manter temperaturas seguras fora da zona de perigo.
+
+QUENTE: ≥ 65°C — banho-maria a 80-90°C para garantir temperatura interior > 65°C.
+FRIO: ≤ 4°C — em equipamento de frio adequado.
+
+REGRA DAS 2 HORAS: Em self-service ou buffet, os alimentos não podem estar expostos mais de 2 horas. Após esse tempo devem ser rejeitados.
+
+MONITORIZAÇÃO: Verificar a temperatura regularmente durante o serviço.`,
+    fonte:"AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
+  },
+  naoConf:{
+    titulo:"Não Conformidades — HACCP",
+    texto:`Uma não conformidade é qualquer desvio aos procedimentos de segurança alimentar estabelecidos.
+
+AÇÃO IMEDIATA: Identificar, isolar e corrigir o problema.
+REGISTO: Registar sempre a NC, a ação corretiva tomada e o resultado.
+VALIDAÇÃO: O professor deve validar a resolução da NC.
+
+EXEMPLOS: Temperatura fora dos limites, produto com validade expirada, higienização incompleta, contaminação cruzada.`,
+    fonte:"HACCP — Análise de Perigos e Pontos Críticos de Controlo | Regulamento (CE) n.º 852/2004"
+  },
+  encerramento:{
+    titulo:"Encerramento da Aula — HACCP",
+    texto:`O encerramento correto da cozinha no final de cada aula é essencial para garantir a segurança alimentar e a higiene do espaço.
+
+VERIFICAÇÕES OBRIGATÓRIAS:
+• Todos os equipamentos desligados
+• Frigoríficos verificados e temperaturas registadas
+• Higienização completa de bancadas e equipamentos
+• Lixos separados e despejados
+• Panos e esponjas em solução desinfetante
+• Economatos organizados
+• Validação do professor`,
+    fonte:"AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
+  },
+  manutencao:{
+    titulo:"Manutenção e Avarias — HACCP",
+    texto:`A manutenção preventiva dos equipamentos é essencial para garantir o funcionamento correto e a segurança alimentar.
+
+AVARIA: Reportar imediatamente ao professor e registar na app.
+EQUIPAMENTO EM FALHA: Isolar e sinalizar. Não utilizar até reparação.
+MANUTENÇÃO PREVENTIVA: Verificar periodicamente o estado dos equipamentos, especialmente os de frio.`,
+    fonte:"Regulamento (CE) n.º 852/2004 | ASAE"
+  },
+};
+
+
 function InfoBtn({modId}){
   const [open,setOpen]=useState(false);
   const info=INFO_HACCP[modId];
