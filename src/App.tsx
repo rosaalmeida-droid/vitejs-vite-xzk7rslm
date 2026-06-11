@@ -86,10 +86,12 @@ function Login({onLogin,db,showRanking,setShowRanking}){
     setErr("");
     if(tipo==="aluno"){
       if(!turma||!num||!pin){setErr("Preenche todos os campos.");return;}
-      const n=parseInt(num);
-      if(n<1||n>24){setErr("Número entre 1 e 24.");return;}
       if(pin!=="1234"){setErr("PIN incorreto: 1234");return;}
-      onLogin({tipo:"aluno",id:turma+"-A"+String(n).padStart(2,"0"),turma});
+      // Verify code exists in alunos list
+      const alunosList=db.alunosList||[];
+      const aluno=alunosList.find(a=>a.codigo===num&&a.turma===turma);
+      if(!aluno){setErr("Código não encontrado nesta turma.");return;}
+      onLogin({tipo:"aluno",id:turma+"-"+num,turma,nomeAluno:aluno.nome});
     } else if(tipo==="professor") {
       if(!prof||!pin){setErr("Preenche todos os campos.");return;}
       if(pin!=="1111"){setErr("PIN incorreto: 1111");return;}
@@ -117,7 +119,7 @@ function Login({onLogin,db,showRanking,setShowRanking}){
               <button key={t} onClick={()=>{setTipo(t);setErr("");setPin("");}} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(tipo===t?V:BE),background:tipo===t?V:LC,color:tipo===t?W:GR,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
             ))}
           </div>
-          {tipo==="aluno"&&<><Sl lb="Turma" val={turma} onChange={setTurma} opts={["T1","T2","T3"]}/><Ip lb="Número (1-24)" type="number" val={num} onChange={setNum} min="1" max="24"/></>}
+          {tipo==="aluno"&&<><Sl lb="Turma" val={turma} onChange={setTurma} opts={["1º ACP","2º ACP","3º ACP"]}/><Ip lb="Código do aluno (4 dígitos)" type="text" val={num} onChange={setNum} ph="Ex: 1234"/></>}
           {tipo==="professor"&&<Sl lb="Professor" val={prof} onChange={setProf} opts={["P01","P02","P03"]}/>}
           {tipo==="coord"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Coordenadora — PIN: 1006</div>}
           {tipo==="auxiliar"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Auxiliar de Apoio — PIN: 2222</div>}
@@ -159,7 +161,7 @@ function DashAluno({user,db,setModule}){
   const avisos=[];
   if(!higPessoal)avisos.push({msg:"Verificar Higiene Pessoal antes de entrar!",mod:"higienePessoal",urgente:false});
   // Check if temps already registered by any turma today
-  const todasTurmas=["T1","T2","T3"];
+  const todasTurmas=["1º ACP","2º ACP","3º ACP"];
   const tempIQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-inicio"]);
   const tempFQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-final"]);
   if(!tempI){
@@ -1082,7 +1084,7 @@ function Professor({user,db,setDb,showToast}){
       </div>
       
       <div>
-        <div style={{display:"flex",gap:7,marginBottom:13}}>{["T1","T2","T3"].map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
+        <div style={{display:"flex",gap:7,marginBottom:13}}>{["1º ACP","2º ACP","3º ACP"].map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,fontWeight:600,color:V}}>Verificados</span><span style={{fontSize:12,fontWeight:700,color:ok?V:CA}}>{tot}/{PC.length}</span></div><Pg val={tot} max={PC.length}/></div>
         <Cd>{PC.map(item=>{const v=ver[item.id];return(<div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid "+LC}}><div style={{flex:1,fontSize:13,color:V}}>{item.lb}{v&&<span style={{fontSize:10,color:v.conf?V:"#d35400",marginLeft:6}}>{v.conf?"OK":"NC"} {v.time}</span>}</div><div style={{display:"flex",gap:4}}><button onClick={()=>mk(item.id,false)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&!v.conf?"#d35400":BE),background:v&&!v.conf?"#fff3e0":"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:"#d35400"}}>NC</button><button onClick={()=>mk(item.id,true)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&v.conf?V:BE),background:v&&v.conf?V:"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:v&&v.conf?W:V}}>OK</button></div></div>);})}</Cd>
         {ncs.length>0&&<Cd st={{borderLeft:"4px solid "+R}}><div style={{fontWeight:700,color:R,marginBottom:8}}>NCs Pendentes</div>{ncs.map(nc=><div key={nc.id} style={{marginBottom:8,paddingBottom:8,borderBottom:"1px solid "+LC}}><div style={{fontWeight:600,fontSize:12}}>{nc.zona}</div><div style={{fontSize:11,color:GR}}>{nc.descricao}</div><div style={{display:"flex",gap:4,marginTop:5,flexWrap:"wrap"}}>{["em resolução","resolvida","validada"].map(e=><button key={e} onClick={()=>uNC(nc.id,e)} style={{padding:"3px 8px",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer",border:"none",background:nc.estado===e?V:LC,color:nc.estado===e?W:GR,fontFamily:"inherit"}}>{e}</button>)}</div></div>)}</Cd>}
@@ -1102,6 +1104,67 @@ function AssinaturaDigital({onSave}){
         {n&&<div style={{background:LC,borderRadius:9,padding:12,marginBottom:14,textAlign:"center",fontFamily:"Georgia,serif",fontSize:20,color:V,fontStyle:"italic"}}>{n}</div>}
         <button onClick={()=>{if(n.trim())onSave(n.trim());}} disabled={!n.trim()} style={{width:"100%",padding:13,borderRadius:11,background:n.trim()?V:"#ccc",color:W,border:"none",fontSize:15,fontWeight:600,cursor:n.trim()?"pointer":"not-allowed",fontFamily:"inherit"}}>Confirmar Assinatura</button>
       </div>
+    </div>
+  );
+}
+
+function GestaoAlunos({db,setDb}){
+  const [form,setForm]=useState({nome:"",turma:"1º ACP",codigo:""});
+  const [err,setErr]=useState("");
+  const alunosList=db.alunosList||[];
+
+  const addAluno=()=>{
+    setErr("");
+    if(!form.nome||!form.codigo){setErr("Preenche o nome e o código.");return;}
+    if(form.codigo.length!==4){setErr("O código deve ter 4 dígitos.");return;}
+    if(!/^\d{4}$/.test(form.codigo)){setErr("O código deve ter apenas números.");return;}
+    if(alunosList.find(a=>a.codigo===form.codigo&&a.turma===form.turma)){setErr("Este código já existe nesta turma.");return;}
+    setDb(p=>({...p,alunosList:[...(p.alunosList||[]),{...form,id:Date.now()}]}));
+    setForm({nome:"",turma:form.turma,codigo:""});
+  };
+
+  const removeAluno=(id)=>{
+    if(!window.confirm("Remover este aluno?"))return;
+    setDb(p=>({...p,alunosList:(p.alunosList||[]).filter(a=>a.id!==id)}));
+  };
+
+  const turmas=["1º ACP","2º ACP","3º ACP"];
+
+  return(
+    <div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c5c3a",marginBottom:14}}>Gestão de Alunos</div>
+      
+      <Cd>
+        <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:10}}>Adicionar Aluno</div>
+        <Ip lb="Nome completo" val={form.nome} onChange={v=>setForm(p=>({...p,nome:v}))} ph="Ex: Maria Silva"/>
+        <div style={{display:"flex",gap:8,marginBottom:10}}>
+          {turmas.map(t=>(
+            <button key={t} onClick={()=>setForm(p=>({...p,turma:t}))} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"2px solid "+(form.turma===t?V:BE),background:form.turma===t?V:LC,color:form.turma===t?W:"#0369a1",fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>{t}</button>
+          ))}
+        </div>
+        <Ip lb="Código (4 dígitos)" type="text" val={form.codigo} onChange={v=>setForm(p=>({...p,codigo:v}))} ph="Ex: 1234"/>
+        {err&&<div style={{color:"#dc2626",fontSize:12,marginBottom:8}}>{err}</div>}
+        <B lb="+ Adicionar Aluno" onClick={addAluno} cor="#7c5c3a"/>
+      </Cd>
+
+      {turmas.map(t=>{
+        const alunos=alunosList.filter(a=>a.turma===t).sort((a,b)=>a.codigo-b.codigo);
+        return(
+          <div key={t} style={{marginBottom:14}}>
+            <div style={{background:"#7c5c3a",color:W,borderRadius:"10px 10px 0 0",padding:"8px 14px",fontSize:12,fontWeight:700}}>{t} — {alunos.length} aluno(s)</div>
+            <div style={{background:W,borderRadius:"0 0 10px 10px",border:"1px solid #e0f2fe",borderTop:"none"}}>
+              {alunos.length===0&&<div style={{padding:"12px 14px",fontSize:12,color:GR}}>Sem alunos registados</div>}
+              {alunos.map(a=>(
+                <div key={a.id} style={{display:"flex",alignItems:"center",padding:"10px 14px",borderBottom:"1px solid #f0f9ff"}}>
+                  <div style={{width:50,height:28,borderRadius:7,background:"#0e7490",color:W,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,marginRight:12,flexShrink:0}}>{a.codigo}</div>
+                  <div style={{flex:1,fontSize:13,fontWeight:600,color:"#0c4a6e"}}>{a.nome}</div>
+                  <button onClick={()=>removeAluno(a.id)} style={{padding:"4px 10px",borderRadius:6,border:"1.5px solid #fca5a5",background:"transparent",color:"#dc2626",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Remover</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1136,7 +1199,7 @@ function Coordenadora({user,db}){
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>Coordenadora - {new Date().toLocaleDateString("pt-PT")}</div>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:11}}>
-        {["T1","T2","T3"].map(t=><button key={t} onClick={()=>setTurma(t)} style={{flex:1,padding:9,borderRadius:8,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}
+        {["1º ACP","2º ACP","3º ACP"].map(t=><button key={t} onClick={()=>setTurma(t)} style={{flex:1,padding:9,borderRadius:8,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}
       </div>
       <div style={{marginBottom:11}}>
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Mes</div>
@@ -1145,6 +1208,8 @@ function Coordenadora({user,db}){
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
         {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
+
+      {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
 
       {folha==="temperaturas"&&(
         <div style={{overflowX:"auto"}}>
@@ -2425,7 +2490,7 @@ function Ranking({db,user}){
   
   // LocalStorage fallback
   const assinaturas=db.assinaturas||{};
-  const turmas=["T1","T2","T3"];
+  const turmas=["1º ACP","2º ACP","3º ACP"];
   const alunoRankingLocal=Object.entries(assinaturas).map(([id,nome])=>{
     const turma=id.split("-")[0];
     const pts=calcPontos(db,id,turma);
@@ -2900,14 +2965,18 @@ export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
   const [showRanking,setShowRanking]=useState(false);
-  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");return s?JSON.parse(s):{}}catch{return{}}});
+  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º ACP",codigo:"1111"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º ACP",codigo:"1111"}]}}});
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
   useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
   const logout=()=>{setUser(null);setMod(null);};
   const back=()=>setMod(null);
   if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}} db={db} showRanking={showRanking} setShowRanking={setShowRanking}/>;
-  if(user.tipo==="aluno"&&!(db.assinaturas&&db.assinaturas[user.id])){
+  // Auto-set name from alunosList if available
+  if(user.tipo==="aluno"&&user.nomeAluno&&!(db.assinaturas&&db.assinaturas[user.id])){
+    setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:user.nomeAluno}}));
+  }
+  if(user.tipo==="aluno"&&!(db.assinaturas&&db.assinaturas[user.id])&&!user.nomeAluno){
     return(<div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
   }
   const p={user,db,setDb,showToast,setModule:setMod};
