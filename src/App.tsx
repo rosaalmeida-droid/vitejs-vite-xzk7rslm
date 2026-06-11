@@ -1,3 +1,4 @@
+// KitchenFlow ECL v2.1 - Regeneracao + Tabela Completa
 import { useState, useEffect, useCallback } from "react";
 
 // Load Barlow Condensed font
@@ -2160,6 +2161,9 @@ function ConservacaoProd({user,db,setDb,showToast}){
           <div style={{fontSize:11,color:GR,marginBottom:14}}>O produto está cru/fresco ou já foi confeccionado?</div>
           {btnStep("🥬  Cru / Fresco (não processado)",()=>{setForm(p=>({...p,estado:"cru"}));setStep(2);})}
           {btnStep("🍳  Confeccionado (cozido, assado, frito, etc.)",()=>{setForm(p=>({...p,estado:"confeccionado"}));setStep(2);})}
+          <div style={{background:"#fef3c7",borderRadius:9,padding:"10px 12px",marginTop:4,fontSize:11,color:"#92400e",borderLeft:"3px solid #d97706"}}>
+            ♨️ Para registar <strong>Regeneração</strong> (reaquecimento), usa o módulo específico <strong>"Regeneração"</strong> no menu principal.
+          </div>
           {lista.length>0&&<div style={{marginTop:14}}>
             <div style={{fontSize:11,fontWeight:700,color:GR,marginBottom:8,textTransform:"uppercase"}}>Últimos registos</div>
             {lista.map(p=><div key={p.id} style={{padding:"7px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
