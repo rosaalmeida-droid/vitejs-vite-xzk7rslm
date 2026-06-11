@@ -39,8 +39,9 @@ const MODS_DIARIOS=[
 ];
 const MODS_ESPECIFICOS=[
   {id:"conservacao",lb:"Conservação de Produtos",cor:"#6d28d9"},
+  {id:"regeneracao",lb:"Regeneração",cor:"#6d28d9"},
   {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
-  {id:"desinfecao",lb:"Desinfeção Alimentos Cru",cor:"#6d28d9"},
+  {id:"desinfecao",lb:"Desinfeção de Alimentos para Consumo em Cru",cor:"#6d28d9"},
   {id:"oleos",lb:"Controlo de Óleos",cor:"#6d28d9"},
   {id:"servico",lb:"Temperatura de Serviço",cor:"#6d28d9"},
   {id:"naoConf",lb:"Não Conformidades",cor:"#6d28d9"},
@@ -503,87 +504,112 @@ function Recepcao({user,db,setDb,showToast}){
 
 const TABELA_ALIMENTOS={
   "Carnes":[
-    {prod:"Carne bovina fresca",frig_normal:"3-5 dias",frig_vacuo:"15 dias",cong_normal:"6 meses",cong_vacuo:"18 meses"},
-    {prod:"Carne suína fresca",frig_normal:"3-5 dias",frig_vacuo:"15 dias",cong_normal:"4-6 meses",cong_vacuo:"18 meses"},
-    {prod:"Hambúrguer fresco",frig_normal:"1-2 dias",frig_vacuo:"4-6 dias",cong_normal:"3-4 meses",cong_vacuo:"1 ano"},
-    {prod:"Carne cozinhada",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Carne bovina crua",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-5 dias",frig_vacuo:"30-40 dias",cong_normal:"6 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Carne bovina confeccionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Carne suína crua",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-5 dias",frig_vacuo:"15 dias",cong_normal:"4-6 meses",cong_vacuo:"18 meses"},
+    {prod:"Carne suína confeccionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"15 meses"},
+    {prod:"Carne picada crua",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-5 dias",cong_normal:"4 meses",cong_vacuo:"1 ano"},
+    {prod:"Hambúrguer cru",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-6 dias",cong_normal:"3-4 meses",cong_vacuo:"1 ano"},
+    {prod:"Hambúrguer confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"1 ano"},
   ],
   "Aves":[
-    {prod:"Frango/Peru inteiro",frig_normal:"1-2 dias",frig_vacuo:"8 dias",cong_normal:"1 ano",cong_vacuo:"2-3 anos"},
-    {prod:"Frango/Peru peças",frig_normal:"1-2 dias",frig_vacuo:"8 dias",cong_normal:"9 meses",cong_vacuo:"2 anos"},
-    {prod:"Frango cozinhado",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4-6 meses",cong_vacuo:"2-3 anos"},
-    {prod:"Frango frito",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4 meses",cong_vacuo:"1-2 anos"},
+    {prod:"Frango/Peru inteiro cru",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"6-9 dias",cong_normal:"1 ano",cong_vacuo:"2-3 anos"},
+    {prod:"Frango/Peru peças cruas",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"6-9 dias",cong_normal:"9 meses",cong_vacuo:"2 anos"},
+    {prod:"Frango/Peru confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"6-9 dias",cong_normal:"4-6 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Frango frito",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4 meses",cong_vacuo:"1-2 anos"},
   ],
-  "Carnes Frias":[
-    {prod:"Bacon",frig_normal:"7 dias",frig_vacuo:"15 dias",cong_normal:"1 mês",cong_vacuo:"7 meses"},
-    {prod:"Fiambre fatiado",frig_normal:"3-4 dias",frig_vacuo:"160-180 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
-    {prod:"Salsichas — após abertura",frig_normal:"1 semana",frig_vacuo:"25 dias",cong_normal:"1-2 meses",cong_vacuo:"10 meses"},
-    {prod:"Linguiça",frig_normal:"15 dias",frig_vacuo:"60 dias",cong_normal:"30 dias",cong_vacuo:"8 meses"},
-    {prod:"Presunto",frig_normal:"15 dias",frig_vacuo:"20 dias",cong_normal:"25 dias",cong_vacuo:"8 meses"},
+  "Carnes Frias e Enchidos":[
+    {prod:"Bacon",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"7 dias",frig_vacuo:"15 dias",cong_normal:"1 mês",cong_vacuo:"7 meses"},
+    {prod:"Fiambre fatiado",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"160-180 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
+    {prod:"Salsichas — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1 semana",frig_vacuo:"25 dias",cong_normal:"1-2 meses",cong_vacuo:"10 meses"},
+    {prod:"Linguiça",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"15 dias",frig_vacuo:"60 dias",cong_normal:"30 dias",cong_vacuo:"8 meses"},
+    {prod:"Presunto",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"15 dias",frig_vacuo:"20 dias",cong_normal:"25 dias",cong_vacuo:"8 meses"},
+    {prod:"Frios (geral)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-5 dias",frig_vacuo:"15-20 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
   ],
   "Peixe e Marisco":[
-    {prod:"Peixe fresco",frig_normal:"1-2 dias",frig_vacuo:"6 dias",cong_normal:"6 meses",cong_vacuo:"2 anos"},
-    {prod:"Peixe cozinhado",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4-6 meses",cong_vacuo:"1-2 anos"},
-    {prod:"Peixe fumado (vácuo)",frig_normal:"14 dias",frig_vacuo:"21 dias",cong_normal:"2 meses",cong_vacuo:"6 meses"},
-    {prod:"Marisco fresco",frig_normal:"1-2 dias",frig_vacuo:"4-6 dias",cong_normal:"3-6 meses",cong_vacuo:"1 ano"},
-    {prod:"Marisco cozinhado",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"3 meses",cong_vacuo:"9 meses"},
+    {prod:"Peixe magro cru (bacalhau, pescada)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"7-8 dias",cong_normal:"6 meses",cong_vacuo:"10-12 meses"},
+    {prod:"Peixe gordo cru (salmão, atum)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-6 dias",cong_normal:"6 meses",cong_vacuo:"10-12 meses"},
+    {prod:"Peixe confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4-6 meses",cong_vacuo:"1-2 anos"},
+    {prod:"Peixe fumado (vácuo)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"14 dias",frig_vacuo:"21 dias",cong_normal:"2 meses",cong_vacuo:"6 meses"},
+    {prod:"Camarão/Marisco cru",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-5 dias",cong_normal:"3-6 meses",cong_vacuo:"10-12 meses"},
+    {prod:"Camarão/Marisco confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"3 meses",cong_vacuo:"9 meses"},
   ],
   "Laticínios":[
-    {prod:"Leite",frig_normal:"7 dias",frig_vacuo:"21 dias",cong_normal:"3 meses",cong_vacuo:"6 meses"},
-    {prod:"Manteiga",frig_normal:"7-14 dias",frig_vacuo:"30 dias",cong_normal:"3 meses",cong_vacuo:"4 meses"},
-    {prod:"Margarina",frig_normal:"1-3 meses",frig_vacuo:"3-6 meses",cong_normal:"6-9 meses",cong_vacuo:"1 ano"},
-    {prod:"Queijo duro",frig_normal:"3-4 semanas",frig_vacuo:"120 dias",cong_normal:"6 meses",cong_vacuo:"18 meses"},
-    {prod:"Queijo fresco",frig_normal:"6-7 dias",frig_vacuo:"20 dias",cong_normal:"25 dias",cong_vacuo:"4 meses"},
-    {prod:"Queijo fundido",frig_normal:"2 semanas",frig_vacuo:"6 semanas",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Iogurte",frig_normal:"7-14 dias",frig_vacuo:"21-42 dias",cong_normal:"1-2 meses",cong_vacuo:"3 meses"},
-    {prod:"Natas UHT",frig_normal:"1 mês",frig_vacuo:"2-3 meses",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Leite evaporado — após abertura",frig_normal:"4-5 dias",frig_vacuo:"14 dias",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Leite",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"7 dias",frig_vacuo:"21 dias",cong_normal:"3 meses",cong_vacuo:"6 meses"},
+    {prod:"Manteiga",estado:"cru",amb_normal:"1-2 dias",amb_vacuo:"5-7 dias",frig_normal:"7-14 dias",frig_vacuo:"30 dias",cong_normal:"3 meses",cong_vacuo:"4 meses"},
+    {prod:"Margarina",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-3 meses",frig_vacuo:"3-6 meses",cong_normal:"6-9 meses",cong_vacuo:"1 ano"},
+    {prod:"Queijo duro",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 semanas",frig_vacuo:"4-6 meses",cong_normal:"6 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Queijo fresco/mole",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"5-7 dias",frig_vacuo:"13-15 dias",cong_normal:"25 dias",cong_vacuo:"4 meses"},
+    {prod:"Queijo fundido",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"2 semanas",frig_vacuo:"6 semanas",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Iogurte",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"7-14 dias",frig_vacuo:"21-42 dias",cong_normal:"1-2 meses",cong_vacuo:"3 meses"},
+    {prod:"Natas UHT",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1 mês",frig_vacuo:"2-3 meses",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Leite evaporado — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"4-5 dias",frig_vacuo:"14 dias",cong_normal:"-",cong_vacuo:"-"},
   ],
   "Ovos":[
-    {prod:"Ovos frescos com casca",frig_normal:"3-5 semanas",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Ovos pasteurizados — após abertura",frig_normal:"3 dias",frig_vacuo:"9 dias",cong_normal:"1 ano",cong_vacuo:"1 ano"},
-    {prod:"Maionese — após abertura",frig_normal:"2 meses",frig_vacuo:"6 meses",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Ovos frescos com casca",estado:"cru",amb_normal:"1-2 semanas",amb_vacuo:"-",frig_normal:"3-5 semanas",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Ovo cozido com casca",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"4 dias",frig_vacuo:"20 dias",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Ovo cozido sem casca",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"2 dias",frig_vacuo:"10 dias",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Ovos pasteurizados — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3 dias",frig_vacuo:"9 dias",cong_normal:"1 ano",cong_vacuo:"1 ano"},
+    {prod:"Maionese — após abertura",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"2 meses",frig_vacuo:"6 meses",cong_normal:"-",cong_vacuo:"-"},
   ],
-  "Preparações":[
-    {prod:"Sopas cozinhadas",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"6 meses"},
-    {prod:"Arroz cozido",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
-    {prod:"Massa cozida",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
-    {prod:"Massa fresca",frig_normal:"2-3 dias",frig_vacuo:"15-30 dias",cong_normal:"2-3 meses",cong_vacuo:"8 meses"},
-    {prod:"Massa pré-cozida",frig_normal:"2-5 dias",frig_vacuo:"10-15 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
-    {prod:"Pizza",frig_normal:"3-4 dias",frig_vacuo:"10-20 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
-    {prod:"Risoto cozido",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
-    {prod:"Quiche",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
+  "Preparações e Sopas":[
+    {prod:"Sopa/Caldo confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"6 meses"},
+    {prod:"Arroz seco (cru)",estado:"cru",amb_normal:"1 ano",amb_vacuo:"2-3 anos",frig_normal:"-",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Arroz cozido",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"6-8 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
+    {prod:"Massa seca (crua)",estado:"cru",amb_normal:"1 ano",amb_vacuo:"2-3 anos",frig_normal:"-",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Massa cozida",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
+    {prod:"Massa fresca (crua)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"2-3 dias",frig_vacuo:"15-30 dias",cong_normal:"2-3 meses",cong_vacuo:"8 meses"},
+    {prod:"Lasanha/Massa com molho",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"10-15 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
+    {prod:"Pizza confeccionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"10-20 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
+    {prod:"Risoto cozido",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
+    {prod:"Pratos de molho (estufados)",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-10 dias",cong_normal:"2-3 meses",cong_vacuo:"12 meses"},
   ],
   "Frutas e Legumes":[
-    {prod:"Banana",frig_normal:"2-3 dias",frig_vacuo:"15 dias",cong_normal:"7 dias",cong_vacuo:"3 meses"},
-    {prod:"Maçã",frig_normal:"3 dias",frig_vacuo:"15 dias",cong_normal:"10 dias",cong_vacuo:"4 meses"},
-    {prod:"Morango",frig_normal:"3-7 dias",frig_vacuo:"25 dias",cong_normal:"15 dias",cong_vacuo:"12 meses"},
-    {prod:"Uva",frig_normal:"7 dias",frig_vacuo:"16 dias",cong_normal:"15 dias",cong_vacuo:"6 meses"},
-    {prod:"Brócolos",frig_normal:"2-3 dias",frig_vacuo:"20 dias",cong_normal:"15 dias",cong_vacuo:"8 meses"},
-    {prod:"Cenoura",frig_normal:"3-5 dias",frig_vacuo:"24 dias",cong_normal:"7 dias",cong_vacuo:"10 meses"},
-    {prod:"Ervilhas",frig_normal:"3-5 dias",frig_vacuo:"25 dias",cong_normal:"10 dias",cong_vacuo:"12 meses"},
-    {prod:"Batata descascada",frig_normal:"1-2 dias",frig_vacuo:"15 dias",cong_normal:"15 dias",cong_vacuo:"8 meses"},
-    {prod:"Salada pronta",frig_normal:"1-2 dias",frig_vacuo:"5-7 dias",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Legumes escaldados",frig_normal:"3-5 dias",frig_vacuo:"18-20 dias",cong_normal:"8-10 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Alface lavada e higienizada",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"8-10 dias",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Banana",estado:"cru",amb_normal:"3-5 dias",amb_vacuo:"10-15 dias",frig_normal:"2-3 dias",frig_vacuo:"15 dias",cong_normal:"7 dias",cong_vacuo:"3 meses"},
+    {prod:"Maçã inteira",estado:"cru",amb_normal:"5-7 dias",amb_vacuo:"15-20 dias",frig_normal:"3-4 semanas",frig_vacuo:"2-3 semanas",cong_normal:"10 dias",cong_vacuo:"8-12 meses"},
+    {prod:"Maçã cortada",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3 dias",frig_vacuo:"15 dias",cong_normal:"10 dias",cong_vacuo:"4 meses"},
+    {prod:"Morango",estado:"cru",amb_normal:"1-2 dias",amb_vacuo:"5-7 dias",frig_normal:"3-7 dias",frig_vacuo:"5-7 dias",cong_normal:"15 dias",cong_vacuo:"10-12 meses"},
+    {prod:"Uva",estado:"cru",amb_normal:"1-2 dias",amb_vacuo:"5 dias",frig_normal:"7 dias",frig_vacuo:"16 dias",cong_normal:"15 dias",cong_vacuo:"6 meses"},
+    {prod:"Pêssego/Fruta de caroço",estado:"cru",amb_normal:"2-3 dias",amb_vacuo:"7-10 dias",frig_normal:"3-5 dias",frig_vacuo:"10-15 dias",cong_normal:"6-12 meses",cong_vacuo:"12-18 meses"},
+    {prod:"Brócolos/Couve-flor (escaldados)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"2-3 dias",frig_vacuo:"10-12 dias",cong_normal:"15 dias",cong_vacuo:"18-24 meses"},
+    {prod:"Cenoura",estado:"cru",amb_normal:"3-5 dias",amb_vacuo:"10-15 dias",frig_normal:"3-5 dias",frig_vacuo:"10-15 dias",cong_normal:"7 dias",cong_vacuo:"18-24 meses"},
+    {prod:"Ervilhas (escaldadas)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-5 dias",frig_vacuo:"10-15 dias",cong_normal:"10 dias",cong_vacuo:"18-24 meses"},
+    {prod:"Batata descascada crua",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"15 dias",cong_normal:"15 dias",cong_vacuo:"8 meses"},
+    {prod:"Batata cozida",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1 mês",cong_vacuo:"6 meses"},
+    {prod:"Salada pronta",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"5-7 dias",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Feijão/Leguminosas cozidas",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"10-15 dias",cong_normal:"2-3 meses",cong_vacuo:"18-24 meses"},
   ],
   "Pão e Pastelaria":[
-    {prod:"Pão",frig_normal:"7 dias",frig_vacuo:"30 dias",cong_normal:"15 dias",cong_vacuo:"3 meses"},
-    {prod:"Bolos",frig_normal:"1 semana",frig_vacuo:"2-3 semanas",cong_normal:"1-2 meses",cong_vacuo:"4 meses"},
-    {prod:"Bolachas",frig_normal:"2 meses",frig_vacuo:"6 meses",cong_normal:"4 meses",cong_vacuo:"1 ano"},
+    {prod:"Pão fresco",estado:"cru",amb_normal:"2-3 dias",amb_vacuo:"7-8 dias",frig_normal:"7 dias",frig_vacuo:"30 dias",cong_normal:"6-12 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Bolos",estado:"confeccionado",amb_normal:"1-3 dias",amb_vacuo:"5-10 dias",frig_normal:"1 semana",frig_vacuo:"2-3 semanas",cong_normal:"1-2 meses",cong_vacuo:"4 meses"},
+    {prod:"Bolachas/Biscoitos",estado:"cru",amb_normal:"4-6 meses",amb_vacuo:"12 meses",frig_normal:"2 meses",frig_vacuo:"6 meses",cong_normal:"4 meses",cong_vacuo:"1 ano"},
+    {prod:"Quiche",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
+    {prod:"Creme de pasteleiro",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"2-3 dias",frig_vacuo:"10-15 dias",cong_normal:"-",cong_vacuo:"-"},
   ],
-  "Condimentos":[
-    {prod:"Molho barbecue",frig_normal:"4 meses",frig_vacuo:"12 meses",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Ketchup",frig_normal:"6 meses",frig_vacuo:"18 meses",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Mostarda",frig_normal:"12 meses",frig_vacuo:"24 meses",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Azeitonas",frig_normal:"2 semanas",frig_vacuo:"6 semanas",cong_normal:"-",cong_vacuo:"-"},
-    {prod:"Picles",frig_normal:"1-2 semanas",frig_vacuo:"4-6 semanas",cong_normal:"-",cong_vacuo:"-"},
+  "Condimentos e Conservas":[
+    {prod:"Molho barbecue — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"4 meses",frig_vacuo:"12 meses",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Ketchup — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"6 meses",frig_vacuo:"18 meses",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Mostarda — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"12 meses",frig_vacuo:"24 meses",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Maionese — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"2 meses",frig_vacuo:"6 meses",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Azeitonas — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"2 semanas",frig_vacuo:"6 semanas",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Picles — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 semanas",frig_vacuo:"4-6 semanas",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Conservas de carne/peixe — após abertura",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"6 meses"},
   ],
-  "Conservas e Bebidas":[
-    {prod:"Conservas de carne/peixe — após abertura",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"6 meses"},
-    {prod:"Conservas de frutos/sumos — após abertura",frig_normal:"5-7 dias",frig_vacuo:"14-21 dias",cong_normal:"8-12 meses",cong_vacuo:"18 meses"},
-    {prod:"Sumos — após abertura",frig_normal:"7-10 dias",frig_vacuo:"21-30 dias",cong_normal:"8-12 meses",cong_vacuo:"18 meses"},
+  "Bebidas e Sumos":[
+    {prod:"Sumos — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"7-10 dias",frig_vacuo:"21-30 dias",cong_normal:"8-12 meses",cong_vacuo:"18 meses"},
+    {prod:"Vinho — após abertura",estado:"cru",amb_normal:"2-3 dias",amb_vacuo:"20-25 dias",frig_normal:"3-5 dias",frig_vacuo:"20-25 dias",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Leite evaporado — após abertura",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"4-5 dias",frig_vacuo:"14 dias",cong_normal:"-",cong_vacuo:"-"},
+  ],
+  "Armazenagem Seca (Economato)":[
+    {prod:"Café/Chá",estado:"cru",amb_normal:"2-3 meses",amb_vacuo:"12 meses",frig_normal:"-",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Farinhas/Açúcar/Sal",estado:"cru",amb_normal:"6-12 meses",amb_vacuo:"2-3 anos",frig_normal:"-",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Frutos secos",estado:"cru",amb_normal:"4-6 meses",amb_vacuo:"12 meses",frig_normal:"1 ano",frig_vacuo:"2 anos",cong_normal:"-",cong_vacuo:"-"},
+    {prod:"Ervas aromáticas secas",estado:"cru",amb_normal:"6 meses",amb_vacuo:"1-2 anos",frig_normal:"-",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
   ],
 };
+const VACUO_FRIG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.frig_vacuo&&p.frig_vacuo!=="-").map(p=>[p.prod,{normal:p.frig_normal,vacuo:p.frig_vacuo}]));
+const VACUO_CONG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.cong_vacuo&&p.cong_vacuo!=="-").map(p=>[p.prod,{normal:p.cong_normal,vacuo:p.cong_vacuo}]));
 const VACUO_FRIG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.frig_vacuo!=="-").map(p=>[p.prod,{normal:p.frig_normal,vacuo:p.frig_vacuo}]));
 const VACUO_CONG=Object.fromEntries(Object.values(TABELA_ALIMENTOS).flat().filter(p=>p.cong_vacuo!=="-").map(p=>[p.prod,{normal:p.cong_normal,vacuo:p.cong_vacuo}]));
 const NAO_VACUO=[
@@ -757,7 +783,7 @@ function Desinfecao({user,db,setDb,showToast}){
   const save=()=>{if(!form.alimento||!form.produto)return;const nomeD=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,desinfecao:[...(p.desinfecao||[]),{...form,responsavel:user.id,nomeAluno:nomeD,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Desinfeção",[gD(),gT(),user.turma,user.id,nomeD,form.alimento,form.quantidade,form.produto,form.concentracao,form.tempoContacto,form.temperatura]);showToast("Desinfeção registada!");};
   return(
     <div style={{padding:15}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Desinfeção Alimentos em Cru</div><InfoBtn modId="desinfecao"/></div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Desinfeção de Alimentos para Consumo em Cru</div><InfoBtn modId="desinfecao"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Vegetais e frutas servidos em cru</div>
       <Cd>
         <Ip lb="Alimento" val={form.alimento} onChange={v=>setForm(p=>({...p,alimento:v}))} ph="Ex: Alface, tomate"/>
@@ -2023,64 +2049,89 @@ function EtiquetaConservacao({produto,tipoProd,metodo,dataProducao,dataLimite,no
 function ConservacaoProd({user,db,setDb,showToast}){
   const [aba,setAba]=useState("registo");
   const [step,setStep]=useState(1);
-  const [form,setForm]=useState({tipoProd:"",conservacao:"",embalagem:"",categoria:"",produto:"",notas:"",dataProducao:new Date().toISOString().split("T")[0]});
+  const [form,setForm]=useState({estado:"",temperatura:"",embalagem:"",categoria:"",produto:"",produtoManual:"",prazoManual:"",notas:"",dataProducao:new Date().toISOString().split("T")[0]});
   const nomeAluno=(db.assinaturas&&db.assinaturas[user.id])||user.id;
   const lista=(db.conservacaoProd||[]).filter(p=>p.turma===user.turma).slice(-8).reverse();
 
-  const getPrazo=()=>{
-    if(!form.produto||!form.conservacao||!form.embalagem)return null;
+  const getPrazoEntry=()=>{
+    const prod=form.produto;
+    if(!prod)return null;
     const todos=Object.values(TABELA_ALIMENTOS).flat();
-    const entry=todos.find(p=>p.prod===form.produto);
+    return todos.find(p=>p.prod===prod)||null;
+  };
+
+  const getPrazo=()=>{
+    if(form.produto==="__manual__"){
+      if(!form.prazoManual)return null;
+      if(form.embalagem==="vacuo"){
+        const num=parseFloat(form.prazoManual);
+        if(isNaN(num))return form.prazoManual+" ×5";
+        return (num*5)+" dias (×5 sem vácuo)";
+      }
+      return form.prazoManual+" dias";
+    }
+    const entry=getPrazoEntry();
     if(!entry)return null;
-    if(form.conservacao==="refrigeracao"&&form.embalagem==="vacuo")return entry.frig_vacuo;
-    if(form.conservacao==="refrigeracao"&&form.embalagem==="normal")return entry.frig_normal;
-    if(form.conservacao==="congelacao"&&form.embalagem==="vacuo")return entry.cong_vacuo;
-    if(form.conservacao==="congelacao"&&form.embalagem==="normal")return entry.cong_normal;
+    if(form.temperatura==="ambiente"&&form.embalagem==="vacuo")return entry.amb_vacuo;
+    if(form.temperatura==="ambiente"&&form.embalagem==="normal")return entry.amb_normal;
+    if(form.temperatura==="frigorifico"&&form.embalagem==="vacuo")return entry.frig_vacuo;
+    if(form.temperatura==="frigorifico"&&form.embalagem==="normal")return entry.frig_normal;
+    if(form.temperatura==="congelador"&&form.embalagem==="vacuo")return entry.cong_vacuo;
+    if(form.temperatura==="congelador"&&form.embalagem==="normal")return entry.cong_normal;
     return null;
   };
 
   const calcDataLimite=()=>{
     const prazo=getPrazo();
     if(!prazo||prazo==="-"||!form.dataProducao)return null;
-    const num=parseInt(prazo.split(/[- ]/)[0]);
+    const numStr=prazo.split(/[- ×]/)[0];
+    const num=parseInt(numStr);
     if(isNaN(num))return null;
     const d=new Date(form.dataProducao);
-    const unidade=prazo.toLowerCase();
-    if(unidade.includes("mes")||unidade.includes("mês")||unidade.includes("ano")){
-      if(unidade.includes("ano"))d.setFullYear(d.getFullYear()+num);
-      else d.setMonth(d.getMonth()+num);
-    } else {
-      d.setDate(d.getDate()+num);
-    }
+    const lower=prazo.toLowerCase();
+    if(lower.includes("ano"))d.setFullYear(d.getFullYear()+num);
+    else if(lower.includes("mes")||lower.includes("mês"))d.setMonth(d.getMonth()+num);
+    else if(lower.includes("semana"))d.setDate(d.getDate()+num*7);
+    else d.setDate(d.getDate()+num);
     return d.toISOString().split("T")[0];
   };
 
   const save=()=>{
-    if(!form.produto)return;
+    const prodNome=form.produto==="__manual__"?form.produtoManual:form.produto;
+    if(!prodNome)return;
     const dataLimite=calcDataLimite();
     const lote=String((db.conservacaoProd||[]).length+1).padStart(3,"0");
-    const metodo=form.embalagem==="vacuo"?(form.conservacao==="refrigeracao"?"vacuo_frig":"vacuo_cong"):(form.conservacao==="refrigeracao"?"refrigeracao":"congelacao");
-    const reg={...form,metodo,dataLimite,lote,aluno:user.id,nomeAluno,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
+    const metodo=form.embalagem==="vacuo"?(form.temperatura==="frigorifico"?"vacuo_frig":form.temperatura==="congelador"?"vacuo_cong":"vacuo_amb"):(form.temperatura==="frigorifico"?"refrigeracao":form.temperatura==="congelador"?"congelacao":"ambiente");
+    const reg={...form,produto:prodNome,metodo,dataLimite,lote,aluno:user.id,nomeAluno,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,conservacaoProd:[...(p.conservacaoProd||[]),reg]}));
-    enviar("Conservação Produtos",[gD(),gT(),user.turma,user.id,nomeAluno,form.tipoProd,form.produto,form.categoria,form.conservacao,form.embalagem,form.notas||"",form.dataProducao,dataLimite||"",lote]);
+    enviar("Conservação Produtos",[gD(),gT(),user.turma,user.id,nomeAluno,form.estado,prodNome,form.categoria||"manual",form.temperatura,form.embalagem,form.notas||"",form.dataProducao,dataLimite||"",lote]);
     showToast("Produto registado! Lote: "+lote);
-    setForm({tipoProd:"",conservacao:"",embalagem:"",categoria:"",produto:"",notas:"",dataProducao:new Date().toISOString().split("T")[0]});
+    setForm({estado:"",temperatura:"",embalagem:"",categoria:"",produto:"",produtoManual:"",prazoManual:"",notas:"",dataProducao:new Date().toISOString().split("T")[0]});
     setStep(1);
   };
 
   const dataLimite=calcDataLimite();
   const prazo=getPrazo();
-  const metNomeDisplay={refrigeracao:"Refrigeração (0-4°C)",congelacao:"Congelação (≤-18°C)"};
-  const embNomeDisplay={vacuo:"Com Vácuo (sem ar)",normal:"Sem Vácuo"};
-
-  const produtosDaCategoria=form.categoria?TABELA_ALIMENTOS[form.categoria]||[]:[];
+  const produtosDaCategoria=form.categoria&&form.categoria!=="__manual__"?(TABELA_ALIMENTOS[form.categoria]||[]).filter(p=>{
+    if(!form.estado)return true;
+    if(form.estado==="cru")return p.estado==="cru";
+    if(form.estado==="confeccionado")return p.estado==="confeccionado";
+    return true;
+  }):[];
 
   const stepBar=(
     <div style={{display:"flex",gap:4,marginBottom:16}}>
       {[1,2,3,4,5].map(s=>(
-        <div key={s} style={{flex:1,height:4,borderRadius:2,background:step>=s?"#0e7490":"#e0f2fe"}}/>
+        <div key={s} style={{flex:1,height:5,borderRadius:3,background:step>=s?"#0e7490":"#e0f2fe",transition:"background .2s"}}/>
       ))}
     </div>
+  );
+
+  const btnStep=(label,onClick,icon="")=>(
+    <button onClick={onClick} style={{width:"100%",padding:"15px 16px",marginBottom:9,borderRadius:12,border:"2px solid #bae6fd",background:"#f0f9ff",color:"#0c4a6e",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
+      {icon&&<span style={{fontSize:20}}>{icon}</span>}
+      <span>{label}</span>
+    </button>
   );
 
   return(
@@ -2089,9 +2140,15 @@ function ConservacaoProd({user,db,setDb,showToast}){
         <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e"}}>Conservação de Produtos</div>
         <InfoBtn modId="conservacao"/>
       </div>
+
+      <div style={{background:"#fdecea",borderRadius:10,padding:"10px 14px",marginBottom:14,borderLeft:"4px solid #dc2626"}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#dc2626",marginBottom:2}}>⚠️ Atenção — Regra HACCP obrigatória</div>
+        <div style={{fontSize:11,color:"#7f1d1d",lineHeight:1.6}}>Qualquer produto que esteve mais de <strong>2 horas na zona de perigo (5°C a 65°C)</strong> — buffet, banho-maria abaixo de 65°C ou temperatura ambiente — <strong>deve ser rejeitado. Não pode ser conservado.</strong></div>
+      </div>
+
       <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["registo","Registar"],["tabela","Tempos"],["vacuo","Comparar Vácuo"],["proibidos","Não Vácuo"]].map(([id,lb])=>(
-          <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:"8px 4px",borderRadius:8,border:"2px solid "+(aba===id?"#0891b2":BE),background:aba===id?"#0891b2":LC,color:aba===id?W:"#0369a1",fontWeight:700,fontSize:10,cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",letterSpacing:.3}}>{lb}</button>
+        {[["registo","Registar"],["tabela","Tempos"],["vacuo","Vácuo"],["proibidos","Não utilizar o Vácuo"]].map(([id,lb])=>(
+          <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(aba===id?"#0891b2":BE),background:aba===id?"#0891b2":LC,color:aba===id?W:"#0369a1",fontWeight:700,fontSize:9,cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",letterSpacing:.2}}>{lb}</button>
         ))}
       </div>
 
@@ -2099,141 +2156,160 @@ function ConservacaoProd({user,db,setDb,showToast}){
         {stepBar}
 
         {step===1&&<Cd>
-          <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:14}}>Passo 1 — Tipo de produto</div>
-          {["fresco","confeccionado","regeneração"].map(t=>(
-            <button key={t} onClick={()=>{setForm(p=>({...p,tipoProd:t}));setStep(2);}} style={{width:"100%",padding:"14px 16px",marginBottom:8,borderRadius:11,border:"2px solid #bae6fd",background:LC,color:"#0c4a6e",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"left",textTransform:"capitalize"}}>
-              {t==="fresco"?"🥬 Produto Fresco":t==="confeccionado"?"🍳 Produto Confeccionado":"♨️ Regeneração (reaquecimento)"}
-            </button>
-          ))}
-          {form.tipoProd==="regeneração"&&<div style={{background:"#fef3c7",borderRadius:9,padding:"10px 12px",marginTop:4,borderLeft:"3px solid #d97706"}}><div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:3}}>O que é regeneração?</div><div style={{fontSize:12,color:"#78350f",lineHeight:1.6}}>Reaquecimento de alimentos já confecionados. Temperatura interna mínima de <strong>75°C</strong>. Fazer apenas uma vez.</div></div>}
+          <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 1 — Estado do produto</div>
+          <div style={{fontSize:11,color:GR,marginBottom:14}}>O produto está cru/fresco ou já foi confeccionado?</div>
+          {btnStep("🥬  Cru / Fresco (não processado)",()=>{setForm(p=>({...p,estado:"cru"}));setStep(2);})}
+          {btnStep("🍳  Confeccionado (cozido, assado, frito, etc.)",()=>{setForm(p=>({...p,estado:"confeccionado"}));setStep(2);})}
+          {lista.length>0&&<div style={{marginTop:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:GR,marginBottom:8,textTransform:"uppercase"}}>Últimos registos</div>
+            {lista.map(p=><div key={p.id} style={{padding:"7px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
+              <div><div style={{fontWeight:600,fontSize:12}}>{p.produto}</div><div style={{fontSize:10,color:GR}}>{p.temperatura} {p.embalagem==="vacuo"?"+ vácuo":""} — até {fD(p.dataLimite)}</div></div>
+              <span style={{background:"#0891b2",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>L{p.lote}</span>
+            </div>)}
+          </div>}
         </Cd>}
 
         {step===2&&<Cd>
-          <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 2 — Método de conservação</div>
-          <div style={{fontSize:11,color:GR,marginBottom:14}}>Tipo: {form.tipoProd}</div>
-          {["refrigeracao","congelacao"].map(m=>(
-            <button key={m} onClick={()=>{setForm(p=>({...p,conservacao:m}));setStep(3);}} style={{width:"100%",padding:"14px 16px",marginBottom:8,borderRadius:11,border:"2px solid #bae6fd",background:LC,color:"#0c4a6e",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
-              {m==="refrigeracao"?"❄️ Refrigeração (0°C a 4°C)":"🧊 Congelação (≤ -18°C)"}
-            </button>
-          ))}
-          <button onClick={()=>setStep(1)} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:4}}>← Voltar</button>
+          <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 2 — Temperatura de conservação</div>
+          <div style={{fontSize:11,color:GR,marginBottom:14}}>Estado: <strong>{form.estado==="cru"?"Cru/Fresco":"Confeccionado"}</strong></div>
+          {form.estado==="cru"&&btnStep("🌡️  Temperatura ambiente — Economato",()=>{setForm(p=>({...p,temperatura:"ambiente"}));setStep(3);},"🌡️")}
+          {btnStep("❄️  Frigorífico (0°C a 4°C)",()=>{setForm(p=>({...p,temperatura:"frigorifico"}));setStep(3);})}
+          {btnStep("🧊  Congelador (≤ -18°C)",()=>{setForm(p=>({...p,temperatura:"congelador"}));setStep(3);})}
+          {form.estado==="confeccionado"&&<div style={{background:"#fef3c7",borderRadius:8,padding:"8px 12px",marginTop:4,fontSize:11,color:"#92400e"}}>Produtos confeccionados devem sempre ir para frigorífico ou congelador — nunca temperatura ambiente!</div>}
+          <button onClick={()=>setStep(1)} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>← Voltar</button>
         </Cd>}
 
         {step===3&&<Cd>
-          <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 3 — Embalagem</div>
-          <div style={{fontSize:11,color:GR,marginBottom:14}}>{form.tipoProd} • {metNomeDisplay[form.conservacao]}</div>
-          {["vacuo","normal"].map(e=>(
-            <button key={e} onClick={()=>{setForm(p=>({...p,embalagem:e}));setStep(4);}} style={{width:"100%",padding:"14px 16px",marginBottom:8,borderRadius:11,border:"2px solid #bae6fd",background:LC,color:"#0c4a6e",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
-              {e==="vacuo"?"🔵 Com Vácuo (sem ar) — mais duração":"⬜ Sem Vácuo — embalagem normal"}
-            </button>
-          ))}
-          <button onClick={()=>setStep(2)} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:4}}>← Voltar</button>
+          <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 3 — Embalagem</div>
+          <div style={{fontSize:11,color:GR,marginBottom:14}}>{form.estado==="cru"?"Cru":"Confeccionado"} • {form.temperatura==="ambiente"?"Temperatura ambiente":form.temperatura==="frigorifico"?"Frigorífico":"Congelador"}</div>
+          {btnStep("🔵  Com Vácuo (sem ar) — prazo muito superior",()=>{setForm(p=>({...p,embalagem:"vacuo"}));setStep(4);})}
+          {btnStep("⬜  Sem Vácuo — embalagem normal",()=>{setForm(p=>({...p,embalagem:"normal"}));setStep(4);})}
+          <div style={{background:"#e0f2fe",borderRadius:8,padding:"8px 12px",marginTop:4,fontSize:11,color:"#0369a1"}}>Com vácuo o prazo é aproximadamente <strong>5× superior</strong> ao prazo sem vácuo!</div>
+          <button onClick={()=>setStep(2)} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>← Voltar</button>
         </Cd>}
 
         {step===4&&<Cd>
-          <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 4 — Categoria e Produto</div>
-          <div style={{fontSize:11,color:GR,marginBottom:12}}>{form.tipoProd} • {metNomeDisplay[form.conservacao]} • {embNomeDisplay[form.embalagem]}</div>
+          <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 4 — Produto</div>
+          <div style={{fontSize:11,color:GR,marginBottom:12}}>{form.estado==="cru"?"Cru":"Confeccionado"} • {form.temperatura} • {form.embalagem==="vacuo"?"Com vácuo":"Sem vácuo"}</div>
           {!form.categoria?(
             <div>
               <div style={{fontSize:12,color:GR,marginBottom:8}}>Escolhe a categoria:</div>
-              {Object.keys(TABELA_ALIMENTOS).map(cat=>(
-                <button key={cat} onClick={()=>setForm(p=>({...p,categoria:cat}))} style={{width:"100%",padding:"12px 14px",marginBottom:6,borderRadius:10,border:"2px solid #bae6fd",background:LC,color:"#0c4a6e",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
-                  {cat} <span style={{fontSize:10,color:GR,fontWeight:400}}>({TABELA_ALIMENTOS[cat].length} produtos)</span>
-                </button>
-              ))}
+              {Object.keys(TABELA_ALIMENTOS).map(cat=>{
+                const filtered=(TABELA_ALIMENTOS[cat]||[]).filter(p=>form.estado==="cru"?p.estado==="cru":p.estado==="confeccionado");
+                if(filtered.length===0)return null;
+                return(
+                  <button key={cat} onClick={()=>setForm(p=>({...p,categoria:cat}))} style={{width:"100%",padding:"12px 14px",marginBottom:6,borderRadius:10,border:"2px solid #bae6fd",background:LC,color:"#0c4a6e",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+                    {cat} <span style={{fontSize:10,color:GR,fontWeight:400}}>({filtered.length} produtos)</span>
+                  </button>
+                );
+              })}
+              <button onClick={()=>{setForm(p=>({...p,categoria:"__manual__",produto:"__manual__"}));setStep(5);}} style={{width:"100%",padding:"12px 14px",marginBottom:6,borderRadius:10,border:"2px dashed #d97706",background:"#fef3c7",color:"#92400e",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+                ✏️ Produto não está na lista — introduzir manualmente
+              </button>
             </div>
           ):(
             <div>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                 <div style={{fontSize:12,fontWeight:700,color:"#0369a1"}}>{form.categoria}</div>
-                <button onClick={()=>setForm(p=>({...p,categoria:"",produto:""}))} style={{fontSize:11,color:GR,background:"none",border:"none",cursor:"pointer"}}>← Mudar categoria</button>
+                <button onClick={()=>setForm(p=>({...p,categoria:"",produto:""}))} style={{fontSize:11,color:GR,background:"none",border:"none",cursor:"pointer"}}>← Mudar</button>
               </div>
               {produtosDaCategoria.map(item=>{
-                const prazoItem=form.conservacao==="refrigeracao"?(form.embalagem==="vacuo"?item.frig_vacuo:item.frig_normal):(form.embalagem==="vacuo"?item.cong_vacuo:item.cong_normal);
+                const prazoItem=form.temperatura==="ambiente"?(form.embalagem==="vacuo"?item.amb_vacuo:item.amb_normal):form.temperatura==="frigorifico"?(form.embalagem==="vacuo"?item.frig_vacuo:item.frig_normal):(form.embalagem==="vacuo"?item.cong_vacuo:item.cong_normal);
+                if(!prazoItem||prazoItem==="-")return null;
                 return(
-                  <button key={item.prod} onClick={()=>{setForm(p=>({...p,produto:item.prod}));setStep(5);}} style={{width:"100%",padding:"12px 14px",marginBottom:6,borderRadius:10,border:"2px solid "+(form.produto===item.prod?"#0891b2":"#bae6fd"),background:form.produto===item.prod?"#0891b2":LC,color:form.produto===item.prod?W:"#0c4a6e",fontSize:13,cursor:"pointer",fontFamily:"inherit",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <button key={item.prod} onClick={()=>{setForm(p=>({...p,produto:item.prod}));setStep(5);}} style={{width:"100%",padding:"12px 14px",marginBottom:6,borderRadius:10,border:"2px solid #bae6fd",background:LC,color:"#0c4a6e",fontSize:13,cursor:"pointer",fontFamily:"inherit",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{fontWeight:600}}>{item.prod}</span>
-                    <span style={{fontSize:11,opacity:.8}}>{prazoItem||"-"}</span>
+                    <span style={{fontSize:12,color:"#0891b2",fontWeight:700}}>{prazoItem}</span>
                   </button>
                 );
               })}
             </div>
           )}
-          <button onClick={()=>{setStep(3);setForm(p=>({...p,categoria:"",produto:""}));}} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:4}}>← Voltar</button>
+          <button onClick={()=>setStep(3)} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:4}}>← Voltar</button>
         </Cd>}
 
         {step===5&&<div>
           <Cd>
-            <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 5 — Detalhes finais</div>
-            <div style={{fontSize:11,color:GR,marginBottom:12}}>{form.produto} • {metNomeDisplay[form.conservacao]} • {embNomeDisplay[form.embalagem]}</div>
-            {prazo&&prazo!=="-"&&<div style={{background:"#e0f2fe",borderRadius:8,padding:10,marginBottom:10,fontSize:13,color:"#0369a1",fontWeight:600}}>
-              Prazo: <strong>{prazo}</strong>
+            <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 5 — Detalhes finais</div>
+            {form.produto==="__manual__"&&<div>
+              <Ip lb="Nome do produto" val={form.produtoManual} onChange={v=>setForm(p=>({...p,produtoManual:v}))} ph="Ex: Creme de cogumelos, Tarte de maçã..."/>
+              <div style={{background:"#fef3c7",borderRadius:8,padding:"8px 12px",marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:4}}>Produto não encontrado na tabela</div>
+                <div style={{fontSize:11,color:"#78350f",marginBottom:8}}>Indica o prazo de conservação <strong>sem vácuo</strong> em dias. {form.embalagem==="vacuo"&&<span style={{fontWeight:700}}>A app vai calcular automaticamente ×5 para o vácuo.</span>}</div>
+                <Ip lb={form.embalagem==="vacuo"?"Prazo sem vácuo (dias) — será multiplicado por 5":"Prazo de conservação (dias)"} type="number" val={form.prazoManual} onChange={v=>setForm(p=>({...p,prazoManual:v}))} ph="Ex: 3"/>
+                {form.prazoManual&&form.embalagem==="vacuo"&&<div style={{background:"#0e7490",borderRadius:8,padding:"8px 12px",color:W,fontSize:12,fontWeight:600}}>Com vácuo: {parseInt(form.prazoManual)*5} dias (×5)</div>}
+              </div>
+            </div>}
+            {form.produto!=="__manual__"&&prazo&&prazo!=="-"&&<div style={{background:"#e0f2fe",borderRadius:8,padding:10,marginBottom:10,fontSize:13,color:"#0369a1",fontWeight:600}}>
+              Prazo estimado: <strong>{prazo}</strong>
             </div>}
             <Ip lb="Data de produção" type="date" val={form.dataProducao} onChange={v=>setForm(p=>({...p,dataProducao:v}))}/>
-            <Ta lb="Notas (opcional)" val={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} ph="Ex: Sabor a laranja, receita especial..."/>
+            <Ta lb="Notas (opcional)" val={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} ph="Ex: Sabor a laranja, receita especial, lote de ingredientes..."/>
           </Cd>
-          {form.produto&&dataLimite&&<EtiquetaConservacao produto={form.produto} tipoProd={form.tipoProd} metodo={(form.embalagem==="vacuo"?"Vácuo + ":"")+(metNomeDisplay[form.conservacao]||"")} dataProducao={fD(form.dataProducao)} dataLimite={fD(dataLimite)} notas={form.notas} responsavel={nomeAluno}/>}
+          {(form.produto!=="__manual__"?form.produto:form.produtoManual)&&dataLimite&&<EtiquetaConservacao produto={form.produto==="__manual__"?form.produtoManual:form.produto} tipoProd={form.estado} metodo={(form.embalagem==="vacuo"?"Vácuo + ":"")+({frigorifico:"Frigorífico",congelador:"Congelador",ambiente:"Temperatura Ambiente"}[form.temperatura]||"")} dataProducao={fD(form.dataProducao)} dataLimite={fD(dataLimite)} notas={form.notas} responsavel={nomeAluno}/>}
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>setStep(4)} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar</button>
-            <button onClick={save} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#0891b2",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Registo</button>
+            <button onClick={save} disabled={form.produto==="__manual__"?(!form.produtoManual||!form.prazoManual):!form.produto} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#0891b2",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Registo</button>
           </div>
-          {lista.length>0&&<div style={{marginTop:14}}>
-            {lista.map(p=><div key={p.id} style={{padding:"8px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
-              <div><div style={{fontWeight:600,fontSize:13}}>{p.produto}</div><div style={{fontSize:11,color:GR}}>{p.conservacao} — até {fD(p.dataLimite)}</div></div>
-              <span style={{background:"#0891b2",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>L{p.lote}</span>
-            </div>)}
-          </div>}
-        </div>}
-
-        {step===1&&lista.length>0&&<div style={{marginTop:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:GR,marginBottom:8,textTransform:"uppercase"}}>Últimos registos</div>
-          {lista.map(p=><div key={p.id} style={{padding:"8px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
-            <div><div style={{fontWeight:600,fontSize:13}}>{p.produto}</div><div style={{fontSize:11,color:GR}}>{p.conservacao} — até {fD(p.dataLimite)}</div></div>
-            <span style={{background:"#0891b2",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>L{p.lote}</span>
-          </div>)}
         </div>}
       </div>}
 
       {aba==="tabela"&&<div>
-        <div style={{fontSize:11,color:GR,marginBottom:10}}>Tempos de conservação por produto — FDA/USDA/MR Vácuo</div>
+        <div style={{fontSize:11,color:GR,marginBottom:10}}>Tempos de conservação — FDA, USDA, Hamilton Beach, MR Vácuo</div>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr 1fr",gap:2,fontSize:9,marginBottom:6,color:GR,padding:"4px",background:"#f0f9ff",borderRadius:7}}>
+          <span>Produto</span>
+          <span style={{textAlign:"center"}}>Amb.</span>
+          <span style={{textAlign:"center"}}>Amb.+V</span>
+          <span style={{textAlign:"center"}}>Frig.</span>
+          <span style={{textAlign:"center"}}>Frig.+V</span>
+          <span style={{textAlign:"center"}}>Cong.</span>
+          <span style={{textAlign:"center"}}>Cong.+V</span>
+        </div>
         {Object.entries(TABELA_ALIMENTOS).map(([cat,items])=>(
           <div key={cat} style={{marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:700,color:"#0369a1",marginBottom:6,textTransform:"uppercase",letterSpacing:.5,background:"#f0f9ff",padding:"6px 10px",borderRadius:7}}>{cat}</div>
-            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:2,fontSize:10,marginBottom:4,color:GR,padding:"0 4px"}}>
-              <span>Produto</span><span style={{textAlign:"center"}}>Frig.</span><span style={{textAlign:"center"}}>Frig.+Vácuo</span><span style={{textAlign:"center"}}>Cong.</span><span style={{textAlign:"center"}}>Cong.+Vácuo</span>
-            </div>
+            <div style={{fontSize:11,fontWeight:700,color:"#0369a1",marginBottom:4,textTransform:"uppercase",background:"#f0f9ff",padding:"6px 10px",borderRadius:7}}>{cat}</div>
             {items.map(item=>(
-              <div key={item.prod} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:2,padding:"5px 4px",borderBottom:"1px solid #f0f9ff",fontSize:10,alignItems:"center"}}>
-                <span style={{color:"#334155",fontWeight:500}}>{item.prod}</span>
-                <span style={{textAlign:"center",color:"#0369a1",fontWeight:600}}>{item.frig_normal}</span>
-                <span style={{textAlign:"center",color:"#0891b2",fontWeight:700}}>{item.frig_vacuo}</span>
-                <span style={{textAlign:"center",color:"#6d28d9",fontWeight:600}}>{item.cong_normal}</span>
-                <span style={{textAlign:"center",color:"#0f766e",fontWeight:700}}>{item.cong_vacuo}</span>
+              <div key={item.prod} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr 1fr",gap:2,padding:"5px 4px",borderBottom:"1px solid #f0f9ff",fontSize:9,alignItems:"center"}}>
+                <span style={{color:"#334155",fontWeight:500,fontSize:10}}>{item.prod} <span style={{color:item.estado==="cru"?"#059669":"#dc2626",fontSize:8}}>[{item.estado}]</span></span>
+                <span style={{textAlign:"center",color:"#b45309"}}>{item.amb_normal||"-"}</span>
+                <span style={{textAlign:"center",color:"#d97706",fontWeight:item.amb_vacuo&&item.amb_vacuo!=="-"?700:400}}>{item.amb_vacuo||"-"}</span>
+                <span style={{textAlign:"center",color:"#0369a1"}}>{item.frig_normal||"-"}</span>
+                <span style={{textAlign:"center",color:"#0891b2",fontWeight:item.frig_vacuo&&item.frig_vacuo!=="-"?700:400}}>{item.frig_vacuo||"-"}</span>
+                <span style={{textAlign:"center",color:"#6d28d9"}}>{item.cong_normal||"-"}</span>
+                <span style={{textAlign:"center",color:"#0f766e",fontWeight:item.cong_vacuo&&item.cong_vacuo!=="-"?700:400}}>{item.cong_vacuo||"-"}</span>
               </div>
             ))}
           </div>
         ))}
-        <div style={{fontSize:10,color:GR,marginTop:8}}>Fonte: FDA, USDA, MR Vácuo, Hamilton Beach — valores após abertura ou produto fresco/confeccionado</div>
+        <div style={{fontSize:10,color:GR,marginTop:8,lineHeight:1.6}}>
+          V = Com Vácuo | Amb = Temperatura Ambiente | Frig = Frigorífico | Cong = Congelador<br/>
+          Fonte: FDA, USDA, Hamilton Beach, MR Vácuo — valores após abertura ou produto fresco/confeccionado<br/>
+          Para produtos não listados: prazo com vácuo = prazo sem vácuo ×5
+        </div>
       </div>}
 
       {aba==="vacuo"&&<div>
-        <div style={{fontSize:11,color:GR,marginBottom:10}}>Comparação: sem vácuo vs com vácuo — por temperatura</div>
+        <div style={{background:"#e0f2fe",borderRadius:9,padding:10,marginBottom:12,fontSize:12,color:"#0369a1",fontWeight:600}}>
+          O vácuo remove o oxigénio — sem oxigénio as bactérias aeróbias não sobrevivem. Prazo ≈ ×5 superior ao normal.
+        </div>
         {Object.entries(TABELA_ALIMENTOS).map(([cat,items])=>(
           <div key={cat} style={{marginBottom:12}}>
             <div style={{fontSize:11,fontWeight:700,color:"#0369a1",marginBottom:6,textTransform:"uppercase",background:"#f0f9ff",padding:"6px 10px",borderRadius:7}}>{cat}</div>
             {items.map(item=>(
               <div key={item.prod} style={{padding:"8px 0",borderBottom:"1px solid #f0f9ff"}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#0c4a6e",marginBottom:4}}>{item.prod}</div>
-                <div style={{display:"flex",gap:8,fontSize:11}}>
-                  <div style={{flex:1,background:"#f8fafc",borderRadius:6,padding:"5px 8px"}}>
-                    <div style={{color:GR,fontSize:9,textTransform:"uppercase",marginBottom:2}}>Frigorífico</div>
-                    <div style={{color:GR}}>Normal: {item.frig_normal}</div>
-                    <div style={{color:"#0891b2",fontWeight:700}}>Vácuo: {item.frig_vacuo}</div>
-                  </div>
-                  {item.cong_normal!=="-"&&<div style={{flex:1,background:"#f8fafc",borderRadius:6,padding:"5px 8px"}}>
-                    <div style={{color:GR,fontSize:9,textTransform:"uppercase",marginBottom:2}}>Congelador</div>
-                    <div style={{color:GR}}>Normal: {item.cong_normal}</div>
-                    <div style={{color:"#0f766e",fontWeight:700}}>Vácuo: {item.cong_vacuo}</div>
+                <div style={{fontSize:12,fontWeight:600,color:"#0c4a6e",marginBottom:4}}>{item.prod} <span style={{fontSize:9,color:item.estado==="cru"?"#059669":"#dc2626",fontWeight:700}}>[{item.estado}]</span></div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",fontSize:10}}>
+                  {item.frig_normal&&item.frig_normal!=="-"&&<div style={{background:"#f8fafc",borderRadius:5,padding:"4px 8px"}}>
+                    <span style={{color:GR}}>Frig: {item.frig_normal}</span>
+                    {item.frig_vacuo&&item.frig_vacuo!=="-"&&<span style={{color:"#0891b2",fontWeight:700}}> → Vácuo: {item.frig_vacuo}</span>}
+                  </div>}
+                  {item.cong_normal&&item.cong_normal!=="-"&&<div style={{background:"#f8fafc",borderRadius:5,padding:"4px 8px"}}>
+                    <span style={{color:GR}}>Cong: {item.cong_normal}</span>
+                    {item.cong_vacuo&&item.cong_vacuo!=="-"&&<span style={{color:"#0f766e",fontWeight:700}}> → Vácuo: {item.cong_vacuo}</span>}
+                  </div>}
+                  {item.amb_normal&&item.amb_normal!=="-"&&<div style={{background:"#fef9f0",borderRadius:5,padding:"4px 8px"}}>
+                    <span style={{color:GR}}>Amb: {item.amb_normal}</span>
+                    {item.amb_vacuo&&item.amb_vacuo!=="-"&&<span style={{color:"#d97706",fontWeight:700}}> → Vácuo: {item.amb_vacuo}</span>}
                   </div>}
                 </div>
               </div>
@@ -2244,7 +2320,7 @@ function ConservacaoProd({user,db,setDb,showToast}){
 
       {aba==="proibidos"&&<div>
         <div style={{background:"#fdecea",borderRadius:9,padding:10,marginBottom:12,fontSize:12,color:"#dc2626",fontWeight:600}}>
-          Atenção! Estes alimentos NÃO devem ser selados a vácuo.
+          ⚠️ Atenção! Estes alimentos NÃO devem ser selados a vácuo.
         </div>
         {NAO_VACUO.map(item=>(
           <Cd key={item.prod} st={{borderLeft:"4px solid #dc2626",marginBottom:10}}>
@@ -2599,6 +2675,24 @@ PORQUÊ REGISTAR:
 AÇÃO CORRETIVA: Cada NC deve ter uma ação corretiva documentada. Não basta detetar o problema — tem de ser resolvido e registado como resolvido.`,
     fonte:"Regulamento (CE) n.º 852/2004 | Codex Alimentarius | ASAE"
   },
+  regeneracao:{
+    titulo:"Regeneração — Reaquecimento Seguro",
+    texto:`A regeneração é o processo de reaquecimento de alimentos já confecionados e armazenados. É uma etapa crítica do HACCP.
+
+TEMPERATURA MÍNIMA: 75°C internos em menos de 2 horas. Esta temperatura garante a destruição das bactérias que possam ter crescido durante o armazenamento.
+
+REGRAS OBRIGATÓRIAS:
+• O alimento deve atingir 75°C no centro (não apenas na superfície)
+• O reaquecimento deve ser feito em menos de 2 horas
+• Após regenerar: servir imediatamente — nunca guardar novamente
+• NUNCA recongelar um alimento que já foi regenerado
+• Fazer apenas uma vez — nunca regenerar o mesmo alimento duas vezes
+
+ZONA DE PERIGO: Durante o reaquecimento o alimento passa pela zona de perigo (5°C a 65°C). Quanto mais rápido este processo, melhor.
+
+EQUIPAMENTOS: Forno, fogão, banho-maria, micro-ondas (verificar que o alimento aquece de forma uniforme). Usar termómetro para confirmar a temperatura interna.`,
+    fonte:"USDA Food Safety | AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
+  },
   encerramento:{
     titulo:"Encerramento da Aula — A última verificação",
     texto:`O encerramento é a verificação final de todos os procedimentos HACCP do dia. É obrigatório e deve ser validado pelo professor.
@@ -2645,6 +2739,95 @@ function InfoBtn({modId}){
 
 
 
+function Regeneracao({user,db,setDb,showToast}){
+  const [form,setForm]=useState({prato:"",tipoProd:"",tempInicial:"",tempFinal:"",hora:gT(),equipamento:"",obs:""});
+  const lista=(db.regeneracao||[]).filter(r=>r.turma===user.turma&&r.date===gD()).slice(-6).reverse();
+
+  const TEMPS_MIN=[
+    {tipo:"Aves (frango, peru, pato)",temp:"74°C",nota:"durante 15 segundos"},
+    {tipo:"Carne recheada / pratos com carne e aves",temp:"74°C",nota:"durante 15 segundos"},
+    {tipo:"Alimentos pré-cozinhados / sobras",temp:"75°C",nota:"em menos de 2 horas"},
+    {tipo:"Porco, bacon, salsicha",temp:"63°C",nota:"durante 15 segundos"},
+    {tipo:"Carne moída / hambúrguer",temp:"68°C",nota:"durante 15 segundos"},
+    {tipo:"Bife de vaca / carneiro / vitela",temp:"63°C",nota:"durante 15 segundos"},
+    {tipo:"Peixe e marisco",temp:"63°C",nota:"durante 15 segundos"},
+    {tipo:"Vegetais a servir quentes",temp:"60°C",nota:"durante 15 segundos"},
+    {tipo:"Presunto pré-cozido",temp:"74°C",nota:"durante 15 segundos"},
+    {tipo:"Qualquer alimento no microondas",temp:"74°C",nota:"durante 15 segundos"},
+  ];
+
+  const tempOk=form.tempFinal&&parseFloat(form.tempFinal)>=75;
+
+  const save=()=>{
+    if(!form.prato||!form.tempFinal)return;
+    const nomeR=(db.assinaturas&&db.assinaturas[user.id])||"";
+    const reg={...form,tempOk,responsavel:user.id,nomeAluno:nomeR,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
+    setDb(p=>({...p,regeneracao:[...(p.regeneracao||[]),reg]}));
+    enviar("Regeneração",[gD(),gT(),user.turma,user.id,nomeR,form.prato,form.tipoProd,form.tempInicial,form.tempFinal,tempOk?"OK":"NC",form.hora,form.equipamento,form.obs]);
+    if(!tempOk){
+      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Temperatura de regeneração insuficiente: "+form.tempFinal+"°C (mín. 75°C)",acaoCorretiva:"Continuar aquecimento até atingir 75°C",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+    }
+    showToast(tempOk?"Regeneração OK — 75°C atingidos!":"NC — Temperatura insuficiente!");
+    setForm({prato:"",tipoProd:"",tempInicial:"",tempFinal:"",hora:gT(),equipamento:"",obs:""});
+  };
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e"}}>Regeneração</div>
+        <InfoBtn modId="regeneracao"/>
+      </div>
+
+      <div style={{background:"#fef3c7",borderRadius:10,padding:"12px 14px",marginBottom:14,borderLeft:"4px solid #d97706"}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:6}}>♨️ O que é Regeneração?</div>
+        <div style={{fontSize:11,color:"#78350f",lineHeight:1.7}}>
+          Regeneração é o reaquecimento de alimentos já confecionados e armazenados. O alimento deve atingir uma temperatura interna mínima de <strong>75°C em menos de 2 horas</strong>. O reaquecimento deve ser feito apenas uma vez — <strong>nunca recongelar após regenerar.</strong>
+        </div>
+      </div>
+
+      <div style={{background:W,borderRadius:11,border:"1px solid #e0f2fe",marginBottom:14,overflow:"hidden"}}>
+        <div style={{background:"#0e7490",color:W,padding:"8px 14px",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.5}}>Temperaturas Mínimas de Segurança — USDA/AHRESP</div>
+        {TEMPS_MIN.map((t,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 14px",borderBottom:"1px solid #f0f9ff",background:i%2===0?W:"#f8faff"}}>
+            <span style={{fontSize:12,color:"#334155",flex:2}}>{t.tipo}</span>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:14,fontWeight:800,color:"#dc2626"}}>{t.temp}</div>
+              <div style={{fontSize:9,color:GR}}>{t.nota}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Cd>
+        <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:12}}>Registar Regeneração</div>
+        <Ip lb="Nome do prato / produto" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado, Sopa de legumes..."/>
+        <Sl lb="Tipo de produto" val={form.tipoProd} onChange={v=>setForm(p=>({...p,tipoProd:v}))} opts={["Aves","Carne bovina/suína","Peixe e marisco","Sopa/Caldo","Prato com molho","Vegetais","Outro"]}/>
+        <Ip lb="Hora de início do reaquecimento" type="time" val={form.hora} onChange={v=>setForm(p=>({...p,hora:v}))}/>
+        <Ip lb="Temperatura inicial (°C)" type="number" val={form.tempInicial} onChange={v=>setForm(p=>({...p,tempInicial:v}))} ph="Temperatura antes de aquecer"/>
+        <Ip lb="Equipamento utilizado" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} ph="Ex: Forno, micro-ondas, fogão..."/>
+        <Ip lb="Temperatura final atingida (°C)" type="number" val={form.tempFinal} onChange={v=>setForm(p=>({...p,tempFinal:v}))} ph="Mínimo 75°C"/>
+        {form.tempFinal&&<div style={{background:tempOk?"#e0f2fe":"#fdecea",borderRadius:8,padding:10,marginBottom:10,fontSize:13,fontWeight:700,textAlign:"center",color:tempOk?"#0369a1":"#dc2626"}}>
+          {tempOk?"✓ OK — Temperatura mínima de 75°C atingida":"⚠️ NC — Temperatura insuficiente! Continuar a aquecer."}
+        </div>}
+        <Ta lb="Observações" val={form.obs} onChange={v=>setForm(p=>({...p,obs:v}))} ph="Notas adicionais..."/>
+        <B lb="Registar Regeneração" onClick={save} cor="#d97706"/>
+        <div style={{fontSize:10,color:"#dc2626",marginTop:8,textAlign:"center",fontWeight:600}}>Após regeneração: servir imediatamente — nunca recongelar!</div>
+      </Cd>
+
+      {lista.length>0&&<div>
+        <div style={{fontSize:11,fontWeight:700,color:GR,marginBottom:8,textTransform:"uppercase"}}>Registos de hoje</div>
+        {lista.map(r=><Cd key={r.id} st={{marginBottom:8,borderLeft:"3px solid "+(r.tempOk?"#16a34a":"#dc2626")}}>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontWeight:600,fontSize:13}}>{r.prato}</span>
+            <span style={{background:r.tempOk?"#16a34a":"#dc2626",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{r.tempOk?"OK":"NC"}</span>
+          </div>
+          <div style={{fontSize:11,color:GR}}>{r.tempFinal}°C — {r.hora} — {r.nomeAluno||r.responsavel}</div>
+        </Cd>)}
+      </div>}
+    </div>
+  );
+}
+
 export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
@@ -2670,6 +2853,7 @@ export default function App(){
   else if(mod==="higienizacao")page=<Higienizacao {...p}/>;
   else if(mod==="equipamentos")page=<Equipamentos {...p}/>;
   else if(mod==="conservacao")page=<ConservacaoProd {...p}/>;
+  else if(mod==="regeneracao")page=<Regeneracao {...p}/>;
   else if(mod==="ranking")page=<Ranking db={db}/>;
   else if(mod==="faltas")page=<Faltas {...p}/>;
   else if(mod==="higienePessoal")page=<HigienePessoal {...p}/>;
