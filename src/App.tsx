@@ -14,7 +14,7 @@ document.head.appendChild(fontStyle);
 
 
 // Apps Script trigger deve estar configurado para "Head" para não precisar atualizar após cada deploy
-const SHEET_URL="https://script.google.com/macros/s/AKfycbwWyaH9xp4DNEGGEtHgus_TEgGXGZ504l2RJG6kzVV0zVcNF3hWVsdkZj4C_8-BkZVXvQ/exec";
+const SHEET_URL="https://script.google.com/macros/s/AKfycbzqDKSfMNgnUChHzYxFXHDRQxl9moB1UAX5qVlViTIm49JCKXzxlkVOKjY--LfL1WVPgg/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
@@ -99,6 +99,7 @@ function ProcedimentoBtn({item}){
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
 const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
 const MODS_DIARIOS=[
+  {id:"presenca",lb:"Presença",cor:"#0e7490"},
   {id:"higienePessoal",lb:"Higiene Pessoal",cor:"#0e7490"},
   {id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},
   {id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0e7490"},
@@ -268,6 +269,7 @@ function DashAluno({user,db,setModule}){
   const tempF=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"]);
   const encerrado=!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]);
   const higPessoal=!!(db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h]);
+  const presencaFeita=!!(db.presencas&&db.presencas["presenca-"+user.turma+"-"+h]&&db.presencas["presenca-"+user.turma+"-"+h][user.id]);
   const recepcao=!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h);
   const higienizacao=!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos);
 
@@ -275,6 +277,7 @@ function DashAluno({user,db,setModule}){
   const panosInicioD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["inicio"]);
   const panosFinalD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["final"]);
   const feitoMap={
+    presenca:presencaFeita,
     higienePessoal:higPessoal,
     temperaturas:tempI&&tempF,
     recepcao:recepcao,
@@ -1214,13 +1217,35 @@ function Encerramento({user,db,setDb,showToast}){
     {id:"car",l:"Carrinhos limpos e higienizados"},
   ];
 
+  // Cálculo do Responsável rotativo + Suplentes (baseado em presenças de hoje e histórico de encerramentos)
+  const presencasHojeRot=(db.presencas&&db.presencas["presenca-"+user.turma+"-"+h])||{};
+  const todosAlunosRot=(db.alunosList||[]).filter(a=>a.turma===user.turma);
+  const presentesHojeRot=todosAlunosRot.filter(a=>Object.keys(presencasHojeRot).some(id=>id.endsWith("-"+a.numero)));
+  const historicoEnc=Object.values(db.encerramento||{}).filter(e=>!e.emProgresso&&e.turma===user.turma&&e.nomeAluno);
+  const contagemEnc={};
+  historicoEnc.forEach(e=>{contagemEnc[e.aluno]=(contagemEnc[e.aluno]||0)+1;});
+  const ultimaVez={};
+  historicoEnc.forEach(e=>{if(!ultimaVez[e.aluno]||e.date>ultimaVez[e.aluno])ultimaVez[e.aluno]=e.date;});
+  const candidatos=[...presentesHojeRot].sort((a,b)=>{
+    const ca=contagemEnc[a.turma+"-"+a.numero]||0,cb=contagemEnc[b.turma+"-"+b.numero]||0;
+    if(ca!==cb)return ca-cb; // menos vezes primeiro
+    const ua=ultimaVez[a.turma+"-"+a.numero]||"",ub=ultimaVez[b.turma+"-"+b.numero]||"";
+    return ua.localeCompare(ub); // há mais tempo sem encerrar primeiro
+  });
+  const responsavelInfo=candidatos[0];
+  const suplentes=candidatos.slice(1,4);
+
+  const naItens=(sv&&sv.na)||{};
+  const [naLocal,setNaLocal]=useState(naItens);
+  const itensAplicaveis=ITEMS_MANUAL.filter(i=>!naLocal[i.id]);
   const allAuto=ITEMS_OBG.every(i=>i.auto);
-  const allManual=ITEMS_MANUAL.every(i=>checks[i.id]);
+  const allManual=itensAplicaveis.every(i=>checks[i.id]);
   const todosOk=allAuto&&allManual;
-  const totalFeito=ITEMS_OBG.filter(i=>i.auto).length+ITEMS_MANUAL.filter(i=>checks[i.id]).length;
-  const total=ITEMS_OBG.length+ITEMS_MANUAL.length;
+  const totalFeito=ITEMS_OBG.filter(i=>i.auto).length+itensAplicaveis.filter(i=>checks[i.id]).length;
+  const total=ITEMS_OBG.length+itensAplicaveis.length;
 
   const toggle=id=>{if(!done)setChecks(p=>({...p,[id]:!p[id]}));};
+  const toggleNA=id=>{if(!done){setNaLocal(p=>{const n={...p,[id]:!p[id]};if(n[id])setChecks(c=>({...c,[id]:false}));return n;});}};
 
   // Get aluno's pin from alunosList
   const alunoAtual=(db.alunosList||[]).find(a=>String(a.numero)===String(user.id.split("-")[1])&&a.turma===user.turma);
@@ -1238,10 +1263,26 @@ function Encerramento({user,db,setDb,showToast}){
 
   const finalizarEncerramento=()=>{
     const nomeEnc=(db.assinaturas&&db.assinaturas[user.id])||"";
-    setDb(p=>{const e={...p.encerramento};e[k]={obs,checks,aluno:user.id,nomeAluno:nomeEnc,turma:user.turma,date:h,time:gT(),emProgresso:false};return{...p,encerramento:e};});
-    enviar("Encerramento",[h,gT(),user.turma,user.id,nomeEnc,"Concluído"]);
+    const horaFinal=gT();
+    setDb(p=>{const e={...p.encerramento};e[k]={obs,checks,na:naLocal,aluno:user.id,nomeAluno:nomeEnc,turma:user.turma,date:h,time:horaFinal,emProgresso:false};return{...p,encerramento:e};});
+    enviar("Encerramento",[h,horaFinal,user.turma,user.id,nomeEnc,"Concluído"]);
     showToast("Encerramento de aula prática registado! Responsável: "+nomeEnc);
     setShowConfirm(false);
+
+    // Build and send closing summary email
+    const presencasHoje=(db.presencas&&db.presencas["presenca-"+user.turma+"-"+h])||{};
+    const presentes=Object.values(presencasHoje).map(p=>({nome:p.nomeAluno||p.aluno,time:p.time}));
+    const todosAlunos=(db.alunosList||[]).filter(a=>a.turma===user.turma);
+    const presentesIds=Object.keys(presencasHoje);
+    const faltas=todosAlunos.filter(a=>!presentesIds.some(id=>id.endsWith("-"+a.numero))).map(a=>a.nome||("Aluno "+a.numero));
+    const ncsHoje=(db.ncs||[]).filter(n=>n.turma===user.turma&&n.date===h);
+    const naItens=ITEMS_MANUAL.filter(i=>naLocal[i.id]).map(i=>i.l);
+
+    fetch(SHEET_URL,{method:"POST",body:JSON.stringify({
+      action:"resumoEncerramento",
+      turma:user.turma,date:h,time:horaFinal,aluno:user.id,nomeAluno:nomeEnc,
+      presentes,faltas,ncs:ncsHoje,naItens,obs
+    })}).catch(()=>{});
   };
 
   // Histórico - últimos encerramentos de qualquer turma
@@ -1251,6 +1292,18 @@ function Encerramento({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Encerramento da Aula</div><InfoBtn modId="encerramento"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Todos os pontos têm de estar verificados para encerrar.</div>
+
+      {!done&&responsavelInfo&&(
+        <Cd st={{borderLeft:"3px solid "+V,marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:V,marginBottom:6,textTransform:"uppercase"}}>Responsável de hoje pelo Encerramento</div>
+          <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:8}}>{responsavelInfo.nome||("Aluno "+responsavelInfo.numero)}</div>
+          {suplentes.length>0&&<>
+            <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Ordem de Substituição</div>
+            {suplentes.map((s,i)=><div key={i} style={{fontSize:12,color:GR}}>Suplente {i+1}: {s.nome||("Aluno "+s.numero)}</div>)}
+          </>}
+          <div style={{fontSize:10,color:GR,marginTop:6,fontStyle:"italic"}}>Seleção rotativa baseada na presença de hoje e no histórico de encerramentos.</div>
+        </Cd>
+      )}
 
       <button onClick={()=>setShowHist(!showHist)} style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #bae6fd",background:LC,color:"#0369a1",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:12}}>
         {showHist?"Fechar histórico":"📋 Ver quem encerrou a cozinha (histórico)"}
@@ -1286,14 +1339,21 @@ function Encerramento({user,db,setDb,showToast}){
           {ncsPendentes.map(nc=><div key={nc.id} style={{fontSize:11,color:GR,marginBottom:2}}>• {nc.zona}: {nc.descricao}</div>)}
         </Cd>}
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",margin:"12px 0 8px",textTransform:"uppercase"}}>Verificação manual</div>
-        {ITEMS_MANUAL.map(item=>(
-          <div key={item.id} onClick={()=>toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 0",borderBottom:"1px solid "+LC,cursor:done?"default":"pointer"}}>
-            <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(checks[item.id]?V:BE),background:checks[item.id]?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
+        {ITEMS_MANUAL.map(item=>{
+          const na=naLocal[item.id];
+          return(
+          <div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",borderBottom:"1px solid "+LC}}>
+            <div onClick={()=>!na&&toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,flex:1,cursor:done||na?"default":"pointer",opacity:na?0.45:1}}>
+              <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(checks[item.id]?V:BE),background:checks[item.id]?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
+              </div>
+              <span style={{fontSize:13,color:checks[item.id]?V:GR,textDecoration:na?"line-through":"none"}}>{item.l}</span>
             </div>
-            <span style={{fontSize:13,color:checks[item.id]?V:GR}}>{item.l}</span>
+            {!done&&<button onClick={()=>toggleNA(item.id)} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,border:"1.5px solid "+(na?"#7c5c3a":"#e0e0e0"),background:na?"#7c5c3a":"transparent",color:na?W:"#9ca3af",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Não aplicável hoje</button>}
+            {done&&na&&<span style={{fontSize:10,fontWeight:600,color:"#7c5c3a",flexShrink:0}}>N/A</span>}
           </div>
-        ))}
+          );
+        })}
       </Cd>
       {!done?(
         <Cd>
@@ -1335,15 +1395,29 @@ function Professor({user,db,setDb,showToast}){
   const vK2="val-"+turma+"-"+h,jaV=!!(db.validacoes&&db.validacoes[vK2]);
   const tot=PC.filter(c=>ver[c.id]).length,ok=tot===PC.length;
   const mk=(id,cf)=>{setDb(p=>{const pv={...p.profVerif};pv[vK]={...ver,[id]:{professor:user.id,time:gT(),conf:cf}};return{...p,profVerif:pv};});};
-  const uNC=(id,es)=>{setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===id?{...n,estado:es,professor:user.id}:n)}));showToast("NC atualizada!");};
+  const gerarRelatorioNC=(nc)=>{
+    fetch(SHEET_URL,{method:"POST",body:JSON.stringify({action:"gerarRelatorioNC",nc})}).catch(()=>{});
+  };
+  const uNC=(id,es)=>{
+    setDb(p=>{
+      const updated=(p.ncs||[]).map(n=>n.id===id?{...n,estado:es,professor:user.id}:n);
+      if(es==="validada"){const nc=updated.find(n=>n.id===id);if(nc)gerarRelatorioNC(nc);}
+      return{...p,ncs:updated};
+    });
+    showToast("NC atualizada!");
+  };
   const decidirNC=(nc,decisao)=>{
     let novoEstado=decisao==="aceitar"?"validada":decisao==="corrigir"?"em resolução":"escalada";
-    setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?{...n,estado:novoEstado,professor:user.id,decisao}:n)}));
+    const ncAtualizada={...nc,estado:novoEstado,professor:user.id,decisao};
+    setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?ncAtualizada:n)}));
     if(decisao==="escalar"){
       enviar("NãoConformidades",[gD(),gT(),nc.turma,nc.responsavel,nc.nomeAluno||"",nc.zona,"[ESCALADA AO COORDENADOR] "+nc.descricao,nc.acaoCorretiva||"",novoEstado]);
       showToast("NC escalada à Coordenadora — email enviado.");
+    }else if(decisao==="aceitar"){
+      gerarRelatorioNC(ncAtualizada);
+      showToast("NC aceite e validada! Relatório gerado.");
     }else{
-      showToast("NC "+(decisao==="aceitar"?"aceite e validada":"marcada para correção")+"!");
+      showToast("NC marcada para correção!");
     }
   };
   const val=()=>{if(!ok){showToast("Verifica todos os pontos!");return;}setDb(p=>{const v={...p.validacoes};v[vK2]={professor:user.id,turma,date:h,time:gT(),obs};return{...p,validacoes:v};});enviar("Validações",[h,turma,user.id,obs,tot+"/"+PC.length]);showToast("Sessão validada!");setObs("");};
@@ -1501,6 +1575,7 @@ function RelatoriosPDF(){
   const TURMAS=["","1º ACP","2º ACP","3º ACP"];
   const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const TIPOS=[
+    {id:"presenca",lb:"✅ Presenças"},
     {id:"temperaturas",lb:"🌡️ Temperaturas"},
     {id:"higiene",lb:"🧼 Higiene Pessoal"},
     {id:"recepcao",lb:"📦 Receção Matérias-Primas"},
@@ -1675,39 +1750,39 @@ const MAPA_CORES=[
 
 const MAPA_DEFAULT={
   zonas:[
-    {id:"a1",nome:"Bancada A",x:20,y:20,w:260,h:50,cor:"blue"},
-    {id:"a2",nome:"Frio A",x:20,y:74,w:260,h:24,cor:"teal"},
-    {id:"entrada",nome:"Entrada",x:288,y:20,w:72,h:50,cor:"gray"},
+    {id:"a1",nome:"Bancada A",x:20,y:20,w:260,h:50,cor:"blue",procKey:"bancada"},
+    {id:"a2",nome:"Frio A",x:20,y:74,w:260,h:24,cor:"teal",procKey:"frigorifico"},
+    {id:"entrada",nome:"Entrada",x:288,y:20,w:72,h:50,cor:"gray",procKey:null},
 
-    {id:"longa1",nome:"Bancada longa 1",x:288,y:78,w:72,h:60,cor:"gray"},
+    {id:"longa1",nome:"Bancada longa 1",x:288,y:78,w:72,h:60,cor:"gray",procKey:"bancada"},
 
-    {id:"arca1",nome:"Arca 1",x:288,y:144,w:72,h:32,cor:"teal"},
-    {id:"arca2",nome:"Arca 2",x:288,y:180,w:72,h:32,cor:"teal"},
-    {id:"arca3",nome:"Arca 3",x:288,y:216,w:72,h:32,cor:"teal"},
-    {id:"cong1",nome:"Congelador 1",x:288,y:252,w:72,h:32,cor:"teal"},
-    {id:"cong2",nome:"Congelador 2",x:288,y:288,w:72,h:32,cor:"teal"},
+    {id:"arca1",nome:"Arca 1",x:288,y:144,w:72,h:32,cor:"teal",procKey:"congelador"},
+    {id:"arca2",nome:"Arca 2",x:288,y:180,w:72,h:32,cor:"teal",procKey:"congelador"},
+    {id:"arca3",nome:"Arca 3",x:288,y:216,w:72,h:32,cor:"teal",procKey:"congelador"},
+    {id:"cong1",nome:"Congelador 1",x:288,y:252,w:72,h:32,cor:"teal",procKey:"congelador"},
+    {id:"cong2",nome:"Congelador 2",x:288,y:288,w:72,h:32,cor:"teal",procKey:"congelador"},
 
-    {id:"abat",nome:"Abatedores",x:20,y:148,w:74,h:50,cor:"coral"},
-    {id:"vacuo",nome:"Máq. Vácuo",x:20,y:204,w:74,h:50,cor:"coral"},
-    {id:"rational",nome:"Fornos Rational",x:20,y:260,w:74,h:50,cor:"coral"},
-    {id:"banc_rat1",nome:"Bancada (jto Rational) 1",x:20,y:316,w:74,h:40,cor:"gray"},
-    {id:"banc_rat2",nome:"Bancada (jto Rational) 2",x:20,y:362,w:74,h:40,cor:"gray"},
+    {id:"abat",nome:"Abatedores",x:20,y:148,w:74,h:50,cor:"coral",procKey:"abatedor"},
+    {id:"vacuo",nome:"Máq. Vácuo",x:20,y:204,w:74,h:50,cor:"coral",procKey:"vacuo"},
+    {id:"rational",nome:"Fornos Rational",x:20,y:260,w:74,h:50,cor:"coral",procKey:"fogao"},
+    {id:"banc_rat1",nome:"Bancada (jto Rational) 1",x:20,y:316,w:74,h:40,cor:"gray",procKey:"bancada"},
+    {id:"banc_rat2",nome:"Bancada (jto Rational) 2",x:20,y:362,w:74,h:40,cor:"gray",procKey:"bancada"},
 
-    {id:"c1",nome:"Bancada C",x:108,y:148,w:170,h:40,cor:"purple"},
-    {id:"cb_frio",nome:"Frio C/B",x:108,y:190,w:170,h:24,cor:"teal"},
-    {id:"b1",nome:"Bancada B",x:108,y:216,w:170,h:40,cor:"purple"},
+    {id:"c1",nome:"Bancada C",x:108,y:148,w:170,h:40,cor:"purple",procKey:"bancada"},
+    {id:"cb_frio",nome:"Frio C/B",x:108,y:190,w:170,h:24,cor:"teal",procKey:"frigorifico"},
+    {id:"b1",nome:"Bancada B",x:108,y:216,w:170,h:40,cor:"purple",procKey:"bancada"},
 
-    {id:"d1",nome:"Bancada D",x:108,y:272,w:170,h:40,cor:"blue"},
-    {id:"de_frio",nome:"Frio D/E",x:108,y:314,w:170,h:24,cor:"teal"},
-    {id:"e1",nome:"Bancada E",x:108,y:340,w:170,h:40,cor:"blue"},
+    {id:"d1",nome:"Bancada D",x:108,y:272,w:170,h:40,cor:"blue",procKey:"bancada"},
+    {id:"de_frio",nome:"Frio D/E",x:108,y:314,w:170,h:24,cor:"teal",procKey:"frigorifico"},
+    {id:"e1",nome:"Bancada E",x:108,y:340,w:170,h:40,cor:"blue",procKey:"bancada"},
 
-    {id:"pastel",nome:"Pastelaria",x:108,y:396,w:170,h:50,cor:"pink"},
-    {id:"copa",nome:"Copa",x:108,y:452,w:80,h:50,cor:"green"},
-    {id:"econ1",nome:"Economato 1",x:194,y:452,w:42,h:50,cor:"amber"},
-    {id:"econ2",nome:"Economato 2",x:240,y:452,w:38,h:50,cor:"amber"},
+    {id:"pastel",nome:"Pastelaria",x:108,y:396,w:170,h:50,cor:"pink",procKey:"bancada"},
+    {id:"copa",nome:"Copa",x:108,y:452,w:80,h:50,cor:"green",procKey:"loica"},
+    {id:"econ1",nome:"Economato 1",x:194,y:452,w:42,h:50,cor:"amber",procKey:"economato"},
+    {id:"econ2",nome:"Economato 2",x:240,y:452,w:38,h:50,cor:"amber",procKey:"economato"},
 
-    {id:"longa2",nome:"Bancada longa 2",x:20,y:412,w:74,h:90,cor:"gray"},
-    {id:"longa3",nome:"Bancada longa 3",x:288,y:396,w:72,h:106,cor:"gray"},
+    {id:"longa2",nome:"Bancada longa 2",x:20,y:412,w:74,h:90,cor:"gray",procKey:"bancada"},
+    {id:"longa3",nome:"Bancada longa 3",x:288,y:396,w:72,h:106,cor:"gray",procKey:"bancada"},
   ]
 };
 
@@ -1810,7 +1885,7 @@ function MapaCozinha({user,db,setDb,showToast}){
               key={z.id}
               onMouseDown={e=>onPointerDown(e,z)}
               onTouchStart={e=>onPointerDown(e,z)}
-              onClick={()=>editMode&&setSelecionada(z.id)}
+              onClick={()=>editMode?setSelecionada(z.id):setSelecionada(selecionada===z.id?null:z.id)}
               style={{
                 position:"absolute",left:z.x,top:z.y,width:z.w,height:z.h,
                 background:cor.bg,border:"1.5px solid "+(sel?cor.text:cor.border),
@@ -1825,6 +1900,15 @@ function MapaCozinha({user,db,setDb,showToast}){
           );
         })}
       </div>
+
+      {!editMode&&zonaSel&&(
+        <Cd st={{marginTop:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e"}}>{zonaSel.nome}</div>
+            {zonaSel.procKey?<ProcedimentoBtn item={zonaSel.procKey}/>:<span style={{fontSize:11,color:GR}}>Sem procedimento associado</span>}
+          </div>
+        </Cd>
+      )}
 
       {editMode&&zonaSel&&(
         <Cd st={{marginTop:10}}>
@@ -1852,6 +1936,130 @@ function MapaCozinha({user,db,setDb,showToast}){
           </div>
         </Cd>
       )}
+    </div>
+  );
+}
+
+function Presenca({user,db,setDb,showToast}){
+  const h=gD(),k="presenca-"+user.turma+"-"+h;
+  const presencas=(db.presencas&&db.presencas[k])||{};
+  const jaMarcou=!!presencas[user.id];
+  const nomeAluno=(db.assinaturas&&db.assinaturas[user.id])||user.id;
+  const [pin,setPin]=useState("");
+  const [erroPin,setErroPin]=useState("");
+
+  const alunoAtual=(db.alunosList||[]).find(a=>String(a.numero)===String(user.id.split("-")[1])&&a.turma===user.turma);
+
+  const marcar=()=>{
+    if(jaMarcou)return;
+    setErroPin("");
+    if(alunoAtual&&alunoAtual.pin){
+      if(pin!==alunoAtual.pin){setErroPin("PIN incorreto. Confirma a tua identidade.");return;}
+    }
+    const reg={aluno:user.id,nomeAluno,time:gT(),date:h};
+    setDb(p=>{
+      const ps={...(p.presencas||{})};
+      ps[k]={...(ps[k]||{}),[user.id]:reg};
+      return{...p,presencas:ps};
+    });
+    enviar("Presenças",[h,gT(),user.turma,user.id,nomeAluno,"Presente"]);
+    showToast("Presença registada!");
+    setPin("");
+  };
+
+  // List of all students in this class (from alunosList)
+  const todosAlunos=(db.alunosList||[]).filter(a=>a.turma===user.turma);
+  const presentesIds=Object.keys(presencas);
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#0c4a6e"}}>Presença</div>
+      </div>
+
+      <Cd st={{borderLeft:"4px solid "+(jaMarcou?V:BE)}}>
+        {jaMarcou?(
+          <div style={{textAlign:"center",padding:6}}>
+            <div style={{fontSize:32,marginBottom:6}}>✓</div>
+            <div style={{fontSize:14,fontWeight:700,color:V}}>Presença registada</div>
+            <div style={{fontSize:12,color:GR,marginTop:2}}>{nomeAluno} — {presencas[user.id].time}</div>
+          </div>
+        ):(
+          <>
+            <div style={{fontSize:13,color:"#0c4a6e",marginBottom:10,textAlign:"center"}}>Confirma a tua presença na aula de hoje</div>
+            {alunoAtual&&alunoAtual.pin&&(
+              <>
+                <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>O teu PIN pessoal</div>
+                <input type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value)} placeholder="••••" maxLength={6} style={{width:"100%",padding:"12px 13px",borderRadius:9,border:"1.5px solid #bae6fd",fontSize:18,letterSpacing:4,textAlign:"center",background:LC,color:"#0c4a6e",outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:8}}/>
+                {erroPin&&<div style={{color:R,fontSize:12,marginBottom:8,textAlign:"center"}}>{erroPin}</div>}
+              </>
+            )}
+            <B lb="✓ Marcar presença" onClick={marcar} cor={V}/>
+          </>
+        )}
+      </Cd>
+
+      {todosAlunos.length>0&&(
+        <Cd st={{marginTop:10}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e",marginBottom:8}}>Turma {user.turma} — {presentesIds.length}/{todosAlunos.length} presentes</div>
+          {todosAlunos.map(a=>{
+            const pres=presencas[String(a.turma+"-"+a.numero)]||presencas[a.id]||Object.values(presencas).find(p=>p.aluno&&p.aluno.endsWith("-"+a.numero));
+            return(
+              <div key={a.numero} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+LC}}>
+                <span style={{fontSize:12,color:pres?V:GR}}>{a.nome||("Aluno "+a.numero)}</span>
+                <span style={{fontSize:11,fontWeight:600,color:pres?V:"#9ca3af"}}>{pres?"Presente "+pres.time:"—"}</span>
+              </div>
+            );
+          })}
+        </Cd>
+      )}
+    </div>
+  );
+}
+
+function PainelNCs({db,turma}){
+  const [filtro,setFiltro]=useState("todas");
+  const todas=(db.ncs||[]).filter(n=>n.turma===turma).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const FILTROS=[
+    {id:"todas",lb:"Todas"},
+    {id:"aberta",lb:"Pendentes"},
+    {id:"em resolução",lb:"Em Resolução"},
+    {id:"validada",lb:"Resolvidas"},
+    {id:"escalada",lb:"Escaladas"},
+  ];
+  const lista=filtro==="todas"?todas:todas.filter(n=>n.estado===filtro);
+  const corE={aberta:"#dc2626","em resolução":"#d35400",resolvida:"#f39c12",validada:"#16a34a",escalada:"#7c3aed"};
+  const decisaoLb={aceitar:"Aceite pelo professor",corrigir:"A corrigir",escalar:"Escalada à Coordenadora"};
+
+  return(
+    <div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c5c3a",marginBottom:14}}>Painel de Não Conformidades — {turma}</div>
+
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        {FILTROS.map(f=>{
+          const count=f.id==="todas"?todas.length:todas.filter(n=>n.estado===f.id).length;
+          return(
+            <button key={f.id} onClick={()=>setFiltro(f.id)} style={{padding:"8px 12px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(filtro===f.id?(corE[f.id]||"#0e7490"):"#e0e0e0"),background:filtro===f.id?(corE[f.id]||"#0e7490"):LC,color:filtro===f.id?W:GR,fontFamily:"inherit"}}>{f.lb} ({count})</button>
+          );
+        })}
+      </div>
+
+      {lista.length===0&&<Cd><div style={{fontSize:13,color:GR,textAlign:"center"}}>Sem registos para este filtro.</div></Cd>}
+
+      {lista.map(nc=>(
+        <Cd key={nc.id} st={{marginBottom:10,borderLeft:"3px solid "+(corE[nc.estado]||"#dc2626")}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <span style={{fontWeight:700,fontSize:13,color:"#0c4a6e"}}>{nc.zona}{nc.criticidade==="critica"&&<span style={{color:"#dc2626"}}> ⚠️</span>}</span>
+            <span style={{background:corE[nc.estado]||"#dc2626",color:W,borderRadius:5,padding:"2px 8px",fontSize:10,fontWeight:600}}>{nc.estado}</span>
+          </div>
+          <div style={{fontSize:12,color:GR,marginBottom:2}}>{nc.descricao}</div>
+          {nc.acaoCorretiva&&<div style={{fontSize:11,color:"#0e7490",fontStyle:"italic",marginBottom:2}}>Ação: {nc.acaoCorretiva}</div>}
+          <div style={{fontSize:10,color:GR}}>{nc.date} {nc.time} — registado por {nc.nomeAluno||nc.responsavel}</div>
+          {nc.decisao&&<div style={{fontSize:11,fontWeight:600,color:"#0e7490",marginTop:4}}>{decisaoLb[nc.decisao]||nc.decisao}{nc.professor&&" — "+nc.professor}</div>}
+          {nc.pdfUrl&&<a href={nc.pdfUrl} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:6,fontSize:11,fontWeight:700,color:"#0369a1",textDecoration:"underline"}}>📄 Ver relatório PDF</a>}
+          {nc.estado==="validada"&&!nc.pdfUrl&&<div style={{fontSize:10,color:GR,marginTop:6,fontStyle:"italic"}}>Relatório PDF a ser gerado — consulta a folha "NãoConformidades" no Excel para o link.</div>}
+        </Cd>
+      ))}
     </div>
   );
 }
@@ -1893,13 +2101,14 @@ function Coordenadora({user,db,setDb,showToast}){
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["alunos","relatorios","mapa","tarefasPeriodicas","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["alunos","relatorios","mapa","tarefasPeriodicas","ncsPainel","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
       {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
       {folha==="relatorios"&&<RelatoriosPDF/>}
       {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="tarefasPeriodicas"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
+      {folha==="ncsPainel"&&<PainelNCs db={db} turma={turma}/>}
 
       {folha==="temperaturas"&&(
         <div style={{overflowX:"auto"}}>
@@ -2572,7 +2781,9 @@ function HigienePessoal({user,db,setDb,showToast}){
   const [checks,setChecks]=useState(sv?sv.checks:{});
   const ITEMS_INFO=[
     {titulo:"Lavagem das Mãos",desc:"Lavar as mãos durante pelo menos 20 segundos com água quente e sabão: antes de manipular alimentos, após usar a casa de banho, após tocar em alimentos crus, após assoar, tossir ou espirrar."},
+    {titulo:"Ordem de Vestuário",desc:"Antes de vestir a jaleca: lavar bem as mãos e colocar a touca/rede no cabelo PRIMEIRO. Só depois vestir a jaleca e o avental. Isto evita que cabelos caiam para dentro da farda durante a colocação."},
     {titulo:"Farda Completa",desc:"Usar sempre: avental limpo, touca ou rede no cabelo, calçado adequado e antiderrapante."},
+    {titulo:"Casa de Banho / Rua",desc:"NUNCA ir à casa de banho ou à rua fardado (com jaleca, avental ou touca). Antes de saír da cozinha, retirar a farda. Ao regressar, lavar as mãos novamente e voltar a vestir pela ordem correta: touca primeiro, depois a jaleca."},
     {titulo:"Sem Adornos",desc:"Retirar obrigatoriamente: anéis, pulseiras, relógios, brincos. Podem cair nos alimentos e causar contaminação física."},
     {titulo:"Proibido: Unhas e Pestanas Postiças",desc:"Unhas postiças e pestanas postiças são PROIBIDAS na cozinha. Podem desprender-se durante a manipulação de alimentos e causar contaminação física. Unhas naturais devem estar curtas, limpas e sem verniz."},
     {titulo:"Unhas",desc:"Unhas curtas, limpas e sem verniz. O verniz pode descascar e contaminar os alimentos."},
@@ -2580,9 +2791,9 @@ function HigienePessoal({user,db,setDb,showToast}){
     {titulo:"Doença",desc:"Não trabalhar com alimentos se tiver: diarreia, vómitos, febre, tosse intensa ou feridas infetadas nas mãos. Informar o professor imediatamente."},
   ];
   const CHECKLIST=[
+    {id:"maos_touca",l:"Mãos lavadas e touca colocada ANTES da jaleca"},
     {id:"farda",l:"Farda completa e limpa"},
-    {id:"touca",l:"Cabelo apanhado / touca colocada"},
-    {id:"maos",l:"Mãos lavadas antes de entrar"},
+    {id:"sem_fardado_fora",l:"Não foi à casa de banho/rua fardado(a)"},
     {id:"adornos",l:"Sem anéis, pulseiras ou relógio"},
     {id:"unhas",l:"Unhas curtas, sem verniz e sem unhas postiças"},
     {id:"pestanas",l:"Sem pestanas postiças"},
@@ -3712,6 +3923,7 @@ export default function App(){
   else if(mod==="oleos")page=<Oleos {...p}/>;
   else if(mod==="servico")page=<Servico {...p}/>;
   else if(mod==="naoConf")page=<NaoConf {...p}/>;
+  else if(mod==="presenca")page=<Presenca {...p}/>;
   else if(mod==="tarefasPeriodicas")page=<TarefasPeriodicas {...p}/>;
   else if(mod==="mapaCozinha")page=<MapaCozinha {...p}/>;
   else if(mod==="encerramento")page=<Encerramento {...p}/>;
