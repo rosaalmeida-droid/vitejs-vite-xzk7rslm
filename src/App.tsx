@@ -1789,6 +1789,11 @@ function RelatoriosPDF(){
 }
 
 const TAREFAS_PERIODICAS={
+  diario:[
+    {id:"maqLavagemDiario",lb:"Drenagem e limpeza diária da máquina de lavagem",resp:"Auxiliares",procKey:"maq. lavagem"},
+    {id:"chaoCopaDiario",lb:"Limpeza diária do chão da copa",resp:"Auxiliares",procKey:"chao"},
+    {id:"lixoDiario",lb:"Esvaziamento diário dos caixotes do lixo",resp:"Auxiliares",procKey:"lixo"},
+  ],
   semanal:[
     {id:"drenos",lb:"Limpeza e desinfeção de drenos",resp:"Auxiliares",procKey:"drenos"},
     {id:"po",lb:"Limpeza de pó (zonas altas)",resp:"Alunos/Auxiliares",procKey:"po"},
@@ -1811,11 +1816,11 @@ const TAREFAS_PERIODICAS={
 };
 
 function TarefasPeriodicas({user,db,setDb,showToast}){
-  const [periodo,setPeriodo]=useState("semanal");
+  const [periodo,setPeriodo]=useState("diario");
   const semanaAtual=()=>{const d=new Date();const onejan=new Date(d.getFullYear(),0,1);return Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);};
   const mesAtual=()=>new Date().getMonth()+1+"-"+new Date().getFullYear();
   const quinzenaAtual=()=>Math.ceil(semanaAtual()/2);
-  const chave=periodo==="semanal"?("sem-"+new Date().getFullYear()+"-"+semanaAtual()):periodo==="quinzenal"?("quinz-"+new Date().getFullYear()+"-"+quinzenaAtual()):("mes-"+mesAtual());
+  const chave=periodo==="diario"?("dia-"+gD()):periodo==="semanal"?("sem-"+new Date().getFullYear()+"-"+semanaAtual()):periodo==="quinzenal"?("quinz-"+new Date().getFullYear()+"-"+quinzenaAtual()):("mes-"+mesAtual());
   const regs=(db.tarefasPeriodicas&&db.tarefasPeriodicas[chave])||{};
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
 
@@ -1840,13 +1845,13 @@ function TarefasPeriodicas({user,db,setDb,showToast}){
       </div>
 
       <div style={{display:"flex",gap:8,marginBottom:14}}>
-        {[{id:"semanal",lb:"Semanal"},{id:"quinzenal",lb:"Quinzenal"},{id:"mensal",lb:"Mensal"}].map(t=>(
+        {[{id:"diario",lb:"Diário"},{id:"semanal",lb:"Semanal"},{id:"quinzenal",lb:"Quinzenal"},{id:"mensal",lb:"Mensal"}].map(t=>(
           <button key={t.id} onClick={()=>setPeriodo(t.id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(periodo===t.id?"#b45309":"#e0e0e0"),background:periodo===t.id?"#b45309":LC,color:periodo===t.id?W:"#7c5c3a",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t.lb}</button>
         ))}
       </div>
 
       <div style={{fontSize:11,color:GR,marginBottom:10}}>
-        {periodo==="semanal"?"Semana "+semanaAtual()+" de "+new Date().getFullYear():periodo==="quinzenal"?"Quinzena "+quinzenaAtual()+" de "+new Date().getFullYear():"Mês de "+["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][new Date().getMonth()]+" "+new Date().getFullYear()}
+        {periodo==="diario"?"Hoje — "+gD():periodo==="semanal"?"Semana "+semanaAtual()+" de "+new Date().getFullYear():periodo==="quinzenal"?"Quinzena "+quinzenaAtual()+" de "+new Date().getFullYear():"Mês de "+["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][new Date().getMonth()]+" "+new Date().getFullYear()}
       </div>
 
       {lista.length===0&&<Cd><div style={{fontSize:13,color:GR,textAlign:"center"}}>Sem tarefas para este período.</div></Cd>}
@@ -2841,7 +2846,11 @@ function Auxiliar({user,db,setDb,showToast}){
   };
 
   const mk=item=>{
-    if(regs[item]){showToast("Já marcado");return;}
+    if(regs[item]){
+      const n={...regs};delete n[item];
+      setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,notas,date:h};return{...p,auxHig:ah};});
+      return;
+    }
     const n={...regs,[item]:{aluno:nomeAux||user.id,time:gT()}};
     setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,notas,date:h};return{...p,auxHig:ah};});
     showToast("Verificado!");
