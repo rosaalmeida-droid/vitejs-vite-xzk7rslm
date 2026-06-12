@@ -16,6 +16,35 @@ document.head.appendChild(fontStyle);
 // Apps Script trigger deve estar configurado para "Head" para não precisar atualizar após cada deploy
 const SHEET_URL="https://script.google.com/macros/s/AKfycbzqDKSfMNgnUChHzYxFXHDRQxl9moB1UAX5qVlViTIm49JCKXzxlkVOKjY--LfL1WVPgg/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
+
+// Calcula Responsável + Suplentes pelo Encerramento, rotativo, considerando os últimos 15 dias de histórico
+function calcResponsavelEncerramento(db,turma,h){
+  const presencasHoje=(db.presencas&&db.presencas["presenca-"+turma+"-"+h])||{};
+  const todosAlunos=(db.alunosList||[]).filter(a=>a.turma===turma);
+  const presentesHoje=todosAlunos.filter(a=>Object.keys(presencasHoje).some(id=>id.endsWith("-"+a.numero)));
+
+  const hoje=new Date(h.split("/").reverse().join("-"));
+  const limite=new Date(hoje);limite.setDate(limite.getDate()-15);
+
+  const historicoEnc=Object.values(db.encerramento||{}).filter(e=>{
+    if(e.emProgresso||!e.nomeAluno||e.turma!==turma)return false;
+    const d=new Date(e.date.split("/").reverse().join("-"));
+    return d>=limite&&d<=hoje;
+  });
+  const contagemEnc={};
+  historicoEnc.forEach(e=>{contagemEnc[e.aluno]=(contagemEnc[e.aluno]||0)+1;});
+  const ultimaVez={};
+  historicoEnc.forEach(e=>{if(!ultimaVez[e.aluno]||e.date>ultimaVez[e.aluno])ultimaVez[e.aluno]=e.date;});
+
+  const candidatos=[...presentesHoje].sort((a,b)=>{
+    const ca=contagemEnc[a.turma+"-"+a.numero]||0,cb=contagemEnc[b.turma+"-"+b.numero]||0;
+    if(ca!==cb)return ca-cb;
+    const ua=ultimaVez[a.turma+"-"+a.numero]||"",ub=ultimaVez[b.turma+"-"+b.numero]||"";
+    return ua.localeCompare(ub);
+  });
+
+  return {responsavel:candidatos[0]||null,suplentes:candidatos.slice(1)};
+}
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
 const FRIOS=["Congelador 1","Congelador 2","Congelador 3","Frig. Vert. 1","Frig. Vert. 2","Frig. Vert. 3","Frig. Vert. 4","Frig. Banc. 1","Frig. Banc. 2","Frig. Banc. 3","Frig. Banc. 4","Frig. Banc. 5"];
@@ -28,37 +57,75 @@ const ZONAS={
 "Copa":["Loica lavada e arrumada","Sem utensilios por lavar","Cuba higienizada","Maq. lavagem 1 drenada, porta aberta e higienizada","Maq. lavagem 2 drenada, porta aberta e higienizada","Inoxes em condicoes","Panos colocados em solucao desinfetante","Esponjas colocadas em solucao desinfetante","Solucao desinfetante renovada"],
 "Economatos":["Economato mat.-primas organizado","Mat.-primas devidamente armazenadas","Sem mat.-primas no chao","Economato material organizado","Material arrumado (nao no chao)","Chao economato em condicoes"],
 "Residuos":["Lixo organico despejado no local correto","Lixo reciclavel separado corretamente","Caixotes lavados e higienizados","Sacos novos colocados"],
-"Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"]
+"Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"],
+"Equip. Limpeza":["Rodos lavados e desinfetados","Esfregonas lavadas e desinfetadas","Vassouras em condicoes (limpeza humida, nunca a seco)"]
 };
+const VERIFICACAO_FINAL=[
+  "Bancadas limpas e higienizadas (cima e baixo) — todas",
+  "Panos e esponjas em solução desinfetante (renovada)",
+  "Loiça toda lavada e arrumada",
+  "Máquina(s) de lavagem drenadas e limpas",
+  "Chão da cozinha lavado",
+  "Pó retirado (zonas altas/anfiteatro)",
+  "Anfiteatro limpo e arrumado",
+  "Portas exteriores dos frigoríficos/congeladores limpas",
+  "Copa finalizada (tudo arrumado e limpo)",
+];
+
+const TABELA_DILUICAO_3 = {
+  titulo: "Diluição BACTER CLHOR a 3%",
+  linhas: [
+    {vol:"1 litro de água", tecnico:"30 ml de BACTER CLHOR", caseiro:"meia chávena de café (≈30 ml)"},
+    {vol:"5 litros de água (1 balde médio)", tecnico:"150 ml de BACTER CLHOR", caseiro:"1 chávena de café cheia + meia (≈150 ml)"},
+    {vol:"10 litros de água (1 balde grande)", tecnico:"300 ml de BACTER CLHOR", caseiro:"3 chávenas de café (≈300 ml) ou 1 copo de água cheio (300 ml)"},
+  ],
+};
+
+const TABELA_DILUICAO_1 = {
+  titulo: "Diluição BACTER CLHOR a 1%",
+  linhas: [
+    {vol:"1 litro de água", tecnico:"10 ml de BACTER CLHOR", caseiro:"1 colher de sopa (≈10 ml)"},
+    {vol:"5 litros de água (1 balde médio)", tecnico:"50 ml de BACTER CLHOR", caseiro:"5 colheres de sopa (≈50 ml)"},
+    {vol:"10 litros de água (1 balde grande)", tecnico:"100 ml de BACTER CLHOR", caseiro:"meia chávena de café (≈100 ml)"},
+  ],
+};
+
 const PROCEDIMENTOS_LIMPEZA={
-  "bancada":{produto:"BACTER CLHOR diluído a 3% (limpeza profunda) ou NEO QUICK pronto a usar (desinfeção rápida entre tarefas, sem necessidade de enxaguar — auto-secagem)",sequencia:["Remover resíduos sólidos","Esfregar com esponja não abrasiva e água com detergente","Enxaguar com água limpa","Limpeza profunda: aplicar BACTER CLHOR a 3%, deixar atuar 5 min e enxaguar | Desinfeção rápida entre tarefas: pulverizar NEO QUICK e deixar secar ao ar"],tempo:"BACTER CLHOR: 5 min de contacto | NEO QUICK: auto-secagem, sem tempo de espera",seguranca:"NEO QUICK: hidroalcoólico, evitar perto de chamas. BACTER CLHOR: "+"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" EPI obrigatório: luvas de nitrilo + proteção ocular/facial."},
-  "ralo":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%) + escova própria",sequencia:["Remover grelha e resíduos visíveis","Escovar com BACTER CLHOR diluído a 3%","Deixar atuar 5 minutos","Enxaguar abundantemente com água até total eliminação do produto"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" Cuidado com escorregamento — sinalizar piso húmido."},
+  "bancada":{produto:"BACTER CLHOR diluído a 3% (limpeza profunda) ou NEO QUICK pronto a usar (desinfeção rápida entre tarefas, sem necessidade de enxaguar — auto-secagem)",sequencia:["Remover resíduos sólidos","Esfregar com esponja não abrasiva e água com detergente","Enxaguar com água limpa","Limpeza profunda: aplicar BACTER CLHOR a 3%, deixar atuar 5 min e enxaguar | Desinfeção rápida entre tarefas: pulverizar NEO QUICK e deixar secar ao ar"],tempo:"BACTER CLHOR: 5 min de contacto | NEO QUICK: auto-secagem, sem tempo de espera",seguranca:"NEO QUICK: hidroalcoólico, evitar perto de chamas. BACTER CLHOR: "+"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" EPI obrigatório: luvas de nitrilo + proteção ocular/facial.",simples:{passos:["Tira os restos de comida da bancada com papel.","Passa uma esponja com água e detergente.","Limpa com água limpa.","Para desinfetar bem: "+"Para diluir a 3%: meia chávena de café (≈30 ml) de BACTER CLHOR para cada garrafa de 1 litro de água."+" Espalha na bancada e espera 5 minutos (conta até 300, mais ou menos).","Limpa outra vez com água limpa.","No dia-a-dia, entre tarefas, podes usar o spray NEO QUICK — borrifa e deixa secar ao ar, não precisas de limpar a seguir."],seguranca:["Usa sempre luvas.","Nunca misturar produtos de limpeza diferentes!","Se cair na pele ou nos olhos: lavar com muita água e avisar o professor."]}},
+  "ralo":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%) + escova própria",sequencia:["Remover grelha e resíduos visíveis","Escovar com BACTER CLHOR diluído a 3%","Deixar atuar 5 minutos","Enxaguar abundantemente com água até total eliminação do produto"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" Cuidado com escorregamento — sinalizar piso húmido.",simples:{passos:["Tira a grelha e os restos de comida.","Prepara a mistura: "+"Para diluir a 3%: meia chávena de café (≈30 ml) de BACTER CLHOR para cada garrafa de 1 litro de água.","Esfrega o ralo com a escova e essa mistura.","Espera 5 minutos (conta até 300).","Enxagua bem com água, até não sentires cheiro do produto."],seguranca:["Usa luvas.","Cuidado para não resvalares — o chão fica molhado.","Não misturar com outros produtos de limpeza."]}},
   "abatedor":{produto:"Desinfetante multiusos",sequencia:["Desligar e esvaziar","Limpar interior e exterior com pano húmido","Aplicar desinfetante","Deixar secar ao ar com porta aberta"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de limpar."},
   "vacuo":{produto:"Pano húmido + desinfetante",sequencia:["Desligar o equipamento","Limpar câmara de vácuo","Limpar barra de soldadura","Desinfetar superfícies"],tempo:"Imediato após uso",seguranca:"Aguardar arrefecimento da barra de soldadura antes de limpar."},
   "amassadeira":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e remover restos de massa","Limpar cuba e gancho","Desinfetar superfícies","Proteger com película"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de limpar."},
   "batedeira":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e remover acessórios","Lavar acessórios na copa","Limpar corpo do equipamento","Proteger com película"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de limpar."},
   "picadora":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e desmontar lâminas","Lavar componentes na copa","Secar e montar","Proteger com película"],tempo:"Imediato após uso",seguranca:"Cuidado com lâminas afiadas — manusear com luvas de proteção."},
   "processador":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e desmontar acessórios","Lavar componentes na copa","Secar e montar","Proteger com película"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de desmontar."},
-  "fogao":{produto:"DEGRASS SUPER (super desengordurante para fornos, exaustores e superfícies)",sequencia:["Desligar todas as bocas e o gás, deixar arrefecer","Remover grelhas","Pulverizar DEGRASS SUPER a cerca de 15 cm da superfície (frio, sem aquecer)","Deixar atuar 6 a 8 minutos","Passar o pano","Enxaguar abundantemente"],tempo:"6 a 8 minutos de atuação",seguranca:"PERIGO — corrosivo. Usar luvas e proteção ocular/facial. Em caso de contacto com a pele ou olhos, enxaguar abundantemente com água e contactar o CIAV (800 250 250). Não misturar com outros produtos."},
-  "frigorifico":{produto:"Pano húmido + desinfetante neutro",sequencia:["Verificar e registar temperatura","Remover produtos fora de validade","Limpar prateleiras visivelmente sujas","Desinfetar superfícies de contacto"],tempo:"2 a 3 minutos por equipamento",seguranca:"Não deixar a porta aberta mais do que o necessário."},
-  "congelador":{produto:"Pano húmido + desinfetante neutro",sequencia:["Verificar e registar temperatura","Remover gelo acumulado se necessário","Limpar superfícies visivelmente sujas","Desinfetar superfícies de contacto"],tempo:"2 a 3 minutos por equipamento",seguranca:"Não deixar a porta aberta mais do que o necessário."},
-  "loica":{produto:"Detergente de loiça + BACTER QUAT (desinfetante pH neutro, ação tripla, mais suave que o cloro) para desinfeção final",sequencia:["Remover resíduos","Lavar com água quente e detergente","Enxaguar","Pulverizar BACTER QUAT sobre a loiça/superfície","Deixar atuar conforme indicação do rótulo","Enxaguar se aplicável, escorrer e secar","Arrumar no local correto"],tempo:"Conforme indicação do rótulo (ação tripla: limpa+desinfeta+desodoriza)",seguranca:"Usar luvas para água quente. BACTER QUAT é pH neutro mas usar luvas. Não misturar com outros produtos químicos."},
-  "cuba":{produto:"Desengordurante + BACTER QUAT (uso diário, pH neutro) ou BACTER CLHOR a 3% (desinfeção profunda periódica)",sequencia:["Esvaziar e remover resíduos","Aplicar desengordurante e escovar","Enxaguar","Diário: pulverizar BACTER QUAT e deixar atuar | Periódico: aplicar BACTER CLHOR a 3%, deixar 5 min e enxaguar bem"],tempo:"BACTER QUAT: conforme rótulo | BACTER CLHOR: 5 min de contacto",seguranca:"BACTER QUAT: usar luvas, pH neutro. Se usar BACTER CLHOR: "+"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."},
-  "maq. lavagem":{produto:"DEGRASS D-40 BAC (desengordurante + desinfetante alcalino) + desincrustante próprio para calcário",sequencia:["Esvaziar a máquina e deixar arrefecer","Limpar filtros com DEGRASS D-40 BAC diluído","Aplicar desincrustante conforme indicação se houver calcário","Enxaguar abundantemente","Deixar porta aberta para secar"],tempo:"Conforme indicação do produto",seguranca:"Aguardar arrefecimento antes de limpar. Usar luvas. Não misturar produtos diferentes."},
+  "fogao":{produto:"DEGRASS SUPER (super desengordurante para fornos, exaustores e superfícies)",sequencia:["Desligar todas as bocas e o gás, deixar arrefecer","Remover grelhas","Pulverizar DEGRASS SUPER a cerca de 15 cm da superfície (frio, sem aquecer)","Deixar atuar 6 a 8 minutos","Passar o pano","Enxaguar abundantemente"],tempo:"6 a 8 minutos de atuação",seguranca:"PERIGO — corrosivo. Usar luvas e proteção ocular/facial. Em caso de contacto com a pele ou olhos, enxaguar abundantemente com água e contactar o CIAV (800 250 250). Não misturar com outros produtos.",simples:{passos:["Desliga o fogão e o gás. Espera arrefecer.","Tira as grelhas.","Borrifa o spray DEGRASS SUPER em cima da gordura — afasta o spray uma distância de mais ou menos um braço (15 cm).","Espera 6 a 8 minutos (conta até 480, mais ou menos).","Passa o pano para tirar a gordura.","Enxagua bem com água."],seguranca:["PERIGO! Usa luvas e óculos de proteção sempre.","Se cair na pele/olhos: lavar com muita água e chamar o professor — CIAV 800 250 250.","Não misturar com outros produtos."]}},
+  "frigorifico":{produto:"Interior: detergente de loiça (limpeza geral) + NEO QUICK (desinfeção final) | Exterior (partes inox): POLISH METALS",sequencia:["Verificar e registar temperatura","Remover produtos fora de validade","Interior: limpar prateleiras visivelmente sujas com pano e detergente de loiça diluído em água","Enxaguar com pano húmido limpo","Pulverizar NEO QUICK no interior e deixar secar (desinfeção final)","Exterior (partes em inox): aplicar POLISH METALS e polir com pano seco"],tempo:"2 a 5 minutos por equipamento",seguranca:"Não deixar a porta aberta mais do que o necessário. POLISH METALS é aerossol — usar em local ventilado.",simples:{passos:["Vê e regista a temperatura no visor.","Tira o que estiver fora do prazo.","Por dentro: limpa as zonas sujas com um pano molhado em água com um pouco de detergente da loiça.","Passa outro pano só com água limpa.","Borrifa o spray NEO QUICK por dentro e deixa secar — não precisas de limpar a seguir.","Por fora (partes em inox): usa o spray POLISH METALS e passa um pano seco.","Fecha a porta rapidamente."],seguranca:["Não deixes a porta aberta muito tempo.","POLISH METALS: usa em local com ar."]}},
+  "congelador":{produto:"Interior: detergente de loiça (limpeza geral) + NEO QUICK (desinfeção final) | Exterior (partes inox): POLISH METALS",sequencia:["Verificar e registar temperatura","Se houver muito gelo acumulado, avisar o professor","Interior: limpar superfícies visivelmente sujas com pano e detergente de loiça diluído em água","Enxaguar com pano húmido limpo","Pulverizar NEO QUICK no interior e deixar secar","Exterior (partes em inox): aplicar POLISH METALS e polir com pano seco"],tempo:"2 a 5 minutos por equipamento",seguranca:"Não deixar a porta aberta mais do que o necessário. POLISH METALS é aerossol — usar em local ventilado.",simples:{passos:["Vê e regista a temperatura no visor.","Se houver muito gelo acumulado, avisa o professor.","Por dentro: limpa as zonas sujas com um pano molhado em água com um pouco de detergente da loiça.","Passa outro pano só com água limpa.","Borrifa o spray NEO QUICK por dentro e deixa secar.","Por fora (partes em inox): usa o spray POLISH METALS e passa um pano seco.","Fecha a porta rapidamente."],seguranca:["Não deixes a porta aberta muito tempo.","POLISH METALS: usa em local com ar."]}},
+  "loica":{produto:"Detergente de loiça (lavagem à mão) — louça que vai à máquina já tem doseador próprio de detergente/abrilhantador",sequencia:["Remover resíduos sólidos dos pratos, talheres e tachos","Lavagem à mão: lavar com água quente e detergente de loiça, esfregando bem","Enxaguar com água limpa","Escorrer e secar (ou deixar secar ao ar no escorredor)","Arrumar no local correto","Louça para a máquina: colocar corretamente nos cestos — a máquina dosa automaticamente"],tempo:"Conforme a quantidade de loiça",seguranca:"Usar luvas para água quente. Não misturar detergente de loiça com outros produtos.",simples:{passos:["Tira os restos de comida.","Lava à mão com água quente e detergente da loiça normal, esfregando bem.","Enxagua até não ter espuma.","Escorre e deixa secar (ou seca com pano limpo).","Arruma no sítio certo.","Se for para a máquina, mete nos cestos certos — ela já põe o produto sozinha."],seguranca:["Usa luvas, principalmente com água quente.","Não misturar produtos."]}},
+  "cuba":{produto:"Detergente de loiça (uso diário) ou BACTER CLHOR a 3% (desinfeção profunda periódica)",sequencia:["Esvaziar e remover resíduos","Aplicar detergente de loiça e escovar","Enxaguar","Periodicamente (limpeza profunda): aplicar BACTER CLHOR a 3%, deixar 5 min e enxaguar bem"],tempo:"Diário: imediato | BACTER CLHOR: 5 min de contacto",seguranca:"Detergente de loiça: usar luvas. Se usar BACTER CLHOR: PERIGO — corrosivo. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos. Em caso de acidente, contactar o CIAV 800 250 250.",simples:{passos:["Esvazia a cuba e tira os restos.","Põe detergente de loiça e esfrega.","Enxagua.","De vez em quando (limpeza mais a fundo): "+"Para diluir a 3%: meia chávena de café (≈30 ml) de BACTER CLHOR para cada garrafa de 1 litro de água."+" Espalha, espera 5 min (conta até 300) e enxagua muito bem."],seguranca:["Usa luvas sempre.","Não misturar produtos."]}},
+  "maq. lavagem":{produto:"Uso diário: doseador automático da máquina (detergente alcalino + abrilhantador próprios, ex. linha Licuasol/Ecoconpack) | Limpeza e desinfeção diária/após cada turno: BACTER CLHOR diluído a 1% (10 ml por litro de água)",sequencia:["Após cada turno (ou pelo menos 1x/dia): esvaziar a máquina — remover a tampa de drenagem e deixar escoar completamente a água da cuba","Remover os aspersores de lavagem e de enxaguamento, tampas e filtros","Pulverizar/aplicar BACTER CLHOR diluído a 1% (10 ml/L) no interior da cuba, esfregar e deixar atuar pelo menos 5 minutos","Desbloquear manualmente os bocais dos aspersores que estejam entupidos (pequenos golpes para soltar sujidade)","Aplicar a mesma solução diluída na parte externa dos aspersores, tampas e filtros — esfregar e deixar atuar 5 minutos","Enxaguar tudo abundantemente com água limpa","Recolocar aspersores, filtros e tampas no lugar","Encher a máquina sem encaixar a tampa de drenagem e fazer alguns ciclos de enxaguamento (ou usar o botão de enxaguamento), para limpar bocais e bomba por dentro","Esvaziar novamente a máquina, deixando-a vazia até ao próximo uso"],tempo:"5 minutos de atuação do desinfetante em cada fase (interior da cuba e peças removidas)",seguranca:"Aguardar arrefecimento da água antes de iniciar (a água de lavagem está a 50-60°C e a de enxaguamento a 80-90°C). Se usar BACTER CLHOR: PERIGO — corrosivo. Usar luvas e proteção ocular/facial. Não respirar vapores. Não misturar com outros produtos. Verificar regularmente os depósitos de detergente/abrilhantador do uso diário — não deixar esvaziar.",simples:{passos:["No dia-a-dia, a máquina já põe o detergente e o abrilhantador sozinha — verifica só se os depósitos não estão vazios (avisa o professor se estiverem).","No fim do turno (pelo menos 1x por dia): espera a água arrefecer, depois retira a tampa de drenagem e deixa escoar toda a água.","Tira os aspersores (os \"chuveiros\" de cima e de baixo), as tampas e os filtros.","Prepara: Para diluir a 1%: 1 colher de sopa (≈10 ml) de BACTER CLHOR por cada litro de água.","Espalha essa mistura por dentro da cuba e também nas peças que tiraste. Esfrega bem e espera 5 minutos (conta até 300).","Se algum furinho dos aspersores estiver entupido, desentope com cuidado (um toque leve já costuma soltar a sujidade).","Enxagua tudo muito bem com água limpa.","Volta a montar tudo no lugar.","Enche a máquina (sem pôr a tampa de drenagem) e faz 1-2 ciclos vazios para limpar bem por dentro dos tubos.","Esvazia tudo outra vez — a máquina fica vazia até ao próximo uso."],seguranca:["Espera a água arrefecer antes de meteres as mãos — está muito quente.","Usa luvas e óculos de proteção.","Não misturar produtos.","Avisa o professor se os depósitos da máquina (detergente/abrilhantador do dia-a-dia) estiverem vazios."]}},
   "inox":{produto:"NEO QUICK (desinfeção rápida diária, sem enxaguamento) ou BACTER CLHOR a 3% (limpeza profunda periódica) + POLISH METALS (polimento final, protege contra dedadas e manchas)",sequencia:["Limpar com pano húmido","Diário: pulverizar NEO QUICK e deixar secar | Periódico: aplicar BACTER CLHOR a 3%, deixar 5 min e enxaguar bem","Aplicar POLISH METALS e polir com pano seco no sentido do polimento"],tempo:"NEO QUICK: auto-secagem | BACTER CLHOR: 5 min de contacto | POLISH METALS: aplicação imediata",seguranca:"POLISH METALS é aerossol — usar em local ventilado, longe de chamas. Não usar esfregões abrasivos em superfícies polidas. Se usar BACTER CLHOR: "+"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" EPI obrigatório: luvas de nitrilo + proteção ocular/facial."},
-  "panos":{produto:"Solução desinfetante para panos/esponjas",sequencia:["Preparar solução conforme diluição indicada","Submergir panos e esponjas","Renovar no início e final de cada aula"],tempo:"Imersão contínua durante a aula",seguranca:"Não usar a mesma solução por mais de uma aula."},
+  "panos":{produto:"BACTER CLHOR diluído a 3% — solução para imersão de panos e esponjas",sequencia:["Preparar a solução: """+DIL3+""" Usar um balde de pelo menos 5L para que os panos fiquem bem cobertos","Submergir panos e esponjas completamente na solução","Renovar a solução no início e no final de cada aula"],tempo:"Imersão contínua — renovar a cada aula",seguranca:"PERIGO — corrosivo. Usar luvas ao preparar e manusear. Não usar a mesma solução por mais de uma aula. Não misturar com outros produtos.",simples:{passos:["Pega num balde (pelo menos 5L).","Prepara a mistura: """+DIL3+""" Para um balde de 5L: 1 chávena de café cheia + meia (≈150 ml).","Mete os panos e esponjas todos dentro, bem cobertos pela água.","No fim da aula, despeja e prepara mistura nova para a próxima aula."],seguranca:["Usa luvas para preparar e tirar os panos.","Não guardar a mesma solução para o dia seguinte."]}},
   "economato":{produto:"Pano húmido + desinfetante",sequencia:["Remover produtos","Limpar prateleiras e chão","Reorganizar por ordem de validade (FIFO)","Repor produtos"],tempo:"Conforme necessidade",seguranca:"Não colocar produtos diretamente no chão."},
-  "lixo":{produto:"Desinfetante multiusos",sequencia:["Despejar lixo no local correto, separando reciclável","Lavar caixote por dentro e por fora","Desinfetar","Colocar saco novo"],tempo:"Imediato",seguranca:"Usar luvas. Fechar bem os sacos antes de transportar."},
+  "lixo":{produto:"Detergente de loiça (lavagem do caixote) + BACTER CLHOR a 3% (desinfeção)",sequencia:["Despejar lixo no local correto, separando reciclável","Lavar o caixote por dentro e por fora com água e detergente de loiça","Enxaguar","Pulverizar ou aplicar BACTER CLHOR a 3% no interior do caixote, deixar atuar 5 min","Enxaguar bem e deixar secar","Colocar saco novo"],tempo:"5 min de contacto com BACTER CLHOR",seguranca:"PERIGO — corrosivo (BACTER CLHOR). Usar luvas e proteção ocular. Fechar bem os sacos antes de transportar. Não misturar produtos.",simples:{passos:["Despeja o lixo, separando o reciclável.","Lava o caixote por dentro e por fora com água e detergente da loiça.","Enxagua.","Prepara: """+DIL3+""" Espalha por dentro do caixote e espera 5 minutos (conta até 300).","Enxagua bem e deixa secar.","Põe um saco novo."],seguranca:["Usa luvas e óculos.","Fecha bem os sacos para transportar.","Não misturar produtos."]}},
   "carrinho":{produto:"NEO QUICK (desinfeção) + POLISH METALS (partes em inox/cromo, opcional)",sequencia:["Remover resíduos","Limpar superfícies e rodas com pano húmido","Pulverizar NEO QUICK e deixar secar","Em partes metálicas: aplicar POLISH METALS e polir","Arrumar no local correto"],tempo:"2-3 minutos",seguranca:"Verificar travões das rodas antes de arrumar. POLISH METALS: usar em local ventilado."},
-  "chao":{produto:"DEGRASS D-40 BAC (desengordurante + desinfetante alcalino — desengordura, desinfeta e desodoriza num só passo)",sequencia:["Varrer ou aspirar resíduos","Diluir DEGRASS D-40 BAC conforme indicação do rótulo","Lavar com esfregona","Enxaguar se necessário","Deixar secar — sinalizar piso húmido"],tempo:"Secagem 10-15 minutos",seguranca:"Sinalizar sempre 'Piso Húmido'. Risco de queda. Usar luvas. Ler rótulo antes de usar — produto alcalino."},
-  "drenos":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%)",sequencia:["Remover grelhas e resíduos sólidos","Aplicar BACTER CLHOR diluído a 3% diretamente no dreno","Escovar com escova própria","Deixar atuar 5 minutos","Enxaguar com água abundante"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" Ventilar bem a zona."},
-  "hottes":{produto:"DEGRASS SUPER (super desengordurante para fornos, exaustores e superfícies)",sequencia:["Desligar e deixar arrefecer","Remover filtros","Pulverizar DEGRASS SUPER nos filtros e superfícies da hotte a cerca de 15 cm","Deixar atuar 8 minutos (filtros de exaustor)","Passar o pano e enxaguar abundantemente","Secar e recolocar filtros"],tempo:"8 minutos de atuação nos filtros de exaustor",seguranca:"PERIGO — corrosivo (provoca queimaduras na pele e lesões oculares graves). Usar luvas, proteção ocular/facial e roupa de proteção. Garantir ventilação. Em caso de contacto, enxaguar abundantemente e contactar o CIAV (800 250 250)."},
-  "azulejos":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%)",sequencia:["Remover sujidade visível","Aplicar BACTER CLHOR diluído a 3%","Esfregar com esponja não abrasiva","Deixar atuar 5 minutos","Enxaguar e secar"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."},
-  "po":{produto:"Pano húmido ou aspirador",sequencia:["Aspirar ou remover pó com pano seco","Passar pano húmido em superfícies altas","Verificar zonas de difícil acesso"],tempo:"Conforme área",seguranca:"Usar escada apropriada para zonas altas, nunca cadeiras ou bancos."}
+  "chao":{produto:"DEGRASS D-40 BAC (desengordurante + desinfetante alcalino — desengordura, desinfeta e desodoriza num só passo)",sequencia:["Varrer ou aspirar resíduos","Diluir DEGRASS D-40 BAC conforme indicação do rótulo","Lavar com esfregona","Enxaguar se necessário","Deixar secar — sinalizar piso húmido"],tempo:"Secagem 10-15 minutos",seguranca:"Sinalizar sempre 'Piso Húmido'. Risco de queda. Usar luvas. Ler rótulo antes de usar — produto alcalino.",simples:{passos:["Varre ou aspira o chão.","Lê no rótulo do DEGRASS D-40 BAC quantas tampas pôr no balde de água (normalmente 1-2 tampas para um balde).","Lava o chão com a esfregona.","Se precisar, passa com água limpa por cima.","Coloca o sinal 'Piso Húmido' e deixa secar (10-15 min)."],seguranca:["Usa luvas.","Sinaliza sempre o piso molhado — risco de queda!"]}},
+  "drenos":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%)",sequencia:["Remover grelhas e resíduos sólidos","Aplicar BACTER CLHOR diluído a 3% diretamente no dreno","Escovar com escova própria","Deixar atuar 5 minutos","Enxaguar com água abundante"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" Ventilar bem a zona.",simples:{passos:["Tira a grelha e o lixo visível.","Prepara: "+"Para diluir a 3%: meia chávena de café (≈30 ml) de BACTER CLHOR para cada garrafa de 1 litro de água.","Despeja no dreno e escova.","Espera 5 minutos (conta até 300).","Enxagua com bastante água."],seguranca:["Luvas e óculos.","Abre janelas — cheiro forte.","Não misturar com outros produtos."]}},
+  "hottes":{produto:"DEGRASS SUPER (super desengordurante para fornos, exaustores e superfícies)",sequencia:["Desligar e deixar arrefecer","Remover filtros","Pulverizar DEGRASS SUPER nos filtros e superfícies da hotte a cerca de 15 cm","Deixar atuar 8 minutos (filtros de exaustor)","Passar o pano e enxaguar abundantemente","Secar e recolocar filtros"],tempo:"8 minutos de atuação nos filtros de exaustor",seguranca:"PERIGO — corrosivo (provoca queimaduras na pele e lesões oculares graves). Usar luvas, proteção ocular/facial e roupa de proteção. Garantir ventilação. Em caso de contacto, enxaguar abundantemente e contactar o CIAV (800 250 250).",simples:{passos:["Desliga a hotte e espera arrefecer.","Tira os filtros.","Borrifa o spray DEGRASS SUPER nos filtros e na hotte, a uma distância de um braço (15 cm).","Espera 8 minutos (conta até 480).","Passa o pano e enxagua bem.","Seca e volta a colocar os filtros."],seguranca:["PERIGO! Luvas, óculos e roupa de proteção.","Abre janelas/garante ventilação.","Se cair na pele/olhos: lavar com muita água — CIAV 800 250 250."]}},
+  "azulejos":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%)",sequencia:["Remover sujidade visível","Aplicar BACTER CLHOR diluído a 3%","Esfregar com esponja não abrasiva","Deixar atuar 5 minutos","Enxaguar e secar"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250.",simples:{passos:["Tira a sujidade visível com um pano seco.","Prepara: "+"Para diluir a 3%: meia chávena de café (≈30 ml) de BACTER CLHOR para cada garrafa de 1 litro de água.","Espalha nos azulejos com uma esponja (não abrasiva).","Espera 5 minutos (conta até 300).","Enxagua e seca."],seguranca:["Luvas e óculos.","Não misturar com outros produtos."]}},
+  "po":{produto:"Pano húmido ou aspirador",sequencia:["Aspirar ou remover pó com pano seco","Passar pano húmido em superfícies altas","Verificar zonas de difícil acesso"],tempo:"Conforme área",seguranca:"Usar escada apropriada para zonas altas, nunca cadeiras ou bancos."},
+  "equip_limpeza":{produto:"Detergente neutro/desengordurante (lavagem) + BACTER CLHOR a 3% (desinfeção) — diário",sequencia:["VASSOURAS: remover pelos/poeira/detritos das cerdas com um pente ou escova","Mergulhar a vassoura num balde com água morna e detergente neutro, esfregar as cerdas","Desinfeção: submergir as cerdas em BACTER CLHOR a 3% durante 10 a 15 minutos","Enxaguar, sacudir o excesso e pendurar com as cerdas para cima ou para o lado — nunca apoiadas no chão","ESFREGONAS/MOPAS: retirar a cabeça (rosca ou encaixe)","Lavagem: cabeças de microfibra à máquina a pelo menos 60°C com detergente, OU de molho manual em BACTER CLHOR a 3% durante 15 minutos","Torcer bem e pendurar em local arejado a secar completamente","CABOS E BALDES: limpar diariamente o cabo e o exterior do balde com pano e BACTER CLHOR a 3%","Verificar o sistema de torção do balde e garantir que não fica água parada na base","IMPORTANTE: nunca varrer a seco em zonas de alimentos — usar sempre limpeza húmida"],tempo:"Vassouras: 10-15 min de desinfeção | Esfregonas: 15 min de molho (ou máquina a 60°C)",seguranca:"PERIGO — corrosivo (BACTER CLHOR). Usar luvas e proteção ocular. Não misturar com outros produtos. NUNCA varrer a seco — usar sempre técnica de limpeza húmida.",simples:{passos:["VASSOURAS: tira os pelos e o lixo das cerdas com um pente ou escova velha.","Mete a vassoura num balde com água morna e um pouco de detergente, esfrega as cerdas.","Prepara: Para diluir a 3%: meia chávena de café (≈30 ml) de BACTER CLHOR para cada garrafa de 1 litro de água. Deixa as cerdas dentro dessa mistura por 10 a 15 minutos (conta até 600-900).","Enxagua, sacode o excesso e pendura com as cerdas para cima — nunca encostada ao chão.","ESFREGONAS/MOPAS: tira a cabeça da esfregona (normalmente desenrosca ou desencaixa).","Se for de microfibra e houver máquina de lavar: lava na máquina num programa quente (60°C).","Se lavares à mão: prepara a mesma mistura de 3% e deixa a cabeça da esfregona de molho 15 minutos (conta até 900).","Torce bem e pendura num sítio com ar para secar completamente.","CABOS E BALDES: todos os dias, passa um pano com a mistura de 3% no cabo e no balde por fora.","Verifica se o balde não fica com água parada no fundo."],seguranca:["Usa luvas e óculos.","Não misturar produtos.","Nunca varrer a seco — sempre limpeza húmida.","Deixa secar bem tudo — evita bactérias e mau cheiro."]}},
+  "pontosContacto":{produto:"NEO QUICK (desinfeção rápida de pontos de contacto frequente)",sequencia:["Identificar pontos de contacto frequente: puxadores de portas/frigoríficos, interruptores, maçanetas, torneiras","Pulverizar NEO QUICK diretamente na superfície","Limpar com pano limpo e deixar secar ao ar (auto-secagem, sem necessidade de enxaguar)"],tempo:"Auto-secagem, sem tempo de espera",seguranca:"NEO QUICK: hidroalcoólico, evitar perto de chamas. Não usar em superfícies muito quentes.",simples:{passos:["Identifica os sítios que toda a gente toca: puxadores das portas e frigoríficos, interruptores da luz, torneiras.","Borrifa o spray NEO QUICK nesses sítios.","Passa um pano limpo e deixa secar ao ar — não precisas de limpar a seguir."],seguranca:["Não usar perto de chamas (é à base de álcool).","Não usar em superfícies muito quentes."]}},
+  "descongelacao":{produto:"Detergente de loiça (limpeza geral) + NEO QUICK (desinfeção final)",sequencia:["Desligar o equipamento e retirar todos os produtos (transferir temporariamente para outro frio)","Deixar o gelo derreter naturalmente — nunca usar objetos cortantes para o remover (risco de danificar o equipamento)","Remover a água resultante com pano/toalha","Limpar todas as superfícies interiores com detergente de loiça diluído em água","Enxaguar com pano húmido limpo","Pulverizar NEO QUICK e deixar secar","Ligar novamente o equipamento, esperar atingir a temperatura correta antes de repor os produtos"],tempo:"Descongelação natural: pode demorar várias horas — planear com antecedência",seguranca:"NUNCA usar objetos cortantes ou pontiagudos para remover gelo. Não deixar produtos fora do frio mais tempo que o necessário — verificar temperaturas ao retomar.",simples:{passos:["Desliga o equipamento e tira tudo o que está lá dentro, guardando temporariamente noutro frio.","Deixa o gelo derreter sozinho — nunca raspes com facas ou objetos afiados, pode estragar o equipamento.","Vai limpando a água que se forma com um pano/toalha.","Limpa todas as superfícies de dentro com um pano e água com detergente da loiça.","Passa outro pano só com água limpa.","Borrifa o spray NEO QUICK e deixa secar.","Liga o equipamento outra vez e espera que fique frio antes de pores a comida lá dentro."],seguranca:["Nunca usar objetos afiados para tirar o gelo.","Não deixar a comida fora do frio mais tempo do que o necessário."]}},
+  "equipGrandes":{produto:"BACTER CLHOR a 3% (chão e rodapés) + detergente de loiça (superfícies)",sequencia:["Com ajuda de um adulto/professor, afastar cuidadosamente equipamentos móveis (bancadas com rodas, carrinhos)","Para equipamentos fixos pesados (fogões, frios grandes), limpar o máximo possível na zona acessível, sem forçar o equipamento","Varrer e remover detritos acumulados por trás/debaixo","Aplicar BACTER CLHOR a 3% no chão e rodapés, deixar atuar 5 minutos","Enxaguar bem e deixar secar","Limpar as superfícies traseiras dos equipamentos com detergente de loiça e pano"],tempo:"5 min de contacto no chão/rodapés",seguranca:"PERIGO — corrosivo (BACTER CLHOR). Usar luvas e proteção ocular. NUNCA tentar mover equipamentos pesados sozinho — pedir sempre ajuda a um adulto. Atenção a cabos elétricos.",simples:{passos:["Com a ajuda do professor, afasta com cuidado os equipamentos com rodas (carrinhos, bancadas móveis).","Para os equipamentos grandes e fixos (fogões, frigoríficos grandes), limpa o que conseguires alcançar sem forçar.","Tira o lixo/pó acumulado por trás e por baixo.","Prepara: """+DIL3+""" Espalha no chão e rodapés, espera 5 minutos (conta até 300).","Enxagua bem e deixa secar.","Limpa a parte de trás dos equipamentos com um pano e detergente da loiça."],seguranca:["Usa luvas e óculos.","NUNCA tentes mover equipamentos pesados sozinho — pede sempre ajuda.","Cuidado com os cabos elétricos."]}},
+  "tetos":{produto:"Pano húmido ou aspirador com extensão",sequencia:["Usar aspirador com extensão ou pano em cabo extensível para alcançar tetos e luminárias","Remover teias de aranha, poeiras e condensação acumulada","Limpar luminárias com pano seco (luzes desligadas e frias)","Verificar zonas de difícil acesso perto de exaustores/condutas"],tempo:"Conforme área",seguranca:"NUNCA subir para cadeiras, bancos ou bancadas — usar sempre escada apropriada e estável, com alguém a segurar. Luzes devem estar desligadas e frias antes de limpar."},
+  "descalcificacao":{produto:"Descalcificante próprio para máquinas (linha técnica do fabricante — confirmar nome exato no rótulo do produto usado na escola)",sequencia:["Seguir SEMPRE as instruções específicas do rótulo/ficha técnica do descalcificante usado","Geralmente: encher o circuito da máquina/forno com a solução descalcificante diluída conforme indicado","Deixar atuar o tempo indicado pelo fabricante (normalmente um ciclo completo ou tempo de repouso)","Enxaguar abundantemente com vários ciclos de água limpa até não restarem vestígios do produto","Verificar resistências e tubagens visíveis — devem estar livres de calcário"],tempo:"Conforme indicação do fabricante do produto descalcificante",seguranca:"PERIGO — produtos descalcificantes são normalmente ácidos, podem ser corrosivos. Usar luvas e proteção ocular/facial. NUNCA misturar com BACTER CLHOR ou outros produtos clorados — reação perigosa. Ler sempre o rótulo antes de usar. Esta tarefa deve ser supervisionada pelo professor/auxiliar."}
 };
 
 function procedimentoPara(itemNome){
   const n=itemNome.toLowerCase();
+  if(n.includes("rodo")||n.includes("esfregona")||n.includes("vassoura"))return PROCEDIMENTOS_LIMPEZA["equip_limpeza"];
   const chaves=Object.keys(PROCEDIMENTOS_LIMPEZA);
   for(const ch of chaves){if(n.includes(ch))return PROCEDIMENTOS_LIMPEZA[ch];}
   return null;
@@ -66,8 +133,14 @@ function procedimentoPara(itemNome){
 
 function ProcedimentoBtn({item}){
   const [open,setOpen]=useState(false);
+  const [vista,setVista]=useState("simples");
   const proc=procedimentoPara(item);
   if(!proc)return null;
+  const temSimples=!!proc.simples;
+  const mostraSimples=vista==="simples"&&temSimples;
+  const textoProc=JSON.stringify(proc);
+  const mostraTabela3=/3%/.test(textoProc);
+  const mostraTabela1=/1%/.test(textoProc);
   return(
     <>
       <button onClick={e=>{e.stopPropagation();setOpen(true);}} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,background:"rgba(124,58,237,.12)",border:"1px solid rgba(124,58,237,.3)",color:"#7c3aed",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>📋 Como?</button>
@@ -79,16 +152,59 @@ function ProcedimentoBtn({item}){
               <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c3aed",flex:1,paddingRight:10,lineHeight:1.3}}>{item}</div>
               <button onClick={()=>setOpen(false)} style={{width:28,height:28,borderRadius:"50%",background:"#f3e8ff",border:"none",fontSize:18,cursor:"pointer",flexShrink:0,color:"#7c3aed",fontWeight:700}}>×</button>
             </div>
-            <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Produto a utilizar</div>
-            <div style={{fontSize:13,color:"#334155",marginBottom:12}}>{proc.produto}</div>
-            <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Sequência</div>
-            <ol style={{fontSize:13,color:"#334155",lineHeight:1.8,paddingLeft:20,marginBottom:12}}>
-              {proc.sequencia.map((s,i)=><li key={i}>{s}</li>)}
-            </ol>
-            <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Tempo de atuação</div>
-            <div style={{fontSize:13,color:"#334155",marginBottom:12}}>{proc.tempo}</div>
-            <div style={{fontSize:11,fontWeight:700,color:R,marginBottom:4,textTransform:"uppercase"}}>Cuidados de segurança</div>
-            <div style={{fontSize:13,color:"#334155"}}>{proc.seguranca}</div>
+
+            {temSimples&&(
+              <div style={{display:"flex",gap:6,marginBottom:14}}>
+                <button onClick={()=>setVista("simples")} style={{flex:1,padding:"8px",borderRadius:8,border:"2px solid "+(vista==="simples"?"#7c3aed":"#e9d5ff"),background:vista==="simples"?"#7c3aed":W,color:vista==="simples"?W:"#7c3aed",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🙂 Simples</button>
+                <button onClick={()=>setVista("tecnico")} style={{flex:1,padding:"8px",borderRadius:8,border:"2px solid "+(vista==="tecnico"?"#7c3aed":"#e9d5ff"),background:vista==="tecnico"?"#7c3aed":W,color:vista==="tecnico"?W:"#7c3aed",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🔬 Técnico</button>
+              </div>
+            )}
+
+            {mostraSimples?(
+              <>
+                <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Passo a passo</div>
+                <ol style={{fontSize:14,color:"#334155",lineHeight:2,paddingLeft:20,marginBottom:14}}>
+                  {proc.simples.passos.map((s,i)=><li key={i}>{s}</li>)}
+                </ol>
+                <div style={{fontSize:11,fontWeight:700,color:R,marginBottom:4,textTransform:"uppercase"}}>Cuidados</div>
+                <ul style={{fontSize:13,color:"#334155",lineHeight:1.8,paddingLeft:20,marginBottom:(mostraTabela3||mostraTabela1)?14:0}}>
+                  {proc.simples.seguranca.map((s,i)=><li key={i}>{s}</li>)}
+                </ul>
+              </>
+            ):(
+              <>
+                <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Produto a utilizar</div>
+                <div style={{fontSize:13,color:"#334155",marginBottom:12}}>{proc.produto}</div>
+                <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Sequência</div>
+                <ol style={{fontSize:13,color:"#334155",lineHeight:1.8,paddingLeft:20,marginBottom:12}}>
+                  {proc.sequencia.map((s,i)=><li key={i}>{s}</li>)}
+                </ol>
+                <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Tempo de atuação</div>
+                <div style={{fontSize:13,color:"#334155",marginBottom:12}}>{proc.tempo}</div>
+                <div style={{fontSize:11,fontWeight:700,color:R,marginBottom:4,textTransform:"uppercase"}}>Cuidados de segurança</div>
+                <div style={{fontSize:13,color:"#334155",marginBottom:(mostraTabela3||mostraTabela1)?14:0}}>{proc.seguranca}</div>
+              </>
+            )}
+
+            {[mostraTabela3&&TABELA_DILUICAO_3,mostraTabela1&&TABELA_DILUICAO_1].filter(Boolean).map((tab,ti)=>(
+              <div key={ti} style={{marginBottom:ti===0&&mostraTabela3&&mostraTabela1?14:0}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:6,textTransform:"uppercase"}}>{tab.titulo}</div>
+                <div style={{borderRadius:9,overflow:"hidden",border:"1.5px solid #e9d5ff"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr 1.3fr",background:"#7c3aed",padding:"6px 8px"}}>
+                    <span style={{fontSize:10,fontWeight:700,color:W}}>Quantidade de água</span>
+                    <span style={{fontSize:10,fontWeight:700,color:W}}>Medida técnica</span>
+                    <span style={{fontSize:10,fontWeight:700,color:W}}>Medida caseira</span>
+                  </div>
+                  {tab.linhas.map((l,i)=>(
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"1.3fr 1fr 1.3fr",padding:"6px 8px",background:i%2===0?"#faf5ff":W,borderTop:"1px solid #f3e8ff"}}>
+                      <span style={{fontSize:11,color:"#334155"}}>{l.vol}</span>
+                      <span style={{fontSize:11,color:"#334155"}}>{l.tecnico}</span>
+                      <span style={{fontSize:11,color:"#334155",fontWeight:600}}>{l.caseiro}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -363,6 +479,22 @@ function DashAluno({user,db,setModule}){
         </div>
       </div>
 
+      {(()=>{
+        const {responsavel,suplentes}=calcResponsavelEncerramento(db,user.turma,h);
+        if(!responsavel)return null;
+        return(
+          <Cd st={{borderLeft:"3px solid #0e7490",marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#0e7490",marginBottom:4,textTransform:"uppercase"}}>Responsável de hoje pelo Encerramento</div>
+            <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e"}}>{responsavel.nome||("Aluno "+responsavel.numero)}</div>
+            {suplentes.length>0&&(
+              <div style={{fontSize:11,color:GR,marginTop:4}}>
+                {suplentes.slice(0,3).map((s,i)=>"Suplente "+(i+1)+": "+(s.nome||("Aluno "+s.numero))).join(" • ")}
+              </div>
+            )}
+          </Cd>
+        );
+      })()}
+
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["modulos","Módulos"],["historico","Histórico do Dia"]].map(([id,lb])=>(
           <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?V:BE),background:aba===id?V:LC,color:aba===id?W:GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
@@ -374,8 +506,11 @@ function DashAluno({user,db,setModule}){
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
           {MODS_DIARIOS.map(m=>{
             const feito=!!feitoMap[m.id];
+            const fullWidth=m.id==="encerramento";
+            const bg=fullWidth?(feito?"#16a34a":"#0369a1"):(feito?"#16a34a":"#0e7490");
+            const shadow=fullWidth?"0 4px 12px rgba(3,105,161,.35)":"0 4px 12px rgba(14,116,144,.3)";
             return(
-              <button key={m.id} onClick={()=>setModule(m.id)} style={{background:feito?"#16a34a":"#0e7490",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(14,116,144,.3)"}}>
+              <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:bg,border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:shadow}}>
                 {feito&&<div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.8)",textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>✓ Feito</div>}
                 <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
               </button>
@@ -385,20 +520,26 @@ function DashAluno({user,db,setModule}){
 
         <div style={{fontSize:11,fontWeight:800,color:"#db2777",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:8,borderLeft:"3px solid #db2777"}}>Registos HACCP Específicos / Quando Aplicável</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-          {MODS_ESPECIFICOS.map(m=>(
-            <button key={m.id} onClick={()=>setModule(m.id)} style={{background:"#db2777",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(219,39,119,.25)"}}>
-              <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
-            </button>
-          ))}
+          {MODS_ESPECIFICOS.map(m=>{
+            const fullWidth=m.id==="naoConf";
+            return(
+              <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:fullWidth?"#9d174d":"#db2777",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:fullWidth?"0 4px 12px rgba(157,23,77,.35)":"0 4px 12px rgba(219,39,119,.25)"}}>
+                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+              </button>
+            );
+          })}
         </div>
 
         <div style={{fontSize:11,fontWeight:800,color:"#d97706",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:8,borderLeft:"3px solid #d97706"}}>Gestão da Cozinha</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {MODS_GESTAO.map(m=>(
-            <button key={m.id} onClick={()=>setModule(m.id)} style={{background:"#d97706",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:"0 4px 12px rgba(217,119,6,.25)"}}>
-              <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
-            </button>
-          ))}
+          {MODS_GESTAO.map(m=>{
+            const fullWidth=m.id==="faltas";
+            return(
+              <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:fullWidth?"#92400e":"#d97706",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:fullWidth?"0 4px 12px rgba(146,64,14,.35)":"0 4px 12px rgba(217,119,6,.25)"}}>
+                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+              </button>
+            );
+          })}
         </div>
       </div>}
 
@@ -1217,23 +1358,8 @@ function Encerramento({user,db,setDb,showToast}){
     {id:"car",l:"Carrinhos limpos e higienizados"},
   ];
 
-  // Cálculo do Responsável rotativo + Suplentes (baseado em presenças de hoje e histórico de encerramentos)
-  const presencasHojeRot=(db.presencas&&db.presencas["presenca-"+user.turma+"-"+h])||{};
-  const todosAlunosRot=(db.alunosList||[]).filter(a=>a.turma===user.turma);
-  const presentesHojeRot=todosAlunosRot.filter(a=>Object.keys(presencasHojeRot).some(id=>id.endsWith("-"+a.numero)));
-  const historicoEnc=Object.values(db.encerramento||{}).filter(e=>!e.emProgresso&&e.turma===user.turma&&e.nomeAluno);
-  const contagemEnc={};
-  historicoEnc.forEach(e=>{contagemEnc[e.aluno]=(contagemEnc[e.aluno]||0)+1;});
-  const ultimaVez={};
-  historicoEnc.forEach(e=>{if(!ultimaVez[e.aluno]||e.date>ultimaVez[e.aluno])ultimaVez[e.aluno]=e.date;});
-  const candidatos=[...presentesHojeRot].sort((a,b)=>{
-    const ca=contagemEnc[a.turma+"-"+a.numero]||0,cb=contagemEnc[b.turma+"-"+b.numero]||0;
-    if(ca!==cb)return ca-cb; // menos vezes primeiro
-    const ua=ultimaVez[a.turma+"-"+a.numero]||"",ub=ultimaVez[b.turma+"-"+b.numero]||"";
-    return ua.localeCompare(ub); // há mais tempo sem encerrar primeiro
-  });
-  const responsavelInfo=candidatos[0];
-  const suplentes=candidatos.slice(1,4);
+  // Cálculo do Responsável rotativo + Suplentes (baseado em presenças de hoje e histórico dos últimos 15 dias)
+  const {responsavel:responsavelInfo,suplentes}=calcResponsavelEncerramento(db,user.turma,h);
 
   const naItens=(sv&&sv.na)||{};
   const [naLocal,setNaLocal]=useState(naItens);
@@ -1576,6 +1702,7 @@ function RelatoriosPDF(){
   const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const TIPOS=[
     {id:"presenca",lb:"✅ Presenças"},
+    {id:"verifFinalAux",lb:"🧹 Verificação Final (Auxiliares)"},
     {id:"temperaturas",lb:"🌡️ Temperaturas"},
     {id:"higiene",lb:"🧼 Higiene Pessoal"},
     {id:"recepcao",lb:"📦 Receção Matérias-Primas"},
@@ -1667,11 +1794,19 @@ const TAREFAS_PERIODICAS={
     {id:"po",lb:"Limpeza de pó (zonas altas)",resp:"Alunos/Auxiliares",procKey:"po"},
     {id:"azulejos",lb:"Limpeza de azulejos/paredes",resp:"Alunos/Auxiliares",procKey:"azulejos"},
     {id:"hottesGeral",lb:"Limpeza geral de hottes/exaustores",resp:"Auxiliares/Manutenção",procKey:"hottes"},
+    {id:"frigorificosSemanal",lb:"Limpeza semanal a fundo dos frigoríficos e congeladores (interior completo)",resp:"Alunos/Auxiliares",procKey:"frigorifico"},
+    {id:"pontosContacto",lb:"Desinfeção de pontos de contacto (puxadores, interruptores, maçanetas, torneiras)",resp:"Alunos/Auxiliares",procKey:"pontosContacto"},
   ],
-  quinzenal:[],
+  quinzenal:[
+    {id:"ralosProfunda",lb:"Desinfeção profunda de ralos e caixas de retenção",resp:"Auxiliares/Manutenção",procKey:"ralo"},
+    {id:"economatoPrateleiras",lb:"Limpeza das prateleiras do economato (pó + desinfeção)",resp:"Alunos/Auxiliares",procKey:"economato"},
+  ],
   mensal:[
     {id:"hottesFiltros",lb:"Limpeza profunda de filtros das hottes",resp:"Auxiliares/Manutenção",procKey:"hottes"},
     {id:"revisaoHaccp",lb:"Revisão geral HACCP",resp:"Coordenadora/Professor",procKey:null},
+    {id:"equipGrandes",lb:"Limpeza atrás/debaixo de equipamentos grandes",resp:"Auxiliares/Manutenção (com supervisão)",procKey:"equipGrandes"},
+    {id:"tetos",lb:"Limpeza de tetos e luminárias",resp:"Auxiliares/Manutenção",procKey:"tetos"},
+    {id:"descalcificacao",lb:"Descalcificação da máquina de lavar loiça / fornos Rational",resp:"Manutenção (supervisionado)",procKey:"descalcificacao"},
   ],
 };
 
@@ -1679,7 +1814,8 @@ function TarefasPeriodicas({user,db,setDb,showToast}){
   const [periodo,setPeriodo]=useState("semanal");
   const semanaAtual=()=>{const d=new Date();const onejan=new Date(d.getFullYear(),0,1);return Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);};
   const mesAtual=()=>new Date().getMonth()+1+"-"+new Date().getFullYear();
-  const chave=periodo==="semanal"?("sem-"+new Date().getFullYear()+"-"+semanaAtual()):("mes-"+mesAtual());
+  const quinzenaAtual=()=>Math.ceil(semanaAtual()/2);
+  const chave=periodo==="semanal"?("sem-"+new Date().getFullYear()+"-"+semanaAtual()):periodo==="quinzenal"?("quinz-"+new Date().getFullYear()+"-"+quinzenaAtual()):("mes-"+mesAtual());
   const regs=(db.tarefasPeriodicas&&db.tarefasPeriodicas[chave])||{};
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
 
@@ -1704,13 +1840,13 @@ function TarefasPeriodicas({user,db,setDb,showToast}){
       </div>
 
       <div style={{display:"flex",gap:8,marginBottom:14}}>
-        {[{id:"semanal",lb:"Semanal"},{id:"mensal",lb:"Mensal"}].map(t=>(
+        {[{id:"semanal",lb:"Semanal"},{id:"quinzenal",lb:"Quinzenal"},{id:"mensal",lb:"Mensal"}].map(t=>(
           <button key={t.id} onClick={()=>setPeriodo(t.id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(periodo===t.id?"#b45309":"#e0e0e0"),background:periodo===t.id?"#b45309":LC,color:periodo===t.id?W:"#7c5c3a",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t.lb}</button>
         ))}
       </div>
 
       <div style={{fontSize:11,color:GR,marginBottom:10}}>
-        {periodo==="semanal"?"Semana "+semanaAtual()+" de "+new Date().getFullYear():"Mês de "+["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][new Date().getMonth()]+" "+new Date().getFullYear()}
+        {periodo==="semanal"?"Semana "+semanaAtual()+" de "+new Date().getFullYear():periodo==="quinzenal"?"Quinzena "+quinzenaAtual()+" de "+new Date().getFullYear():"Mês de "+["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][new Date().getMonth()]+" "+new Date().getFullYear()}
       </div>
 
       {lista.length===0&&<Cd><div style={{fontSize:13,color:GR,textAlign:"center"}}>Sem tarefas para este período.</div></Cd>}
@@ -2686,8 +2822,23 @@ function Auxiliar({user,db,setDb,showToast}){
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
   const [notaEdit,setNotaEdit]=useState("");
   const [showNota,setShowNota]=useState(false);
+  const [aba,setAba]=useState("diaria");
   const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
   const nomeAux=db.assinaturas&&db.assinaturas[user.id];
+
+  // Verificação Final
+  const kVF="auxvf-"+h;
+  const vf=(db.auxVerifFinal&&db.auxVerifFinal[kVF])||{};
+  const vfRespostas=vf.respostas||{};
+  const vfTotal=VERIFICACAO_FINAL.length;
+  const vfFeitos=Object.keys(vfRespostas).length;
+  const vfCorrigidos=Object.values(vfRespostas).filter(r=>r.estado==="corrigir").length;
+
+  const marcarVF=(idx,estado,detalhe)=>{
+    const novaResp={...vfRespostas,[idx]:{estado,detalhe:detalhe||"",aux:nomeAux||user.id,time:gT()}};
+    setDb(p=>{const a={...(p.auxVerifFinal||{})};a[kVF]={respostas:novaResp,date:h,turma:user.turma||""};return{...p,auxVerifFinal:a};});
+    if(estado==="corrigir")enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,VERIFICACAO_FINAL[idx],detalhe||"","Corrigido pela Auxiliar"]);
+  };
 
   const mk=item=>{
     if(regs[item]){showToast("Já marcado");return;}
@@ -2718,6 +2869,20 @@ function Auxiliar({user,db,setDb,showToast}){
         <div style={{fontSize:14,opacity:.9,marginTop:2,fontStyle:"italic"}}>{nomeAux}</div>
         <div style={{fontSize:11,opacity:.65,marginTop:2}}>{h}</div>
       </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+        <button onClick={()=>setAba("diaria")} style={{flex:1,minWidth:100,padding:10,borderRadius:9,border:"2px solid "+(aba==="diaria"?"#0f766e":"#e0e0e0"),background:aba==="diaria"?"#0f766e":LC,color:aba==="diaria"?W:GR,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Verificação Diária</button>
+        <button onClick={()=>setAba("final")} style={{flex:1,minWidth:100,padding:10,borderRadius:9,border:"2px solid "+(aba==="final"?"#9d174d":"#e0e0e0"),background:aba==="final"?"#9d174d":LC,color:aba==="final"?W:GR,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",position:"relative"}}>
+          Verificação Final
+          {vfFeitos<vfTotal&&<span style={{position:"absolute",top:-4,right:-4,width:10,height:10,borderRadius:"50%",background:"#dc2626"}}></span>}
+        </button>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        <button onClick={()=>setAba("plano")} style={{flex:1,minWidth:100,padding:9,borderRadius:9,border:"2px solid "+(aba==="plano"?"#b45309":"#e0e0e0"),background:aba==="plano"?"#b45309":LC,color:aba==="plano"?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🗓️ Plano de Higienização</button>
+        <button onClick={()=>setAba("mapa")} style={{flex:1,minWidth:100,padding:9,borderRadius:9,border:"2px solid "+(aba==="mapa"?"#b45309":"#e0e0e0"),background:aba==="mapa"?"#b45309":LC,color:aba==="mapa"?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🗺️ Mapa da Cozinha</button>
+      </div>
+
+      {aba==="diaria"&&<>
       <Cd>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
           <span style={{fontSize:12,color:GR}}>Progresso de verificação</span>
@@ -2771,7 +2936,72 @@ function Auxiliar({user,db,setDb,showToast}){
           </div>
         );})}
       </Cd>
+      </>}
+
+      {aba==="final"&&<>
+        <Cd st={{borderLeft:"3px solid #9d174d",marginBottom:10}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#9d174d",marginBottom:4}}>Verificação Final do Dia</div>
+          <div style={{fontSize:12,color:GR,lineHeight:1.5}}>
+            Antes de saíres, confirma TODOS os pontos abaixo. Se algo não estiver bem, marca <b>"Tive de corrigir"</b> e diz o que fizeste — fica registado para a Coordenadora.
+          </div>
+          <div style={{marginTop:8,fontSize:11,fontWeight:700,color:vfFeitos===vfTotal?V:"#9d174d"}}>{vfFeitos}/{vfTotal} verificados{vfCorrigidos>0&&" — "+vfCorrigidos+" corrigido(s)"}</div>
+        </Cd>
+
+        {VERIFICACAO_FINAL.map((item,idx)=>{
+          const r=vfRespostas[idx];
+          return(
+            <VerifFinalItem key={idx} item={item} resposta={r} onMarcar={(estado,detalhe)=>marcarVF(idx,estado,detalhe)}/>
+          );
+        })}
+
+        {vfFeitos===vfTotal&&(
+          <Cd st={{borderLeft:"3px solid "+V,textAlign:"center"}}>
+            <div style={{fontSize:28,marginBottom:4}}>✓</div>
+            <div style={{fontSize:13,fontWeight:700,color:V}}>Verificação final completa!</div>
+            <div style={{fontSize:11,color:GR,marginTop:2}}>{nomeAux} — {h}</div>
+          </Cd>
+        )}
+      </>}
+
+      {aba==="plano"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
+      {aba==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
     </div>
+  );
+}
+
+function VerifFinalItem({item,resposta,onMarcar}){
+  const [showDetalhe,setShowDetalhe]=useState(false);
+  const [detalhe,setDetalhe]=useState("");
+  if(resposta){
+    return(
+      <Cd st={{marginBottom:8,borderLeft:"3px solid "+(resposta.estado==="ok"?V:"#9d174d")}}>
+        <div style={{fontSize:13,fontWeight:600,color:"#333",marginBottom:2}}>{item}</div>
+        <div style={{fontSize:11,fontWeight:700,color:resposta.estado==="ok"?V:"#9d174d"}}>
+          {resposta.estado==="ok"?"✓ Estava OK":"⚠️ Foi corrigido"}
+        </div>
+        {resposta.detalhe&&<div style={{fontSize:11,color:GR,marginTop:2}}>{resposta.detalhe}</div>}
+        <div style={{fontSize:10,color:GR,marginTop:2}}>{resposta.aux} — {resposta.time}</div>
+      </Cd>
+    );
+  }
+  return(
+    <Cd st={{marginBottom:8}}>
+      <div style={{fontSize:13,fontWeight:600,color:"#333",marginBottom:8}}>{item}</div>
+      {!showDetalhe?(
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={()=>onMarcar("ok")} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid "+V,background:LC,color:V,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Estava OK</button>
+          <button onClick={()=>setShowDetalhe(true)} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #9d174d",background:LC,color:"#9d174d",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>⚠️ Tive de corrigir</button>
+        </div>
+      ):(
+        <div>
+          <textarea value={detalhe} onChange={e=>setDetalhe(e.target.value)} placeholder="O que tiveste de corrigir?" rows={2} style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1.5px solid #fbcfe8",fontSize:13,background:LC,color:"#9d174d",outline:"none",resize:"vertical",fontFamily:"inherit",marginBottom:6,boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>setShowDetalhe(false)} style={{flex:1,padding:"8px",borderRadius:7,border:"1.5px solid "+BE,background:"transparent",color:GR,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
+            <button onClick={()=>{if(detalhe.trim())onMarcar("corrigir",detalhe.trim());}} style={{flex:2,padding:"8px",borderRadius:7,border:"none",background:"#9d174d",color:W,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Registar correção</button>
+          </div>
+        </div>
+      )}
+    </Cd>
   );
 }
 
