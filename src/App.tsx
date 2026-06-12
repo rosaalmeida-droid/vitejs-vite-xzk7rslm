@@ -1,5 +1,5 @@
 // KitchenFlow ECL v3.0 - Ranking Sheets + Regeneracao + Tabela Completa
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // Load Barlow Condensed font
 const fontLink = document.createElement("link");
@@ -30,6 +30,72 @@ const ZONAS={
 "Residuos":["Lixo organico despejado no local correto","Lixo reciclavel separado corretamente","Caixotes lavados e higienizados","Sacos novos colocados"],
 "Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"]
 };
+const PROCEDIMENTOS_LIMPEZA={
+  "bancada":{produto:"BACTER CLHOR diluído a 3% (limpeza profunda) ou NEO QUICK pronto a usar (desinfeção rápida entre tarefas, sem necessidade de enxaguar — auto-secagem)",sequencia:["Remover resíduos sólidos","Esfregar com esponja não abrasiva e água com detergente","Enxaguar com água limpa","Limpeza profunda: aplicar BACTER CLHOR a 3%, deixar atuar 5 min e enxaguar | Desinfeção rápida entre tarefas: pulverizar NEO QUICK e deixar secar ao ar"],tempo:"BACTER CLHOR: 5 min de contacto | NEO QUICK: auto-secagem, sem tempo de espera",seguranca:"NEO QUICK: hidroalcoólico, evitar perto de chamas. BACTER CLHOR: "+"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" EPI obrigatório: luvas de nitrilo + proteção ocular/facial."},
+  "ralo":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%) + escova própria",sequencia:["Remover grelha e resíduos visíveis","Escovar com BACTER CLHOR diluído a 3%","Deixar atuar 5 minutos","Enxaguar abundantemente com água até total eliminação do produto"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" Cuidado com escorregamento — sinalizar piso húmido."},
+  "abatedor":{produto:"Desinfetante multiusos",sequencia:["Desligar e esvaziar","Limpar interior e exterior com pano húmido","Aplicar desinfetante","Deixar secar ao ar com porta aberta"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de limpar."},
+  "vacuo":{produto:"Pano húmido + desinfetante",sequencia:["Desligar o equipamento","Limpar câmara de vácuo","Limpar barra de soldadura","Desinfetar superfícies"],tempo:"Imediato após uso",seguranca:"Aguardar arrefecimento da barra de soldadura antes de limpar."},
+  "amassadeira":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e remover restos de massa","Limpar cuba e gancho","Desinfetar superfícies","Proteger com película"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de limpar."},
+  "batedeira":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e remover acessórios","Lavar acessórios na copa","Limpar corpo do equipamento","Proteger com película"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de limpar."},
+  "picadora":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e desmontar lâminas","Lavar componentes na copa","Secar e montar","Proteger com película"],tempo:"Imediato após uso",seguranca:"Cuidado com lâminas afiadas — manusear com luvas de proteção."},
+  "processador":{produto:"Pano húmido + desinfetante",sequencia:["Desligar e desmontar acessórios","Lavar componentes na copa","Secar e montar","Proteger com película"],tempo:"Imediato após uso",seguranca:"Desligar da corrente antes de desmontar."},
+  "fogao":{produto:"DEGRASS SUPER (super desengordurante para fornos, exaustores e superfícies)",sequencia:["Desligar todas as bocas e o gás, deixar arrefecer","Remover grelhas","Pulverizar DEGRASS SUPER a cerca de 15 cm da superfície (frio, sem aquecer)","Deixar atuar 6 a 8 minutos","Passar o pano","Enxaguar abundantemente"],tempo:"6 a 8 minutos de atuação",seguranca:"PERIGO — corrosivo. Usar luvas e proteção ocular/facial. Em caso de contacto com a pele ou olhos, enxaguar abundantemente com água e contactar o CIAV (800 250 250). Não misturar com outros produtos."},
+  "frigorifico":{produto:"Pano húmido + desinfetante neutro",sequencia:["Verificar e registar temperatura","Remover produtos fora de validade","Limpar prateleiras visivelmente sujas","Desinfetar superfícies de contacto"],tempo:"2 a 3 minutos por equipamento",seguranca:"Não deixar a porta aberta mais do que o necessário."},
+  "congelador":{produto:"Pano húmido + desinfetante neutro",sequencia:["Verificar e registar temperatura","Remover gelo acumulado se necessário","Limpar superfícies visivelmente sujas","Desinfetar superfícies de contacto"],tempo:"2 a 3 minutos por equipamento",seguranca:"Não deixar a porta aberta mais do que o necessário."},
+  "loica":{produto:"Detergente de loiça + BACTER QUAT (desinfetante pH neutro, ação tripla, mais suave que o cloro) para desinfeção final",sequencia:["Remover resíduos","Lavar com água quente e detergente","Enxaguar","Pulverizar BACTER QUAT sobre a loiça/superfície","Deixar atuar conforme indicação do rótulo","Enxaguar se aplicável, escorrer e secar","Arrumar no local correto"],tempo:"Conforme indicação do rótulo (ação tripla: limpa+desinfeta+desodoriza)",seguranca:"Usar luvas para água quente. BACTER QUAT é pH neutro mas usar luvas. Não misturar com outros produtos químicos."},
+  "cuba":{produto:"Desengordurante + BACTER QUAT (uso diário, pH neutro) ou BACTER CLHOR a 3% (desinfeção profunda periódica)",sequencia:["Esvaziar e remover resíduos","Aplicar desengordurante e escovar","Enxaguar","Diário: pulverizar BACTER QUAT e deixar atuar | Periódico: aplicar BACTER CLHOR a 3%, deixar 5 min e enxaguar bem"],tempo:"BACTER QUAT: conforme rótulo | BACTER CLHOR: 5 min de contacto",seguranca:"BACTER QUAT: usar luvas, pH neutro. Se usar BACTER CLHOR: "+"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."},
+  "maq. lavagem":{produto:"DEGRASS D-40 BAC (desengordurante + desinfetante alcalino) + desincrustante próprio para calcário",sequencia:["Esvaziar a máquina e deixar arrefecer","Limpar filtros com DEGRASS D-40 BAC diluído","Aplicar desincrustante conforme indicação se houver calcário","Enxaguar abundantemente","Deixar porta aberta para secar"],tempo:"Conforme indicação do produto",seguranca:"Aguardar arrefecimento antes de limpar. Usar luvas. Não misturar produtos diferentes."},
+  "inox":{produto:"NEO QUICK (desinfeção rápida diária, sem enxaguamento) ou BACTER CLHOR a 3% (limpeza profunda periódica) + POLISH METALS (polimento final, protege contra dedadas e manchas)",sequencia:["Limpar com pano húmido","Diário: pulverizar NEO QUICK e deixar secar | Periódico: aplicar BACTER CLHOR a 3%, deixar 5 min e enxaguar bem","Aplicar POLISH METALS e polir com pano seco no sentido do polimento"],tempo:"NEO QUICK: auto-secagem | BACTER CLHOR: 5 min de contacto | POLISH METALS: aplicação imediata",seguranca:"POLISH METALS é aerossol — usar em local ventilado, longe de chamas. Não usar esfregões abrasivos em superfícies polidas. Se usar BACTER CLHOR: "+"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" EPI obrigatório: luvas de nitrilo + proteção ocular/facial."},
+  "panos":{produto:"Solução desinfetante para panos/esponjas",sequencia:["Preparar solução conforme diluição indicada","Submergir panos e esponjas","Renovar no início e final de cada aula"],tempo:"Imersão contínua durante a aula",seguranca:"Não usar a mesma solução por mais de uma aula."},
+  "economato":{produto:"Pano húmido + desinfetante",sequencia:["Remover produtos","Limpar prateleiras e chão","Reorganizar por ordem de validade (FIFO)","Repor produtos"],tempo:"Conforme necessidade",seguranca:"Não colocar produtos diretamente no chão."},
+  "lixo":{produto:"Desinfetante multiusos",sequencia:["Despejar lixo no local correto, separando reciclável","Lavar caixote por dentro e por fora","Desinfetar","Colocar saco novo"],tempo:"Imediato",seguranca:"Usar luvas. Fechar bem os sacos antes de transportar."},
+  "carrinho":{produto:"NEO QUICK (desinfeção) + POLISH METALS (partes em inox/cromo, opcional)",sequencia:["Remover resíduos","Limpar superfícies e rodas com pano húmido","Pulverizar NEO QUICK e deixar secar","Em partes metálicas: aplicar POLISH METALS e polir","Arrumar no local correto"],tempo:"2-3 minutos",seguranca:"Verificar travões das rodas antes de arrumar. POLISH METALS: usar em local ventilado."},
+  "chao":{produto:"DEGRASS D-40 BAC (desengordurante + desinfetante alcalino — desengordura, desinfeta e desodoriza num só passo)",sequencia:["Varrer ou aspirar resíduos","Diluir DEGRASS D-40 BAC conforme indicação do rótulo","Lavar com esfregona","Enxaguar se necessário","Deixar secar — sinalizar piso húmido"],tempo:"Secagem 10-15 minutos",seguranca:"Sinalizar sempre 'Piso Húmido'. Risco de queda. Usar luvas. Ler rótulo antes de usar — produto alcalino."},
+  "drenos":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%)",sequencia:["Remover grelhas e resíduos sólidos","Aplicar BACTER CLHOR diluído a 3% diretamente no dreno","Escovar com escova própria","Deixar atuar 5 minutos","Enxaguar com água abundante"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."+" Ventilar bem a zona."},
+  "hottes":{produto:"DEGRASS SUPER (super desengordurante para fornos, exaustores e superfícies)",sequencia:["Desligar e deixar arrefecer","Remover filtros","Pulverizar DEGRASS SUPER nos filtros e superfícies da hotte a cerca de 15 cm","Deixar atuar 8 minutos (filtros de exaustor)","Passar o pano e enxaguar abundantemente","Secar e recolocar filtros"],tempo:"8 minutos de atuação nos filtros de exaustor",seguranca:"PERIGO — corrosivo (provoca queimaduras na pele e lesões oculares graves). Usar luvas, proteção ocular/facial e roupa de proteção. Garantir ventilação. Em caso de contacto, enxaguar abundantemente e contactar o CIAV (800 250 250)."},
+  "azulejos":{produto:"BACTER CLHOR — desinfetante clorado (diluir a 3%)",sequencia:["Remover sujidade visível","Aplicar BACTER CLHOR diluído a 3%","Esfregar com esponja não abrasiva","Deixar atuar 5 minutos","Enxaguar e secar"],tempo:"5 minutos de tempo de contacto (diluição a 3%)",seguranca:"PERIGO — corrosivo (queimaduras na pele e lesões oculares graves) e muito tóxico para organismos aquáticos. Usar luvas, proteção ocular/facial e vestuário de proteção. Não respirar vapores. NUNCA misturar com outros produtos (especialmente ácidos) — liberta gases tóxicos. Em caso de acidente, contactar o CIAV (Centro de Informação Antivenenos) 800 250 250."},
+  "po":{produto:"Pano húmido ou aspirador",sequencia:["Aspirar ou remover pó com pano seco","Passar pano húmido em superfícies altas","Verificar zonas de difícil acesso"],tempo:"Conforme área",seguranca:"Usar escada apropriada para zonas altas, nunca cadeiras ou bancos."}
+};
+
+function procedimentoPara(itemNome){
+  const n=itemNome.toLowerCase();
+  const chaves=Object.keys(PROCEDIMENTOS_LIMPEZA);
+  for(const ch of chaves){if(n.includes(ch))return PROCEDIMENTOS_LIMPEZA[ch];}
+  return null;
+}
+
+function ProcedimentoBtn({item}){
+  const [open,setOpen]=useState(false);
+  const proc=procedimentoPara(item);
+  if(!proc)return null;
+  return(
+    <>
+      <button onClick={e=>{e.stopPropagation();setOpen(true);}} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,background:"rgba(124,58,237,.12)",border:"1px solid rgba(124,58,237,.3)",color:"#7c3aed",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>📋 Como?</button>
+      {open&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{e.stopPropagation();setOpen(false);}}>
+          <div style={{background:W,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <div style={{width:40,height:4,background:"#e9d5ff",borderRadius:2,margin:"0 auto 16px"}}></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+              <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c3aed",flex:1,paddingRight:10,lineHeight:1.3}}>{item}</div>
+              <button onClick={()=>setOpen(false)} style={{width:28,height:28,borderRadius:"50%",background:"#f3e8ff",border:"none",fontSize:18,cursor:"pointer",flexShrink:0,color:"#7c3aed",fontWeight:700}}>×</button>
+            </div>
+            <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Produto a utilizar</div>
+            <div style={{fontSize:13,color:"#334155",marginBottom:12}}>{proc.produto}</div>
+            <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Sequência</div>
+            <ol style={{fontSize:13,color:"#334155",lineHeight:1.8,paddingLeft:20,marginBottom:12}}>
+              {proc.sequencia.map((s,i)=><li key={i}>{s}</li>)}
+            </ol>
+            <div style={{fontSize:11,fontWeight:700,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Tempo de atuação</div>
+            <div style={{fontSize:13,color:"#334155",marginBottom:12}}>{proc.tempo}</div>
+            <div style={{fontSize:11,fontWeight:700,color:R,marginBottom:4,textTransform:"uppercase"}}>Cuidados de segurança</div>
+            <div style={{fontSize:13,color:"#334155"}}>{proc.seguranca}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
 const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
 const MODS_DIARIOS=[
@@ -52,6 +118,8 @@ const MODS_GESTAO=[
   {id:"manutencao",lb:"Manutenção e Avarias",cor:"#b45309"},
   {id:"equipamentos",lb:"Fichas de Equipamentos",cor:"#b45309"},
   {id:"faltas",lb:"Faltas e Necessidades",cor:"#b45309"},
+  {id:"tarefasPeriodicas",lb:"Tarefas Semanais/Mensais",cor:"#b45309"},
+  {id:"mapaCozinha",lb:"Mapa da Cozinha",cor:"#b45309"},
 ];
 const MODS_HACCP=[...MODS_DIARIOS,...MODS_ESPECIFICOS];
 const MODS=[...MODS_DIARIOS,...MODS_ESPECIFICOS,...MODS_GESTAO];
@@ -373,24 +441,38 @@ function Temperaturas({user,db,setDb,showToast}){
     return {};
   });
 
-  // Check if all equipments have been registered
-  const todosPreenchidos=FRIOS.every(eq=>temps[eq]!==undefined&&temps[eq]!=="");
+  // Equipment status: "on" (default, needs temp) or "off"/"inactive" (no temp needed)
+  const [statusEq,setStatusEq]=useState(()=>{
+    const existing=momento==="inicio"?svI:svF;
+    if(existing&&existing.statusEq)return existing.statusEq;
+    const init={};FRIOS.forEach(eq=>init[eq]="on");return init;
+  });
+
+  // Check if all equipments have been registered (on=needs temp, off/inactive=no temp needed)
+  const todosPreenchidos=FRIOS.every(eq=>statusEq[eq]!=="on"||(temps[eq]!==undefined&&temps[eq]!==""));
   // Check if fully saved (all equipment + saved to db)
   const done=!!sv&&FRIOS.every(eq=>{
     const r=sv.records&&sv.records.find(x=>x.equipamento===eq);
-    return r&&r.temperatura!=="";
+    if(!r)return false;
+    if(r.status&&r.status!=="on")return true;
+    return r.temperatura!=="";
   });
 
+  const STATUS_LABELS={on:"Em funcionamento",off:"Desligado",inactive:"Não ativo"};
   const save=()=>{
     const cab=["Data","Turma","Aluno","Momento","Hora",...FRIOS.flatMap(eq=>[eq+" Temp",eq+" Conf"]),"Validado Prof"];
-    const records=FRIOS.map(eq=>({equipamento:eq,temperatura:temps[eq]||"",conforme:iC(eq,temps[eq])}));
+    const records=FRIOS.map(eq=>{
+      const st=statusEq[eq]||"on";
+      if(st!=="on")return{equipamento:eq,temperatura:"",conforme:null,status:st};
+      return{equipamento:eq,temperatura:temps[eq]||"",conforme:iC(eq,temps[eq]),status:"on"};
+    });
     const nomeTemp=(db.assinaturas&&db.assinaturas[user.id])||"";
-    const linha=[h,gT(),user.turma,user.id,nomeTemp,momento,...records.flatMap(r=>[r.temperatura,r.conforme===false?"NC":r.conforme===true?"OK":"---"]),""];
+    const linha=[h,gT(),user.turma,user.id,nomeTemp,momento,...records.flatMap(r=>[r.status!=="on"?STATUS_LABELS[r.status]:r.temperatura,r.status!=="on"?"N/A":r.conforme===false?"NC":r.conforme===true?"OK":"---"]),""];
     setDb(p=>{
       const te={...p.temperaturas};
-      te[k]={temps,records,aluno:user.id,turma:user.turma,date:h,time:gT(),momento};
+      te[k]={temps,records,statusEq,aluno:user.id,turma:user.turma,date:h,time:gT(),momento};
       const ncs=[...(p.ncs||[])];
-      records.filter(r=>r.conforme===false&&r.temperatura!=="").forEach(r=>ncs.push({id:Date.now()+Math.random(),date:h,time:gT(),zona:r.equipamento,descricao:"Temp NC "+momento+": "+r.temperatura+"C",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}));
+      records.filter(r=>r.status==="on"&&r.conforme===false&&r.temperatura!=="").forEach(r=>ncs.push({id:Date.now()+Math.random(),date:h,time:gT(),zona:r.equipamento,descricao:"Temp NC "+momento+": "+r.temperatura+"C",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}));
       return{...p,temperaturas:te,ncs};
     });
     enviar("Temperaturas",{cabecalho:cab,linha});
@@ -404,6 +486,8 @@ function Temperaturas({user,db,setDb,showToast}){
     const existing=m==="inicio"?svI:svF;
     if(existing&&existing.temps)setTemps(existing.temps);
     else setTemps({});
+    if(existing&&existing.statusEq)setStatusEq(existing.statusEq);
+    else{const init={};FRIOS.forEach(eq=>init[eq]="on");setStatusEq(init);}
   };
 
   return(
@@ -435,18 +519,25 @@ function Temperaturas({user,db,setDb,showToast}){
           {FRIOS.map(eq=>{
             const r=sv.records?sv.records.find(x=>x.equipamento===eq):null;
             const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel");
+            const off=r&&r.status&&r.status!=="on";
             const nc=r&&r.conforme===false;
             const ok=r&&r.conforme===true;
             return(
-              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(nc?R:ok?V:BE)}}>
+              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(off?"#9ca3af":nc?R:ok?V:BE)}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
-                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>
+                    {!off&&<div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>}
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:20,fontWeight:800,color:nc?R:ok?V:GR}}>{r&&r.temperatura?r.temperatura+"°C":"---"}</div>
-                    <div style={{fontSize:11,fontWeight:700,color:nc?R:ok?V:GR}}>{nc?"NC":ok?"OK":"---"}</div>
+                    {off?(
+                      <div style={{fontSize:13,fontWeight:700,color:"#6b7280",background:"#f3f4f6",borderRadius:7,padding:"4px 10px"}}>{r.status==="off"?"Desligado":"Não ativo"}</div>
+                    ):(
+                      <>
+                        <div style={{fontSize:20,fontWeight:800,color:nc?R:ok?V:GR}}>{r&&r.temperatura?r.temperatura+"°C":"---"}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:nc?R:ok?V:GR}}>{nc?"NC":ok?"OK":"---"}</div>
+                      </>
+                    )}
                   </div>
                 </div>
               </Cd>
@@ -464,22 +555,30 @@ function Temperaturas({user,db,setDb,showToast}){
           {FRIOS.map(eq=>{
             const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel"),cf=iC(eq,temps[eq]);
             const preenchido=temps[eq]!==undefined&&temps[eq]!=="";
+            const st=statusEq[eq]||"on";
             return(
-              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(cf===false?R:cf===true?V:preenchido?"#bae6fd":BE)}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(st!=="on"?"#9ca3af":cf===false?R:cf===true?V:preenchido?"#bae6fd":BE)}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:st!=="on"?0:6}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
-                    <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>
-                    <div style={{fontSize:9,color:GR,marginTop:1}}>{cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 1°C a 3°C"}</div>
+                    {st==="on"&&<>
+                      <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>
+                      <div style={{fontSize:9,color:GR,marginTop:1}}>{cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 1°C a 3°C"}</div>
+                    </>}
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:3}}>
+                  {st==="on"&&<div style={{display:"flex",alignItems:"center",gap:3}}>
                     {cg&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
                       <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:"-"+abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":BE),background:temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":"transparent",color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>−</button>
                       <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":BE),background:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":"transparent",color:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>+</button>
                     </div>}
                     <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:preenchido?"#bae6fd":BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
                     <span style={{fontSize:10,fontWeight:700,color:cf===false?R:cf===true?V:GR,minWidth:20}}>{cf===false?"NC":cf===true?"OK":""}</span>
-                  </div>
+                  </div>}
+                </div>
+                <div style={{display:"flex",gap:5}}>
+                  {[{id:"on",lb:"Em funcionamento"},{id:"off",lb:"Desligado"},{id:"inactive",lb:"Não ativo"}].map(s=>(
+                    <button key={s.id} onClick={()=>setStatusEq(p=>({...p,[eq]:s.id}))} style={{flex:1,padding:"5px 4px",borderRadius:6,border:"1.5px solid "+(st===s.id?"#0e7490":"#e0e0e0"),background:st===s.id?"#0e7490":"#fafafa",color:st===s.id?W:"#9ca3af",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{s.lb}</button>
+                  ))}
                 </div>
               </Cd>
             );
@@ -991,6 +1090,7 @@ function Higienizacao({user,db,setDb,showToast}){
                 <div style={{fontSize:13,fontWeight:600,color:reg?W:"#0c4a6e"}}>{item}</div>
                 {reg&&<div style={{fontSize:10,color:"rgba(255,255,255,.75)",marginTop:2}}>{reg.aluno} — {reg.time}</div>}
               </div>
+              <ProcedimentoBtn item={item}/>
               {reg&&!meu&&<span style={{fontSize:9,color:"rgba(255,255,255,.7)",background:"rgba(255,255,255,.15)",borderRadius:4,padding:"2px 6px"}}>{reg.aluno}</span>}
             </div>
           );
@@ -1002,16 +1102,48 @@ function Higienizacao({user,db,setDb,showToast}){
 
 function NaoConf({user,db,setDb,showToast}){
   const [show,setShow]=useState(false);
-  const [form,setForm]=useState({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta"});
+  const [form,setForm]=useState({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta",criticidade:"normal"});
   const lista=(db.ncs||[]).filter(n=>n.turma===user.turma);
-  const save=()=>{if(!form.zona||!form.descricao)return;const nomeN=(db.assinaturas&&db.assinaturas[user.id])||"";const nc={...form,responsavel:user.id,nomeAluno:nomeN,turma:user.turma,date:gD(),time:gT(),id:Date.now(),professor:""};setDb(p=>({...p,ncs:[...(p.ncs||[]),nc]}));setShow(false);setForm({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta"});enviar("NãoConformidades",[gD(),gT(),user.turma,user.id,nomeN,form.zona,form.descricao,form.acaoCorretiva,form.estado]);showToast("NC registada!");};
-  const corE={aberta:R,"em resolução":"#d35400",resolvida:"#f39c12",validada:V};
+  const save=()=>{
+    if(!form.zona||!form.descricao)return;
+    const nomeN=(db.assinaturas&&db.assinaturas[user.id])||"";
+    const nc={...form,responsavel:user.id,nomeAluno:nomeN,turma:user.turma,date:gD(),time:gT(),id:Date.now(),professor:"",decisao:""};
+    setDb(p=>({...p,ncs:[...(p.ncs||[]),nc]}));
+    setShow(false);
+    setForm({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta",criticidade:"normal"});
+    enviar("NãoConformidades",[gD(),gT(),user.turma,user.id,nomeN,form.zona,form.descricao,form.acaoCorretiva,form.estado]);
+    showToast("NC registada! O professor irá analisar.");
+  };
+  const corE={aberta:R,"em resolução":"#d35400",resolvida:"#f39c12",validada:V,escalada:"#7c3aed"};
+  const decisaoLb={aceitar:"Aceite pelo professor",corrigir:"A corrigir",escalar:"Escalada ao coordenador"};
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Não Conformidades</div><InfoBtn modId="naoConf"/></div>
       <B lb="+ Nova Não Conformidade" onClick={()=>setShow(!show)} cor={R}/>
-      {show&&<Cd st={{marginTop:10}}><Ip lb="Zona / Equipamento" val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frigorifico 1"/><Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreva o problema..."/><Ta lb="Ação Corretiva" val={form.acaoCorretiva} onChange={v=>setForm(p=>({...p,acaoCorretiva:v}))} ph="Ação corretiva tomada..."/><Sl lb="Estado" val={form.estado} onChange={v=>setForm(p=>({...p,estado:v}))} opts={["aberta","em resolução","resolvida"]}/><B lb="Registar" onClick={save} cor={R}/></Cd>}
-      {lista.slice(-5).reverse().map(nc=><Cd key={nc.id} st={{marginTop:10,borderLeft:"3px solid "+(corE[nc.estado]||R)}}><div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:600,fontSize:13}}>{nc.zona}</span><span style={{background:corE[nc.estado]||R,color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{nc.estado}</span></div><div style={{fontSize:12,color:GR}}>{nc.descricao}</div><div style={{fontSize:10,color:GR}}>{nc.date} - {nc.responsavel}</div></Cd>)}
+      {show&&<Cd st={{marginTop:10}}>
+        <Ip lb="Zona / Equipamento" val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frigorifico 1"/>
+        <Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreva o problema..."/>
+        <Ta lb="Ação Corretiva" val={form.acaoCorretiva} onChange={v=>setForm(p=>({...p,acaoCorretiva:v}))} ph="Ação corretiva tomada (se aplicável)..."/>
+        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Gravidade</div>
+        <div style={{display:"flex",gap:6,marginBottom:12}}>
+          {[{id:"normal",lb:"Normal"},{id:"critica",lb:"⚠️ Crítica"}].map(g=>(
+            <button key={g.id} onClick={()=>setForm(p=>({...p,criticidade:g.id}))} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"2px solid "+(form.criticidade===g.id?(g.id==="critica"?R:"#0e7490"):"#e0e0e0"),background:form.criticidade===g.id?(g.id==="critica"?R:"#0e7490"):LC,color:form.criticidade===g.id?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{g.lb}</button>
+          ))}
+        </div>
+        {form.criticidade==="critica"&&<div style={{fontSize:11,color:R,marginBottom:10,lineHeight:1.5}}>Uma NC crítica notifica imediatamente o professor e, após análise, pode ser escalada à Coordenadora por email.</div>}
+        <B lb="Registar" onClick={save} cor={R}/>
+      </Cd>}
+      {lista.slice(-5).reverse().map(nc=>(
+        <Cd key={nc.id} st={{marginTop:10,borderLeft:"3px solid "+(corE[nc.estado]||R)}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontWeight:600,fontSize:13}}>{nc.zona}{nc.criticidade==="critica"&&<span style={{color:R}}> ⚠️</span>}</span>
+            <span style={{background:corE[nc.estado]||R,color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{nc.estado}</span>
+          </div>
+          <div style={{fontSize:12,color:GR}}>{nc.descricao}</div>
+          <div style={{fontSize:10,color:GR}}>{nc.date} - {nc.responsavel}</div>
+          {nc.decisao&&<div style={{fontSize:11,fontWeight:600,color:"#0e7490",marginTop:4}}>{decisaoLb[nc.decisao]||nc.decisao}</div>}
+        </Cd>
+      ))}
     </div>
   );
 }
@@ -1039,12 +1171,14 @@ function Encerramento({user,db,setDb,showToast}){
 
   const higK="hig-"+user.turma+"-"+h;
   const panosFinalEnc=!!(db.higienizacao&&db.higienizacao[higK]&&db.higienizacao[higK].panos&&db.higienizacao[higK].panos["final"]);
+  const ncsPendentes=(db.ncs||[]).filter(n=>n.turma===user.turma&&n.date===h&&!n.decisao);
   const ITEMS_OBG=[
     {id:"ti",l:"Temperaturas de início registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"])},
     {id:"tf",l:"Temperaturas de final registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"])},
     {id:"panos",l:"Panos e esponjas em solução desinfetante — Final da aula",auto:panosFinalEnc},
     {id:"hig",l:"Higienização concluída",auto:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos)},
     {id:"val",l:"Validação do professor",auto:!!(db.validacoes&&db.validacoes["val-"+user.turma+"-"+h])},
+    {id:"ncs",l:"Não conformidades analisadas pelo professor",auto:ncsPendentes.length===0},
   ];
 
   const ITEMS_MANUAL=[
@@ -1147,6 +1281,10 @@ function Encerramento({user,db,setDb,showToast}){
             <span style={{fontWeight:700,fontSize:13,color:item.auto?V:R}}>{item.auto?"OK":"Em falta"}</span>
           </div>
         ))}
+        {ncsPendentes.length>0&&<Cd st={{borderLeft:"3px solid "+R,marginTop:8,marginBottom:8}}>
+          <div style={{fontSize:11,fontWeight:700,color:R,marginBottom:6}}>⚠️ NCs ainda não analisadas pelo professor</div>
+          {ncsPendentes.map(nc=><div key={nc.id} style={{fontSize:11,color:GR,marginBottom:2}}>• {nc.zona}: {nc.descricao}</div>)}
+        </Cd>}
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",margin:"12px 0 8px",textTransform:"uppercase"}}>Verificação manual</div>
         {ITEMS_MANUAL.map(item=>(
           <div key={item.id} onClick={()=>toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 0",borderBottom:"1px solid "+LC,cursor:done?"default":"pointer"}}>
@@ -1198,6 +1336,16 @@ function Professor({user,db,setDb,showToast}){
   const tot=PC.filter(c=>ver[c.id]).length,ok=tot===PC.length;
   const mk=(id,cf)=>{setDb(p=>{const pv={...p.profVerif};pv[vK]={...ver,[id]:{professor:user.id,time:gT(),conf:cf}};return{...p,profVerif:pv};});};
   const uNC=(id,es)=>{setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===id?{...n,estado:es,professor:user.id}:n)}));showToast("NC atualizada!");};
+  const decidirNC=(nc,decisao)=>{
+    let novoEstado=decisao==="aceitar"?"validada":decisao==="corrigir"?"em resolução":"escalada";
+    setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?{...n,estado:novoEstado,professor:user.id,decisao}:n)}));
+    if(decisao==="escalar"){
+      enviar("NãoConformidades",[gD(),gT(),nc.turma,nc.responsavel,nc.nomeAluno||"",nc.zona,"[ESCALADA AO COORDENADOR] "+nc.descricao,nc.acaoCorretiva||"",novoEstado]);
+      showToast("NC escalada à Coordenadora — email enviado.");
+    }else{
+      showToast("NC "+(decisao==="aceitar"?"aceite e validada":"marcada para correção")+"!");
+    }
+  };
   const val=()=>{if(!ok){showToast("Verifica todos os pontos!");return;}setDb(p=>{const v={...p.validacoes};v[vK2]={professor:user.id,turma,date:h,time:gT(),obs};return{...p,validacoes:v};});enviar("Validações",[h,turma,user.id,obs,tot+"/"+PC.length]);showToast("Sessão validada!");setObs("");};
   const ncs=(db.ncs||[]).filter(n=>n.turma===turma&&n.date===h&&(n.estado==="aberta"||n.estado==="em resolução"));
   return(
@@ -1211,7 +1359,29 @@ function Professor({user,db,setDb,showToast}){
         <div style={{display:"flex",gap:7,marginBottom:13}}>{["1º ACP","2º ACP","3º ACP"].map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,fontWeight:600,color:V}}>Verificados</span><span style={{fontSize:12,fontWeight:700,color:ok?V:CA}}>{tot}/{PC.length}</span></div><Pg val={tot} max={PC.length}/></div>
         <Cd>{PC.map(item=>{const v=ver[item.id];return(<div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid "+LC}}><div style={{flex:1,fontSize:13,color:V}}>{item.lb}{v&&<span style={{fontSize:10,color:v.conf?V:"#d35400",marginLeft:6}}>{v.conf?"OK":"NC"} {v.time}</span>}</div><div style={{display:"flex",gap:4}}><button onClick={()=>mk(item.id,false)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&!v.conf?"#d35400":BE),background:v&&!v.conf?"#fff3e0":"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:"#d35400"}}>NC</button><button onClick={()=>mk(item.id,true)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&v.conf?V:BE),background:v&&v.conf?V:"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:v&&v.conf?W:V}}>OK</button></div></div>);})}</Cd>
-        {ncs.length>0&&<Cd st={{borderLeft:"4px solid "+R}}><div style={{fontWeight:700,color:R,marginBottom:8}}>NCs Pendentes</div>{ncs.map(nc=><div key={nc.id} style={{marginBottom:8,paddingBottom:8,borderBottom:"1px solid "+LC}}><div style={{fontWeight:600,fontSize:12}}>{nc.zona}</div><div style={{fontSize:11,color:GR}}>{nc.descricao}</div><div style={{display:"flex",gap:4,marginTop:5,flexWrap:"wrap"}}>{["em resolução","resolvida","validada"].map(e=><button key={e} onClick={()=>uNC(nc.id,e)} style={{padding:"3px 8px",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer",border:"none",background:nc.estado===e?V:LC,color:nc.estado===e?W:GR,fontFamily:"inherit"}}>{e}</button>)}</div></div>)}</Cd>}
+        {ncs.length>0&&<Cd st={{borderLeft:"4px solid "+R}}>
+          <div style={{fontWeight:700,color:R,marginBottom:8}}>NCs Pendentes — Decisão do Professor</div>
+          {ncs.map(nc=>(
+            <div key={nc.id} style={{marginBottom:10,paddingBottom:10,borderBottom:"1px solid "+LC}}>
+              <div style={{fontWeight:600,fontSize:12}}>{nc.zona}{nc.criticidade==="critica"&&<span style={{color:R}}> ⚠️ CRÍTICA</span>}</div>
+              <div style={{fontSize:11,color:GR}}>{nc.descricao}</div>
+              {nc.acaoCorretiva&&<div style={{fontSize:11,color:"#0e7490",fontStyle:"italic"}}>Ação proposta: {nc.acaoCorretiva}</div>}
+              <div style={{fontSize:10,color:GR,marginBottom:5}}>Registado por {nc.nomeAluno||nc.responsavel} às {nc.time}</div>
+              {!nc.decisao?(
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  <button onClick={()=>decidirNC(nc,"aceitar")} style={{padding:"6px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid "+V,background:V,color:W,fontFamily:"inherit"}}>✓ Aceitar</button>
+                  <button onClick={()=>decidirNC(nc,"corrigir")} style={{padding:"6px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid #d35400",background:"#fff3e0",color:"#d35400",fontFamily:"inherit"}}>Corrigir</button>
+                  <button onClick={()=>decidirNC(nc,"escalar")} style={{padding:"6px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid #7c3aed",background:"#f3e8ff",color:"#7c3aed",fontFamily:"inherit"}}>Escalar à Coordenadora</button>
+                </div>
+              ):(
+                <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                  <span style={{padding:"3px 8px",borderRadius:5,fontSize:10,fontWeight:600,background:nc.estado==="validada"?V:nc.estado==="escalada"?"#7c3aed":"#d35400",color:W}}>{nc.estado}</span>
+                  {nc.estado==="em resolução"&&<button onClick={()=>uNC(nc.id,"validada")} style={{padding:"4px 9px",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer",border:"1.5px solid "+V,background:"transparent",color:V,fontFamily:"inherit"}}>Marcar como resolvida</button>}
+                </div>
+              )}
+            </div>
+          ))}
+        </Cd>}
         <Cd st={{border:"2px solid "+(ok?V:BE)}}><div style={{fontWeight:700,fontSize:14,color:V,marginBottom:5}}>Assinar Sessão - {turma}</div>{!jaV?<><Ta lb="Observações" val={obs} onChange={setObs} ph="Notas..."/><B lb={ok?"Assinar e Validar "+turma:"Faltam "+(PC.length-tot)+" itens"} onClick={val} cor={ok?V:GR}/></>:<div style={{textAlign:"center",padding:11,color:V,fontWeight:600}}>Sessao {turma} validada - {h}</div>}</Cd>
     </div>
     </div>
@@ -1318,14 +1488,33 @@ function RelatoriosPDF(){
   const [ano,setAno]=useState(hoje.getFullYear());
   const [mes,setMes]=useState(hoje.getMonth()+1);
   const [turma,setTurma]=useState("");
+  const [tipo,setTipo]=useState("temperaturas");
   const [loading,setLoading]=useState(false);
   const [erro,setErro]=useState("");
   const TURMAS=["","1º ACP","2º ACP","3º ACP"];
   const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const TIPOS=[
+    {id:"temperaturas",lb:"🌡️ Temperaturas"},
+    {id:"higiene",lb:"🧼 Higiene Pessoal"},
+    {id:"recepcao",lb:"📦 Receção Matérias-Primas"},
+    {id:"conservacao",lb:"❄️ Conservação de Produtos"},
+    {id:"regeneracao",lb:"♻️ Regeneração/Cook-Chill"},
+    {id:"testemunho",lb:"🍽️ Amostra Testemunho"},
+    {id:"desinfecao",lb:"🧪 Desinfeção"},
+    {id:"oleos",lb:"🛢️ Controlo de Óleos"},
+    {id:"tempservico",lb:"🔥 Temperatura de Serviço"},
+    {id:"higienizacao",lb:"🧽 Higienização Equip."},
+    {id:"panos",lb:"🧹 Panos e Esponjas"},
+    {id:"manutencao",lb:"🔧 Manutenção e Avarias"},
+    {id:"naoconformidades",lb:"⚠️ Não Conformidades"},
+    {id:"faltas",lb:"📋 Faltas e Necessidades"},
+    {id:"encerramento",lb:"🔒 Encerramento da Aula"},
+    {id:"ranking",lb:"🏆 Ranking de Alunos"},
+  ];
 
   const gerarPDF=()=>{
     setLoading(true);setErro("");
-    const url=SHEET_URL+"?action=pdf&tipo=temperaturas&ano="+ano+"&mes="+mes+(turma?"&turma="+encodeURIComponent(turma):"");
+    const url=SHEET_URL+"?action=pdf&tipo="+tipo+"&ano="+ano+"&mes="+mes+(turma?"&turma="+encodeURIComponent(turma):"");
     fetch(url)
       .then(r=>r.json())
       .then(data=>{
@@ -1351,7 +1540,12 @@ function RelatoriosPDF(){
       <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c5c3a",marginBottom:14}}>Relatórios PDF</div>
 
       <Cd>
-        <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:10}}>📊 Temperaturas — Relatório Mensal</div>
+        <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:10}}>📊 Gerar Relatório Mensal</div>
+
+        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Tipo de Registo</div>
+        <select value={tipo} onChange={e=>setTipo(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid #bae6fd",fontSize:14,background:LC,color:"#0c4a6e",outline:"none",fontFamily:"inherit",marginBottom:10,boxSizing:"border-box"}}>
+          {TIPOS.map(t=><option key={t.id} value={t.id}>{t.lb}</option>)}
+        </select>
 
         <div style={{display:"flex",gap:8,marginBottom:10}}>
           <div style={{flex:1}}>
@@ -1375,19 +1569,260 @@ function RelatoriosPDF(){
 
         {erro&&<div style={{color:"#dc2626",fontSize:12,marginBottom:10}}>{erro}</div>}
 
-        <B lb={loading?"A gerar PDF...":"📄 Descarregar PDF de Temperaturas"} onClick={gerarPDF} cor="#0e7490" dis={loading}/>
+        <B lb={loading?"A gerar PDF...":"📄 Descarregar PDF"} onClick={gerarPDF} cor="#0e7490" dis={loading}/>
 
         <div style={{fontSize:11,color:GR,marginTop:10,lineHeight:1.6}}>
-          O PDF inclui todos os registos de temperatura do mês selecionado, com cabeçalho da Escola de Comércio de Lisboa e formatação organizada.
+          O PDF inclui todos os registos do tipo e mês selecionados, com cabeçalho da Escola de Comércio de Lisboa e formatação organizada.
         </div>
       </Cd>
+    </div>
+  );
+}
 
-      <Cd st={{background:"#fef3c7",borderLeft:"4px solid #d97706"}}>
-        <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:6}}>ℹ️ Em breve</div>
-        <div style={{fontSize:11,color:"#78350f",lineHeight:1.7}}>
-          Relatórios PDF para os outros módulos (Higiene Pessoal, Conservação de Produtos, Regeneração, etc.) serão adicionados em breve, com o mesmo formato.
-        </div>
-      </Cd>
+const TAREFAS_PERIODICAS={
+  semanal:[
+    {id:"drenos",lb:"Limpeza e desinfeção de drenos",resp:"Auxiliares",procKey:"drenos"},
+    {id:"po",lb:"Limpeza de pó (zonas altas)",resp:"Alunos/Auxiliares",procKey:"po"},
+    {id:"azulejos",lb:"Limpeza de azulejos/paredes",resp:"Alunos/Auxiliares",procKey:"azulejos"},
+    {id:"hottesGeral",lb:"Limpeza geral de hottes/exaustores",resp:"Auxiliares/Manutenção",procKey:"hottes"},
+  ],
+  quinzenal:[],
+  mensal:[
+    {id:"hottesFiltros",lb:"Limpeza profunda de filtros das hottes",resp:"Auxiliares/Manutenção",procKey:"hottes"},
+    {id:"revisaoHaccp",lb:"Revisão geral HACCP",resp:"Coordenadora/Professor",procKey:null},
+  ],
+};
+
+function TarefasPeriodicas({user,db,setDb,showToast}){
+  const [periodo,setPeriodo]=useState("semanal");
+  const semanaAtual=()=>{const d=new Date();const onejan=new Date(d.getFullYear(),0,1);return Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);};
+  const mesAtual=()=>new Date().getMonth()+1+"-"+new Date().getFullYear();
+  const chave=periodo==="semanal"?("sem-"+new Date().getFullYear()+"-"+semanaAtual()):("mes-"+mesAtual());
+  const regs=(db.tarefasPeriodicas&&db.tarefasPeriodicas[chave])||{};
+  const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
+
+  const toggle=(tarefa)=>{
+    const id=tarefa.id;
+    if(regs[id]){
+      const n={...regs};delete n[id];
+      setDb(p=>{const tp={...(p.tarefasPeriodicas||{})};tp[chave]=n;return{...p,tarefasPeriodicas:tp};});
+      return;
+    }
+    const n={...regs,[id]:{aluno:nomeAluno||user.id,time:gT(),date:gD(),turma:user.turma||""}};
+    setDb(p=>{const tp={...(p.tarefasPeriodicas||{})};tp[chave]=n;return{...p,tarefasPeriodicas:tp};});
+    showToast("Tarefa registada!");
+  };
+
+  const lista=TAREFAS_PERIODICAS[periodo]||[];
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Tarefas Periódicas</div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        {[{id:"semanal",lb:"Semanal"},{id:"mensal",lb:"Mensal"}].map(t=>(
+          <button key={t.id} onClick={()=>setPeriodo(t.id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(periodo===t.id?"#b45309":"#e0e0e0"),background:periodo===t.id?"#b45309":LC,color:periodo===t.id?W:"#7c5c3a",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t.lb}</button>
+        ))}
+      </div>
+
+      <div style={{fontSize:11,color:GR,marginBottom:10}}>
+        {periodo==="semanal"?"Semana "+semanaAtual()+" de "+new Date().getFullYear():"Mês de "+["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][new Date().getMonth()]+" "+new Date().getFullYear()}
+      </div>
+
+      {lista.length===0&&<Cd><div style={{fontSize:13,color:GR,textAlign:"center"}}>Sem tarefas para este período.</div></Cd>}
+
+      {lista.map(t=>{
+        const r=regs[t.id];
+        return(
+          <Cd key={t.id} st={{marginBottom:8,borderLeft:"3px solid "+(r?V:BE)}}>
+            <div onClick={()=>toggle(t)} style={{display:"flex",alignItems:"center",gap:11,cursor:"pointer"}}>
+              <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(r?V:BE),background:r?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {r&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:r?V:"#0c4a6e"}}>{t.lb}</div>
+                <div style={{fontSize:10,color:GR}}>Responsável: {t.resp}</div>
+                {r&&<div style={{fontSize:10,color:V,marginTop:1}}>Feito por {r.aluno} — {r.date} {r.time}</div>}
+              </div>
+              {t.procKey&&<ProcedimentoBtn item={t.procKey}/>}
+            </div>
+          </Cd>
+        );
+      })}
+    </div>
+  );
+}
+
+const MAPA_CORES=[
+  {id:"blue",bg:"#E6F1FB",border:"#185FA5",text:"#0C447C"},
+  {id:"teal",bg:"#E1F5EE",border:"#0F6E56",text:"#085041"},
+  {id:"purple",bg:"#EEEDFE",border:"#534AB7",text:"#3C3489"},
+  {id:"coral",bg:"#FAECE7",border:"#993C1D",text:"#712B13"},
+  {id:"pink",bg:"#FBEAF0",border:"#993556",text:"#72243E"},
+  {id:"green",bg:"#EAF3DE",border:"#3B6D11",text:"#27500A"},
+  {id:"amber",bg:"#FAEEDA",border:"#854F0B",text:"#633806"},
+  {id:"gray",bg:"#F1EFE8",border:"#5F5E5A",text:"#444441"},
+];
+
+const MAPA_DEFAULT={
+  zonas:[
+    {id:"a1",nome:"Bancada A",x:20,y:20,w:260,h:50,cor:"blue"},
+    {id:"a2",nome:"Frio A",x:20,y:74,w:260,h:24,cor:"teal"},
+    {id:"entrada",nome:"Entrada",x:288,y:20,w:72,h:78,cor:"gray"},
+    {id:"arca1",nome:"Arca 1",x:20,y:106,w:80,h:40,cor:"teal"},
+    {id:"arca2",nome:"Arca 2",x:108,y:106,w:80,h:40,cor:"teal"},
+    {id:"arca3",nome:"Arca 3",x:196,y:106,w:80,h:40,cor:"teal"},
+    {id:"cong1",nome:"Congelador 1",x:20,y:150,w:80,h:40,cor:"teal"},
+    {id:"cong2",nome:"Congelador 2",x:108,y:150,w:80,h:40,cor:"teal"},
+    {id:"c1",nome:"Bancada C",x:108,y:212,w:170,h:40,cor:"purple"},
+    {id:"cb_frio",nome:"Frio C/B",x:108,y:254,w:170,h:24,cor:"teal"},
+    {id:"b1",nome:"Bancada B",x:108,y:280,w:170,h:40,cor:"purple"},
+    {id:"d1",nome:"Bancada D",x:108,y:342,w:170,h:40,cor:"blue"},
+    {id:"de_frio",nome:"Frio D/E",x:108,y:384,w:170,h:24,cor:"teal"},
+    {id:"e1",nome:"Bancada E",x:108,y:410,w:170,h:40,cor:"blue"},
+    {id:"abat",nome:"Abatedores",x:20,y:472,w:160,h:50,cor:"coral"},
+    {id:"vacuo",nome:"Máq. Vácuo",x:20,y:528,w:160,h:50,cor:"coral"},
+    {id:"rational",nome:"Fornos Rational",x:20,y:584,w:160,h:50,cor:"coral"},
+    {id:"pastel",nome:"Pastelaria",x:198,y:472,w:160,h:50,cor:"pink"},
+    {id:"copa",nome:"Copa",x:198,y:528,w:160,h:50,cor:"green"},
+    {id:"econ",nome:"Economato 1+2",x:198,y:584,w:160,h:50,cor:"amber"},
+    {id:"longa1",nome:"Bancada longa 1",x:300,y:106,w:60,h:200,cor:"gray"},
+    {id:"longa2",nome:"Bancada longa 2",x:300,y:312,w:60,h:160,cor:"gray"},
+    {id:"longa3",nome:"Bancada longa 3",x:300,y:478,w:60,h:120,cor:"gray"},
+  ]
+};
+
+function MapaCozinha({user,db,setDb,showToast}){
+  const mapa=db.mapaCozinha||MAPA_DEFAULT;
+  const [zonas,setZonas]=useState(mapa.zonas);
+  const [selecionada,setSelecionada]=useState(null);
+  const containerRef=useRef(null);
+  const [arrastando,setArrastando]=useState(null);
+  const [editMode,setEditMode]=useState(false);
+
+  const persistir=(novasZonas)=>{
+    setZonas(novasZonas);
+    setDb(p=>({...p,mapaCozinha:{zonas:novasZonas}}));
+  };
+
+  const onPointerDown=(e,zona)=>{
+    if(!editMode)return;
+    e.preventDefault();
+    setSelecionada(zona.id);
+    const rect=containerRef.current.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const clientY=e.touches?e.touches[0].clientY:e.clientY;
+    setArrastando({id:zona.id,offsetX:clientX-rect.left-zona.x,offsetY:clientY-rect.top-zona.y});
+  };
+
+  const onPointerMove=(e)=>{
+    if(!arrastando||!editMode)return;
+    const rect=containerRef.current.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const clientY=e.touches?e.touches[0].clientY:e.clientY;
+    const novoX=Math.max(0,Math.round((clientX-rect.left-arrastando.offsetX)/4)*4);
+    const novoY=Math.max(0,Math.round((clientY-rect.top-arrastando.offsetY)/4)*4);
+    setZonas(p=>p.map(z=>z.id===arrastando.id?{...z,x:novoX,y:novoY}:z));
+  };
+
+  const onPointerUp=()=>{
+    if(arrastando){persistir(zonas);}
+    setArrastando(null);
+  };
+
+  const atualizarZona=(id,campo,valor)=>{
+    const novas=zonas.map(z=>z.id===id?{...z,[campo]:valor}:z);
+    persistir(novas);
+  };
+
+  const adicionarZona=()=>{
+    const nova={id:"zona"+Date.now(),nome:"Nova zona",x:20,y:20,w:120,h:50,cor:"gray"};
+    persistir([...zonas,nova]);
+    setSelecionada(nova.id);
+  };
+
+  const removerZona=(id)=>{
+    persistir(zonas.filter(z=>z.id!==id));
+    if(selecionada===id)setSelecionada(null);
+  };
+
+  const maxY=Math.max(...zonas.map(z=>z.y+z.h),300)+40;
+  const zonaSel=zonas.find(z=>z.id===selecionada);
+
+  return(
+    <div style={{padding:15}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Mapa da Cozinha</div>
+      </div>
+
+      {(user.tipo==="coord"||user.tipo==="professor")&&<div style={{display:"flex",gap:8,marginBottom:10}}>
+        <button onClick={()=>setEditMode(!editMode)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(editMode?"#0e7490":"#e0e0e0"),background:editMode?"#0e7490":LC,color:editMode?W:"#7c5c3a",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{editMode?"✓ Modo edição ativo":"✏️ Editar layout"}</button>
+        {editMode&&<button onClick={adicionarZona} style={{padding:"10px 14px",borderRadius:9,border:"2px solid #0e7490",background:LC,color:"#0e7490",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>+ Zona</button>}
+      </div>}
+
+      {editMode&&<div style={{fontSize:11,color:GR,marginBottom:8,lineHeight:1.5}}>Arrasta as zonas para reposicionar. Toca numa zona para editar nome, tamanho e cor.</div>}
+
+      <div
+        ref={containerRef}
+        onMouseMove={onPointerMove}
+        onMouseUp={onPointerUp}
+        onMouseLeave={onPointerUp}
+        onTouchMove={onPointerMove}
+        onTouchEnd={onPointerUp}
+        style={{position:"relative",width:"100%",height:maxY,background:"#fafafa",border:"1.5px solid #e0e0e0",borderRadius:11,overflow:"hidden",touchAction:editMode?"none":"auto"}}
+      >
+        {zonas.map(z=>{
+          const cor=MAPA_CORES.find(c=>c.id===z.cor)||MAPA_CORES[7];
+          const sel=selecionada===z.id;
+          return(
+            <div
+              key={z.id}
+              onMouseDown={e=>onPointerDown(e,z)}
+              onTouchStart={e=>onPointerDown(e,z)}
+              onClick={()=>editMode&&setSelecionada(z.id)}
+              style={{
+                position:"absolute",left:z.x,top:z.y,width:z.w,height:z.h,
+                background:cor.bg,border:"1.5px solid "+(sel?cor.text:cor.border),
+                borderRadius:6,padding:"4px 6px",cursor:editMode?"move":"default",
+                boxShadow:sel?"0 0 0 2px "+cor.text:"none",
+                display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",
+                userSelect:"none",overflow:"hidden"
+              }}
+            >
+              <span style={{fontSize:11,fontWeight:600,color:cor.text,lineHeight:1.2}}>{z.nome}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {editMode&&zonaSel&&(
+        <Cd st={{marginTop:10}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e",marginBottom:8}}>Editar zona</div>
+          <Ip lb="Nome" val={zonaSel.nome} onChange={v=>atualizarZona(zonaSel.id,"nome",v)}/>
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Largura</div>
+              <input type="number" value={zonaSel.w} onChange={e=>atualizarZona(zonaSel.id,"w",Math.max(40,Number(e.target.value)||40))} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid #bae6fd",fontSize:14,background:LC,color:"#0c4a6e",outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Altura</div>
+              <input type="number" value={zonaSel.h} onChange={e=>atualizarZona(zonaSel.id,"h",Math.max(24,Number(e.target.value)||24))} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid #bae6fd",fontSize:14,background:LC,color:"#0c4a6e",outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+            </div>
+          </div>
+          <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Cor</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+            {MAPA_CORES.map(c=>(
+              <button key={c.id} onClick={()=>atualizarZona(zonaSel.id,"cor",c.id)} style={{width:32,height:32,borderRadius:8,background:c.bg,border:"2px solid "+(zonaSel.cor===c.id?c.text:c.border),cursor:"pointer"}}/>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <B lb="Fechar" onClick={()=>setSelecionada(null)} cor="#0e7490" out/>
+            <B lb="Remover zona" onClick={()=>removerZona(zonaSel.id)} cor={R}/>
+          </div>
+        </Cd>
+      )}
     </div>
   );
 }
@@ -2874,12 +3309,15 @@ OBRIGATORIEDADE: Em estabelecimentos de restauração coletiva é obrigatório p
 PROCEDIMENTO:
 1. Rejeitar folhas exteriores e partes danificadas
 2. Lavar em água fria corrente
-3. Mergulhar em solução desinfetante apropriada
-4. Passar novamente por água fria corrente
-5. Guardar no frio até ao momento de servir
+3. Mergulhar em solução de CLHOR FOOD (hipoclorito de sódio de qualidade alimentar) conforme indicação do rótulo
+4. Respeitar o tempo de contacto indicado
+5. Passar novamente por água fria corrente abundante
+6. Guardar no frio até ao momento de servir
 
-PRODUTOS: Usar desinfetante alimentar aprovado, seguindo as indicações de dosagem e tempo de contacto.`,
-    fonte:"AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
+PRODUTO: CLHOR FOOD — adjuvante tecnológico próprio para desinfeção de frutas sem descascar e vegetais crus, aprovado para Indústria Alimentar. Seguir sempre a diluição e tempo de contacto indicados no rótulo da embalagem.
+
+EPI: Usar luvas durante a preparação da solução.`,
+    fonte:"Thomil — Ficha Técnica Clhor Food | AHRESP Código de Boas Práticas | Regulamento (CE) n.º 852/2004"
   },
   higienizacao:{
     titulo:"Higienização de Equipamentos e Utensílios",
@@ -3243,6 +3681,8 @@ export default function App(){
   else if(mod==="oleos")page=<Oleos {...p}/>;
   else if(mod==="servico")page=<Servico {...p}/>;
   else if(mod==="naoConf")page=<NaoConf {...p}/>;
+  else if(mod==="tarefasPeriodicas")page=<TarefasPeriodicas {...p}/>;
+  else if(mod==="mapaCozinha")page=<MapaCozinha {...p}/>;
   else if(mod==="encerramento")page=<Encerramento {...p}/>;
   else if(user.tipo==="professor")page=<Professor {...p}/>;
   else if(user.tipo==="coord")page=<Coordenadora {...p}/>;
