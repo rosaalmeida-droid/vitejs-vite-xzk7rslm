@@ -1024,7 +1024,7 @@ function Encerramento({user,db,setDb,showToast}){
   const [pinConfirm,setPinConfirm]=useState("");
   const [errPin,setErrPin]=useState("");
   const [showHist,setShowHist]=useState(false);
-  const done=!!sv;
+  const done=!!(sv&&sv.emProgresso===false);
 
   // Auto-save progress as user checks items (even before final submit)
   useEffect(()=>{
@@ -1308,21 +1308,6 @@ function GestaoAlunos({db,setDb}){
           3. O PIN é secreto — só o aluno sabe<br/>
           4. Se o aluno esquecer o PIN, a Coordenadora faz Reset PIN
         </div>
-      </Cd>
-
-      <Cd st={{marginTop:14,background:"#fdecea",borderLeft:"4px solid #dc2626"}}>
-        <div style={{fontSize:12,fontWeight:700,color:"#991b1b",marginBottom:8}}>🔧 Ferramentas de Teste</div>
-        <button onClick={()=>{
-          if(!window.confirm("Resetar TODOS os encerramentos de hoje? (Para testes)"))return;
-          const hoje=gD();
-          setDb(p=>{
-            const enc={...(p.encerramento||{})};
-            Object.keys(enc).forEach(key=>{if(key.includes(hoje))delete enc[key];});
-            return{...p,encerramento:enc};
-          });
-        }} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #fca5a5",background:"transparent",color:"#dc2626",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-          Resetar Encerramentos de Hoje (todas as turmas)
-        </button>
       </Cd>
     </div>
   );
