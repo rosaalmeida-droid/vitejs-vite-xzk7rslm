@@ -1348,13 +1348,20 @@ function Professor({user,db,setDb,showToast}){
   };
   const val=()=>{if(!ok){showToast("Verifica todos os pontos!");return;}setDb(p=>{const v={...p.validacoes};v[vK2]={professor:user.id,turma,date:h,time:gT(),obs};return{...p,validacoes:v};});enviar("Validações",[h,turma,user.id,obs,tot+"/"+PC.length]);showToast("Sessão validada!");setObs("");};
   const ncs=(db.ncs||[]).filter(n=>n.turma===turma&&n.date===h&&(n.estado==="aberta"||n.estado==="em resolução"));
+  const [vista,setVista]=useState("painel");
+  if(vista==="mapa")return(
+    <div style={{padding:15}}>
+      <button onClick={()=>setVista("painel")} style={{marginBottom:10,padding:"8px 14px",borderRadius:9,border:"2px solid "+V,background:LC,color:V,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar ao Painel</button>
+      <MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>
+    </div>
+  );
   return(
     <div style={{padding:15}}>
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
         <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Painel do Professor - {user.id}</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{h}</div>
       </div>
-      
+      <button onClick={()=>setVista("mapa")} style={{width:"100%",marginBottom:14,padding:"10px 14px",borderRadius:9,border:"2px solid #b45309",background:LC,color:"#b45309",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>🗺️ Mapa da Cozinha</button>
       <div>
         <div style={{display:"flex",gap:7,marginBottom:13}}>{["1º ACP","2º ACP","3º ACP"].map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,fontWeight:600,color:V}}>Verificados</span><span style={{fontSize:12,fontWeight:700,color:ok?V:CA}}>{tot}/{PC.length}</span></div><Pg val={tot} max={PC.length}/></div>
@@ -1670,27 +1677,37 @@ const MAPA_DEFAULT={
   zonas:[
     {id:"a1",nome:"Bancada A",x:20,y:20,w:260,h:50,cor:"blue"},
     {id:"a2",nome:"Frio A",x:20,y:74,w:260,h:24,cor:"teal"},
-    {id:"entrada",nome:"Entrada",x:288,y:20,w:72,h:78,cor:"gray"},
-    {id:"arca1",nome:"Arca 1",x:20,y:106,w:80,h:40,cor:"teal"},
-    {id:"arca2",nome:"Arca 2",x:108,y:106,w:80,h:40,cor:"teal"},
-    {id:"arca3",nome:"Arca 3",x:196,y:106,w:80,h:40,cor:"teal"},
-    {id:"cong1",nome:"Congelador 1",x:20,y:150,w:80,h:40,cor:"teal"},
-    {id:"cong2",nome:"Congelador 2",x:108,y:150,w:80,h:40,cor:"teal"},
-    {id:"c1",nome:"Bancada C",x:108,y:212,w:170,h:40,cor:"purple"},
-    {id:"cb_frio",nome:"Frio C/B",x:108,y:254,w:170,h:24,cor:"teal"},
-    {id:"b1",nome:"Bancada B",x:108,y:280,w:170,h:40,cor:"purple"},
-    {id:"d1",nome:"Bancada D",x:108,y:342,w:170,h:40,cor:"blue"},
-    {id:"de_frio",nome:"Frio D/E",x:108,y:384,w:170,h:24,cor:"teal"},
-    {id:"e1",nome:"Bancada E",x:108,y:410,w:170,h:40,cor:"blue"},
-    {id:"abat",nome:"Abatedores",x:20,y:472,w:160,h:50,cor:"coral"},
-    {id:"vacuo",nome:"Máq. Vácuo",x:20,y:528,w:160,h:50,cor:"coral"},
-    {id:"rational",nome:"Fornos Rational",x:20,y:584,w:160,h:50,cor:"coral"},
-    {id:"pastel",nome:"Pastelaria",x:198,y:472,w:160,h:50,cor:"pink"},
-    {id:"copa",nome:"Copa",x:198,y:528,w:160,h:50,cor:"green"},
-    {id:"econ",nome:"Economato 1+2",x:198,y:584,w:160,h:50,cor:"amber"},
-    {id:"longa1",nome:"Bancada longa 1",x:300,y:106,w:60,h:200,cor:"gray"},
-    {id:"longa2",nome:"Bancada longa 2",x:300,y:312,w:60,h:160,cor:"gray"},
-    {id:"longa3",nome:"Bancada longa 3",x:300,y:478,w:60,h:120,cor:"gray"},
+    {id:"entrada",nome:"Entrada",x:288,y:20,w:72,h:50,cor:"gray"},
+
+    {id:"longa1",nome:"Bancada longa 1",x:288,y:78,w:72,h:60,cor:"gray"},
+
+    {id:"arca1",nome:"Arca 1",x:288,y:144,w:72,h:32,cor:"teal"},
+    {id:"arca2",nome:"Arca 2",x:288,y:180,w:72,h:32,cor:"teal"},
+    {id:"arca3",nome:"Arca 3",x:288,y:216,w:72,h:32,cor:"teal"},
+    {id:"cong1",nome:"Congelador 1",x:288,y:252,w:72,h:32,cor:"teal"},
+    {id:"cong2",nome:"Congelador 2",x:288,y:288,w:72,h:32,cor:"teal"},
+
+    {id:"abat",nome:"Abatedores",x:20,y:148,w:74,h:50,cor:"coral"},
+    {id:"vacuo",nome:"Máq. Vácuo",x:20,y:204,w:74,h:50,cor:"coral"},
+    {id:"rational",nome:"Fornos Rational",x:20,y:260,w:74,h:50,cor:"coral"},
+    {id:"banc_rat1",nome:"Bancada (jto Rational) 1",x:20,y:316,w:74,h:40,cor:"gray"},
+    {id:"banc_rat2",nome:"Bancada (jto Rational) 2",x:20,y:362,w:74,h:40,cor:"gray"},
+
+    {id:"c1",nome:"Bancada C",x:108,y:148,w:170,h:40,cor:"purple"},
+    {id:"cb_frio",nome:"Frio C/B",x:108,y:190,w:170,h:24,cor:"teal"},
+    {id:"b1",nome:"Bancada B",x:108,y:216,w:170,h:40,cor:"purple"},
+
+    {id:"d1",nome:"Bancada D",x:108,y:272,w:170,h:40,cor:"blue"},
+    {id:"de_frio",nome:"Frio D/E",x:108,y:314,w:170,h:24,cor:"teal"},
+    {id:"e1",nome:"Bancada E",x:108,y:340,w:170,h:40,cor:"blue"},
+
+    {id:"pastel",nome:"Pastelaria",x:108,y:396,w:170,h:50,cor:"pink"},
+    {id:"copa",nome:"Copa",x:108,y:452,w:80,h:50,cor:"green"},
+    {id:"econ1",nome:"Economato 1",x:194,y:452,w:42,h:50,cor:"amber"},
+    {id:"econ2",nome:"Economato 2",x:240,y:452,w:38,h:50,cor:"amber"},
+
+    {id:"longa2",nome:"Bancada longa 2",x:20,y:412,w:74,h:90,cor:"gray"},
+    {id:"longa3",nome:"Bancada longa 3",x:288,y:396,w:72,h:106,cor:"gray"},
   ]
 };
 
@@ -1702,6 +1719,9 @@ function MapaCozinha({user,db,setDb,showToast}){
   const [arrastando,setArrastando]=useState(null);
   const [editMode,setEditMode]=useState(false);
 
+  const zonasRef=useRef(zonas);
+  zonasRef.current=zonas;
+
   const persistir=(novasZonas)=>{
     setZonas(novasZonas);
     setDb(p=>({...p,mapaCozinha:{zonas:novasZonas}}));
@@ -1709,7 +1729,6 @@ function MapaCozinha({user,db,setDb,showToast}){
 
   const onPointerDown=(e,zona)=>{
     if(!editMode)return;
-    e.preventDefault();
     setSelecionada(zona.id);
     const rect=containerRef.current.getBoundingClientRect();
     const clientX=e.touches?e.touches[0].clientX:e.clientX;
@@ -1719,6 +1738,7 @@ function MapaCozinha({user,db,setDb,showToast}){
 
   const onPointerMove=(e)=>{
     if(!arrastando||!editMode)return;
+    if(e.cancelable)e.preventDefault();
     const rect=containerRef.current.getBoundingClientRect();
     const clientX=e.touches?e.touches[0].clientX:e.clientX;
     const clientY=e.touches?e.touches[0].clientY:e.clientY;
@@ -1728,9 +1748,18 @@ function MapaCozinha({user,db,setDb,showToast}){
   };
 
   const onPointerUp=()=>{
-    if(arrastando){persistir(zonas);}
+    if(arrastando){persistir(zonasRef.current);}
     setArrastando(null);
   };
+
+  // Native non-passive touchmove listener so preventDefault actually blocks page scroll while dragging
+  useEffect(()=>{
+    const el=containerRef.current;
+    if(!el)return;
+    const handler=(e)=>{ if(arrastando&&editMode)e.preventDefault(); };
+    el.addEventListener("touchmove",handler,{passive:false});
+    return ()=>el.removeEventListener("touchmove",handler);
+  },[arrastando,editMode]);
 
   const atualizarZona=(id,campo,valor)=>{
     const novas=zonas.map(z=>z.id===id?{...z,[campo]:valor}:z);
@@ -1827,7 +1856,7 @@ function MapaCozinha({user,db,setDb,showToast}){
   );
 }
 
-function Coordenadora({user,db}){
+function Coordenadora({user,db,setDb,showToast}){
   const [turma,setTurma]=useState("1º ACP");
   const [mes,setMes]=useState(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");});
   const [folha,setFolha]=useState("temperaturas");
@@ -1864,11 +1893,13 @@ function Coordenadora({user,db}){
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["alunos","relatorios","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["alunos","relatorios","mapa","tarefasPeriodicas","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
       {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
       {folha==="relatorios"&&<RelatoriosPDF/>}
+      {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
+      {folha==="tarefasPeriodicas"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
 
       {folha==="temperaturas"&&(
         <div style={{overflowX:"auto"}}>
