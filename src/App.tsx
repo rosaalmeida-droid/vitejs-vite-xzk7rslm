@@ -1020,7 +1020,22 @@ function Encerramento({user,db,setDb,showToast}){
   const h=gD(),k="enc-"+user.turma+"-"+h,sv=db.encerramento&&db.encerramento[k];
   const [obs,setObs]=useState(sv?sv.obs:"");
   const [checks,setChecks]=useState(sv?sv.checks:{});
+  const [showConfirm,setShowConfirm]=useState(false);
+  const [pinConfirm,setPinConfirm]=useState("");
+  const [errPin,setErrPin]=useState("");
+  const [showHist,setShowHist]=useState(false);
   const done=!!sv;
+
+  // Auto-save progress as user checks items (even before final submit)
+  useEffect(()=>{
+    if(!done){
+      setDb(p=>{
+        const e={...(p.encerramento||{})};
+        e[k]={...(e[k]||{}),obs,checks,turma:user.turma,date:h,emProgresso:true};
+        return{...p,encerramento:e};
+      });
+    }
+  },[checks,obs]);
 
   const higK="hig-"+user.turma+"-"+h;
   const panosFinalEnc=!!(db.higienizacao&&db.higienizacao[higK]&&db.higienizacao[higK].panos&&db.higienizacao[higK].panos["final"]);
@@ -1073,18 +1088,52 @@ function Encerramento({user,db,setDb,showToast}){
 
   const toggle=id=>{if(!done)setChecks(p=>({...p,[id]:!p[id]}));};
 
-  const save=()=>{
-    if(!todosOk){showToast("Faltam itens obrigatórios!");return;}
-    const nomeEnc=(db.assinaturas&&db.assinaturas[user.id])||"";
-    setDb(p=>{const e={...p.encerramento};e[k]={obs,checks,aluno:user.id,nomeAluno:nomeEnc,turma:user.turma,date:h,time:gT()};return{...p,encerramento:e};});
-    enviar("Encerramento",[h,gT(),user.turma,user.id,nomeEnc,"Concluído"]);
-    showToast("Encerramento de aula prática registado!");
+  // Get aluno's pin from alunosList
+  const alunoAtual=(db.alunosList||[]).find(a=>String(a.numero)===String(user.id.split("-")[1])&&a.turma===user.turma);
+
+  const confirmarFecho=()=>{
+    setErrPin("");
+    if(!alunoAtual||!alunoAtual.pin){
+      // No PIN system for this user type, allow direct
+      finalizarEncerramento();
+      return;
+    }
+    if(pinConfirm!==alunoAtual.pin){setErrPin("PIN incorreto. Confirma a tua identidade.");return;}
+    finalizarEncerramento();
   };
+
+  const finalizarEncerramento=()=>{
+    const nomeEnc=(db.assinaturas&&db.assinaturas[user.id])||"";
+    setDb(p=>{const e={...p.encerramento};e[k]={obs,checks,aluno:user.id,nomeAluno:nomeEnc,turma:user.turma,date:h,time:gT(),emProgresso:false};return{...p,encerramento:e};});
+    enviar("Encerramento",[h,gT(),user.turma,user.id,nomeEnc,"Concluído"]);
+    showToast("Encerramento de aula prática registado! Responsável: "+nomeEnc);
+    setShowConfirm(false);
+  };
+
+  // Histórico - últimos encerramentos de qualquer turma
+  const historico=Object.values(db.encerramento||{}).filter(e=>!e.emProgresso&&e.nomeAluno).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,10);
 
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Encerramento da Aula</div><InfoBtn modId="encerramento"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Todos os pontos têm de estar verificados para encerrar.</div>
+
+      <button onClick={()=>setShowHist(!showHist)} style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #bae6fd",background:LC,color:"#0369a1",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:12}}>
+        {showHist?"Fechar histórico":"📋 Ver quem encerrou a cozinha (histórico)"}
+      </button>
+
+      {showHist&&<Cd st={{marginBottom:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e",marginBottom:10}}>Histórico de Encerramentos</div>
+        {historico.length===0&&<div style={{fontSize:12,color:GR}}>Sem registos ainda.</div>}
+        {historico.map((e,i)=>(
+          <div key={i} style={{padding:"8px 0",borderBottom:"1px solid "+LC}}>
+            <div style={{fontSize:13,fontWeight:600,color:"#0c4a6e"}}>{e.nomeAluno}</div>
+            <div style={{fontSize:11,color:GR}}>{e.turma} • {e.date} às {e.time}</div>
+            {e.obs&&<div style={{fontSize:11,color:"#7c5c3a",marginTop:2,fontStyle:"italic"}}>"{e.obs}"</div>}
+          </div>
+        ))}
+      </Cd>}
+
       <Cd>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
           <span style={{fontSize:12,color:GR}}>Progresso</span>
@@ -1102,7 +1151,7 @@ function Encerramento({user,db,setDb,showToast}){
         {ITEMS_MANUAL.map(item=>(
           <div key={item.id} onClick={()=>toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 0",borderBottom:"1px solid "+LC,cursor:done?"default":"pointer"}}>
             <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(checks[item.id]?V:BE),background:checks[item.id]?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>v</span>}
+              {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
             </div>
             <span style={{fontSize:13,color:checks[item.id]?V:GR}}>{item.l}</span>
           </div>
@@ -1110,16 +1159,35 @@ function Encerramento({user,db,setDb,showToast}){
       </Cd>
       {!done?(
         <Cd>
-          <Ta lb="Observações finais" val={obs} onChange={setObs} ph="Notas para o professor..."/>
-          <B lb={todosOk?"Encerrar Aula Prática":"Faltam "+(total-totalFeito)+" itens"} onClick={save} cor={todosOk?V:"#ccc"} dis={!todosOk}/>
-          {!todosOk&&<div style={{marginTop:8,fontSize:12,color:R,textAlign:"center"}}>Complete todos os pontos antes de encerrar.</div>}
+          <Ta lb="Observações finais" val={obs} onChange={setObs} ph="Notas para o professor... (ex: equipamento avariado, falta de material)"/>
+          {!showConfirm?(
+            <B lb={todosOk?"Encerrar Aula Prática":"Faltam "+(total-totalFeito)+" itens"} onClick={()=>setShowConfirm(true)} cor={todosOk?V:"#ccc"} dis={!todosOk}/>
+          ):(
+            <div style={{background:"#fef3c7",borderRadius:10,padding:14}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#92400e",marginBottom:8}}>⚠️ Confirmar Responsabilidade</div>
+              <div style={{fontSize:12,color:"#78350f",marginBottom:10,lineHeight:1.6}}>
+                Estás a confirmar que <strong>verificaste pessoalmente TODOS os pontos</strong> desta checklist. O teu nome ficará registado como responsável pelo encerramento.
+              </div>
+              {alunoAtual&&alunoAtual.pin&&<Ip lb="Introduz o teu PIN para confirmar" type="password" val={pinConfirm} onChange={setPinConfirm} ph="PIN pessoal"/>}
+              {errPin&&<div style={{color:"#dc2626",fontSize:12,marginBottom:8}}>{errPin}</div>}
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{setShowConfirm(false);setPinConfirm("");setErrPin("");}} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #fbbf24",background:"transparent",color:"#92400e",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
+                <button onClick={confirmarFecho} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#16a34a",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Confirmo — Encerrar</button>
+              </div>
+            </div>
+          )}
+          {!todosOk&&!showConfirm&&<div style={{marginTop:8,fontSize:12,color:R,textAlign:"center"}}>Complete todos os pontos antes de encerrar.</div>}
         </Cd>
       ):(
-        <div style={{textAlign:"center",padding:14,color:V,fontWeight:600,background:W,borderRadius:11}}>Aula prática encerrada — Aguarda validação do professor</div>
+        <div style={{textAlign:"center",padding:14,color:V,fontWeight:600,background:W,borderRadius:11}}>
+          <div>Aula prática encerrada — Aguarda validação do professor</div>
+          <div style={{fontSize:12,color:GR,marginTop:6,fontWeight:400}}>Responsável: {sv.nomeAluno} • {sv.time}</div>
+        </div>
       )}
     </div>
   );
 }
+
 
 function Professor({user,db,setDb,showToast}){
   const [turma,setT]=useState("T1");
