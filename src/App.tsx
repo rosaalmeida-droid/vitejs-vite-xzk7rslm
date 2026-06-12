@@ -1190,7 +1190,7 @@ function Encerramento({user,db,setDb,showToast}){
 
 
 function Professor({user,db,setDb,showToast}){
-  const [turma,setT]=useState("T1");
+  const [turma,setT]=useState("1º ACP");
   const [obs,setObs]=useState("");
   const h=gD(),vK="profv-"+user.id+"-"+turma+"-"+h;
   const ver=(db.profVerif&&db.profVerif[vK])||{};
@@ -1313,8 +1313,87 @@ function GestaoAlunos({db,setDb}){
   );
 }
 
+function RelatoriosPDF(){
+  const hoje=new Date();
+  const [ano,setAno]=useState(hoje.getFullYear());
+  const [mes,setMes]=useState(hoje.getMonth()+1);
+  const [turma,setTurma]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [erro,setErro]=useState("");
+  const TURMAS=["","1º ACP","2º ACP","3º ACP"];
+  const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  const gerarPDF=()=>{
+    setLoading(true);setErro("");
+    const url=SHEET_URL+"?action=pdf&tipo=temperaturas&ano="+ano+"&mes="+mes+(turma?"&turma="+encodeURIComponent(turma):"");
+    fetch(url)
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.ok&&data.pdf){
+          const byteChars=atob(data.pdf);
+          const byteArr=new Uint8Array(byteChars.length);
+          for(let i=0;i<byteChars.length;i++)byteArr[i]=byteChars.charCodeAt(i);
+          const blob=new Blob([byteArr],{type:"application/pdf"});
+          const link=document.createElement("a");
+          link.href=URL.createObjectURL(blob);
+          link.download=data.filename||"relatorio.pdf";
+          link.click();
+        }else{
+          setErro(data.erro||"Erro ao gerar PDF");
+        }
+      })
+      .catch(e=>setErro("Erro de ligação: "+e.message))
+      .finally(()=>setLoading(false));
+  };
+
+  return(
+    <div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c5c3a",marginBottom:14}}>Relatórios PDF</div>
+
+      <Cd>
+        <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:10}}>📊 Temperaturas — Relatório Mensal</div>
+
+        <div style={{display:"flex",gap:8,marginBottom:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Mês</div>
+            <select value={mes} onChange={e=>setMes(Number(e.target.value))} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid #bae6fd",fontSize:14,background:LC,color:"#0c4a6e",outline:"none",fontFamily:"inherit"}}>
+              {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+            </select>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Ano</div>
+            <input type="number" value={ano} onChange={e=>setAno(Number(e.target.value))} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid #bae6fd",fontSize:14,background:LC,color:"#0c4a6e",outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          </div>
+        </div>
+
+        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Turma</div>
+        <div style={{display:"flex",gap:6,marginBottom:14}}>
+          {TURMAS.map(t=>(
+            <button key={t} onClick={()=>setTurma(t)} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"2px solid "+(turma===t?"#0e7490":"#bae6fd"),background:turma===t?"#0e7490":LC,color:turma===t?W:"#0369a1",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>{t||"Todas"}</button>
+          ))}
+        </div>
+
+        {erro&&<div style={{color:"#dc2626",fontSize:12,marginBottom:10}}>{erro}</div>}
+
+        <B lb={loading?"A gerar PDF...":"📄 Descarregar PDF de Temperaturas"} onClick={gerarPDF} cor="#0e7490" dis={loading}/>
+
+        <div style={{fontSize:11,color:GR,marginTop:10,lineHeight:1.6}}>
+          O PDF inclui todos os registos de temperatura do mês selecionado, com cabeçalho da Escola de Comércio de Lisboa e formatação organizada.
+        </div>
+      </Cd>
+
+      <Cd st={{background:"#fef3c7",borderLeft:"4px solid #d97706"}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:6}}>ℹ️ Em breve</div>
+        <div style={{fontSize:11,color:"#78350f",lineHeight:1.7}}>
+          Relatórios PDF para os outros módulos (Higiene Pessoal, Conservação de Produtos, Regeneração, etc.) serão adicionados em breve, com o mesmo formato.
+        </div>
+      </Cd>
+    </div>
+  );
+}
+
 function Coordenadora({user,db}){
-  const [turma,setTurma]=useState("T1");
+  const [turma,setTurma]=useState("1º ACP");
   const [mes,setMes]=useState(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");});
   const [folha,setFolha]=useState("temperaturas");
 
@@ -1350,10 +1429,11 @@ function Coordenadora({user,db}){
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["alunos","relatorios","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
       {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
+      {folha==="relatorios"&&<RelatoriosPDF/>}
 
       {folha==="temperaturas"&&(
         <div style={{overflowX:"auto"}}>
