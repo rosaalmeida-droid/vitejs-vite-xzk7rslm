@@ -1637,13 +1637,29 @@ function Professor({user,db,setDb,showToast}){
       <MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>
     </div>
   );
+  if(vista==="naoConf")return(
+    <div style={{padding:15}}>
+      <button onClick={()=>setVista("painel")} style={{marginBottom:10,padding:"8px 14px",borderRadius:9,border:"2px solid "+V,background:LC,color:V,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar ao Painel</button>
+      <NaoConf user={user} db={db} setDb={setDb} showToast={showToast}/>
+    </div>
+  );
+  if(vista==="faltas")return(
+    <div style={{padding:15}}>
+      <button onClick={()=>setVista("painel")} style={{marginBottom:10,padding:"8px 14px",borderRadius:9,border:"2px solid "+V,background:LC,color:V,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar ao Painel</button>
+      <Faltas user={user} db={db} setDb={setDb} showToast={showToast}/>
+    </div>
+  );
   return(
     <div style={{padding:15}}>
       <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
         <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Painel do Professor - {user.id}</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{h}</div>
       </div>
-      <button onClick={()=>setVista("mapa")} style={{width:"100%",marginBottom:14,padding:"10px 14px",borderRadius:9,border:"2px solid #b45309",background:LC,color:"#b45309",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>🗺️ Mapa da Cozinha</button>
+      <button onClick={()=>setVista("mapa")} style={{width:"100%",marginBottom:8,padding:"10px 14px",borderRadius:9,border:"2px solid #b45309",background:LC,color:"#b45309",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>🗺️ Mapa da Cozinha</button>
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        <button onClick={()=>setVista("naoConf")} style={{flex:1,padding:"10px 14px",borderRadius:9,border:"2px solid #9d174d",background:LC,color:"#9d174d",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>⚠️ Não Conformidades</button>
+        <button onClick={()=>setVista("faltas")} style={{flex:1,padding:"10px 14px",borderRadius:9,border:"2px solid #b45309",background:LC,color:"#b45309",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📦 Faltas e Necessidades</button>
+      </div>
       {db.avisosProfessor&&db.avisosProfessor["aviso-"+turma+"-"+h]&&!jaV&&(
         <Cd st={{borderLeft:"3px solid #0369a1",background:"#e0f2fe",marginBottom:14}}>
           <div style={{fontSize:13,fontWeight:700,color:"#0369a1"}}>📣 {db.avisosProfessor["aviso-"+turma+"-"+h].aluno} avisou: a turma {turma} está pronta para validação ({db.avisosProfessor["aviso-"+turma+"-"+h].time})</div>
