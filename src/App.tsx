@@ -1247,23 +1247,63 @@ function Higienizacao({user,db,setDb,showToast}){
 function NaoConf({user,db,setDb,showToast}){
   const [show,setShow]=useState(false);
   const [form,setForm]=useState({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta",criticidade:"normal"});
-  const lista=(db.ncs||[]).filter(n=>n.turma===user.turma);
+  const [ncPendenteDecisao,setNcPendenteDecisao]=useState(null);
+  const podeDecidirNaHora=user.tipo==="professor"||user.tipo==="coord"||user.tipo==="auxiliar";
+  const lista=(db.ncs||[]).filter(n=>n.turma===user.turma||(podeDecidirNaHora&&!user.turma));
+  const nomeReg=(db.assinaturas&&db.assinaturas[user.id])||user.id;
+
+  const gerarRelatorioNC=(nc)=>{
+    fetch(SHEET_URL,{method:"POST",body:JSON.stringify({action:"gerarRelatorioNC",nc})}).catch(()=>{});
+  };
+
   const save=()=>{
     if(!form.zona||!form.descricao)return;
-    const nomeN=(db.assinaturas&&db.assinaturas[user.id])||"";
-    const nc={...form,responsavel:user.id,nomeAluno:nomeN,turma:user.turma,date:gD(),time:gT(),id:Date.now(),professor:"",decisao:""};
+    const nc={...form,responsavel:user.id,nomeAluno:nomeReg,turma:user.turma||"",date:gD(),time:gT(),id:Date.now(),professor:"",decisao:""};
     setDb(p=>({...p,ncs:[...(p.ncs||[]),nc]}));
+    enviar("NãoConformidades",[gD(),gT(),user.turma||"",user.id,nomeReg,form.zona,form.descricao,form.acaoCorretiva,form.estado]);
     setShow(false);
     setForm({zona:"",descricao:"",acaoCorretiva:"",estado:"aberta",criticidade:"normal"});
-    enviar("NãoConformidades",[gD(),gT(),user.turma,user.id,nomeN,form.zona,form.descricao,form.acaoCorretiva,form.estado]);
-    showToast("NC registada! O professor irá analisar.");
+    if(podeDecidirNaHora){
+      // Professor/Coordenadora/Auxiliar decidem logo no momento do registo
+      setNcPendenteDecisao(nc);
+    }else{
+      showToast("NC registada! O professor irá analisar.");
+    }
   };
+
+  const decidirAgora=(nc,decisao)=>{
+    let novoEstado=decisao==="aceitar"?"validada":decisao==="corrigir"?"em resolução":"escalada";
+    const ncAtualizada={...nc,estado:novoEstado,professor:user.id,decisao};
+    setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?ncAtualizada:n)}));
+    // Toda NC gera relatório PDF para a Coordenadora, independentemente da decisão
+    gerarRelatorioNC(ncAtualizada);
+    if(decisao==="escalar"){
+      enviar("NãoConformidades",[gD(),gT(),nc.turma||"",nc.responsavel,nc.nomeAluno||"",nc.zona,"[ESCALADA AO COORDENADOR] "+nc.descricao,nc.acaoCorretiva||"",novoEstado]);
+      showToast("NC registada e encaminhada para gestão de equipamentos.");
+    }else if(decisao==="aceitar"){
+      showToast("NC registada e resolvida! Relatório enviado à Coordenação.");
+    }else{
+      showToast("NC registada — marcada para correção. Relatório enviado à Coordenação.");
+    }
+    setNcPendenteDecisao(null);
+  };
+
   const corE={aberta:R,"em resolução":"#d35400",resolvida:"#f39c12",validada:V,escalada:"#7c3aed"};
-  const decisaoLb={aceitar:"Aceite pelo professor",corrigir:"A corrigir",escalar:"Escalada ao coordenador"};
+  const decisaoLb={aceitar:"Resolvida na hora",corrigir:"Em correção",escalar:"Escalada — gestão de equipamentos"};
+
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Não Conformidades</div><InfoBtn modId="naoConf"/></div>
-      <B lb="+ Nova Não Conformidade" onClick={()=>setShow(!show)} cor={R}/>
+
+      {ncPendenteDecisao&&(
+        <Cd st={{borderLeft:"3px solid #0c4a6e",marginBottom:12,background:"#f0f9ff"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:8}}>NC registada — {ncPendenteDecisao.zona}</div>
+          <div style={{fontSize:12,color:GR,marginBottom:10}}>{ncPendenteDecisao.descricao}</div>
+          <DecisaoNC onDecidir={decisao=>decidirAgora(ncPendenteDecisao,decisao)}/>
+        </Cd>
+      )}
+
+      {!ncPendenteDecisao&&<B lb="+ Nova Não Conformidade" onClick={()=>setShow(!show)} cor={R}/>}
       {show&&<Cd st={{marginTop:10}}>
         <Ip lb="Zona / Equipamento" val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frigorifico 1"/>
         <Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreva o problema..."/>
@@ -1275,6 +1315,7 @@ function NaoConf({user,db,setDb,showToast}){
           ))}
         </div>
         {form.criticidade==="critica"&&<div style={{fontSize:11,color:R,marginBottom:10,lineHeight:1.5}}>Uma NC crítica notifica imediatamente o professor e, após análise, pode ser escalada à Coordenadora por email.</div>}
+        {podeDecidirNaHora&&<div style={{fontSize:11,color:"#0369a1",marginBottom:10,lineHeight:1.5}}>Depois de registar, vais decidir logo o que aconteceu — gera-se sempre um relatório para a Coordenação.</div>}
         <B lb="Registar" onClick={save} cor={R}/>
       </Cd>}
       {lista.slice(-5).reverse().map(nc=>(
@@ -1284,7 +1325,7 @@ function NaoConf({user,db,setDb,showToast}){
             <span style={{background:corE[nc.estado]||R,color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{nc.estado}</span>
           </div>
           <div style={{fontSize:12,color:GR}}>{nc.descricao}</div>
-          <div style={{fontSize:10,color:GR}}>{nc.date} - {nc.responsavel}</div>
+          <div style={{fontSize:10,color:GR}}>{nc.date} {nc.time} — {nc.nomeAluno||nc.responsavel}{nc.turma?" ("+nc.turma+")":""}</div>
           {nc.decisao&&<div style={{fontSize:11,fontWeight:600,color:"#0e7490",marginTop:4}}>{decisaoLb[nc.decisao]||nc.decisao}</div>}
         </Cd>
       ))}
@@ -2284,7 +2325,7 @@ function Coordenadora({user,db,setDb,showToast}){
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["alunos","relatorios","mapa","tarefasPeriodicas","ncsPainel","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["alunos","relatorios","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
       {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
@@ -2292,6 +2333,8 @@ function Coordenadora({user,db,setDb,showToast}){
       {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="tarefasPeriodicas"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="ncsPainel"&&<PainelNCs db={db} turma={turma}/>}
+      {folha==="registarNC"&&<NaoConf user={user} db={db} setDb={setDb} showToast={showToast}/>}
+      {folha==="registarFalta"&&<Faltas user={user} db={db} setDb={setDb} showToast={showToast}/>}
 
       {folha==="temperaturas"&&(
         <div style={{overflowX:"auto"}}>
@@ -2820,7 +2863,7 @@ function Equipamentos({user,db,setDb,showToast}){
 }
 
 function Faltas({user,db,setDb,showToast}){
-  const [form,setForm]=useState({tipo:"equipamento",descricao:"",urgencia:"normal"});
+  const [form,setForm]=useState({tipo:"equipamento",descricao:"",quantidade:"",urgencia:"normal"});
   const duasSemanas=new Date();
   duasSemanas.setDate(duasSemanas.getDate()-14);
   const lista=(db.faltas||[]).filter(f=>{try{const p=f.date.split("/");const d=new Date(p[2],p[1]-1,p[0]);return d>=duasSemanas;}catch{return true;}}).reverse();
@@ -2830,9 +2873,9 @@ function Faltas({user,db,setDb,showToast}){
     const falta={...form,responsavel:user.id,turma:user.turma||"",date:gD(),time:gT(),id:Date.now(),estado:"pendente"};
     setDb(p=>({...p,faltas:[...(p.faltas||[]),falta]}));
     const nomeFalt=(db.assinaturas&&db.assinaturas[user.id])||"";
-    enviar("Faltas e Necessidades",[gD(),gT(),user.turma||"",user.id,nomeFalt,form.tipo,form.descricao,form.urgencia,"pendente"]);
+    enviar("Faltas e Necessidades",[gD(),gT(),user.turma||"",user.id,nomeFalt,form.tipo,form.descricao,form.quantidade,form.urgencia,"pendente"]);
     showToast("Falta registada! Notificação enviada.");
-    setForm({tipo:"equipamento",descricao:"",urgencia:"normal"});
+    setForm({tipo:"equipamento",descricao:"",quantidade:"",urgencia:"normal"});
   };
   return(
     <div style={{padding:15}}>
@@ -2841,6 +2884,7 @@ function Faltas({user,db,setDb,showToast}){
       <Cd>
         <Sl lb="Tipo" val={form.tipo} onChange={v=>setForm(p=>({...p,tipo:v}))} opts={["equipamento","material","produto limpeza","outro"]}/>
         <Ta lb="Descrição" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que está em falta ou é necessário..."/>
+        <Ip lb="Quantidade necessária" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 3 unidades, 2 litros, 500g..."/>
         <Sl lb="Urgência" val={form.urgencia} onChange={v=>setForm(p=>({...p,urgencia:v}))} opts={["normal","urgente","critico"]}/>
         <div style={{background:"#fef3c7",borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:"#92400e"}}>
           Após guardar, será enviada notificação por email à coordenação.
@@ -2854,7 +2898,7 @@ function Faltas({user,db,setDb,showToast}){
             <span style={{fontWeight:600,fontSize:13}}>{f.tipo}</span>
             <span style={{background:corU[f.urgencia]||"#b45309",color:W,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:600}}>{f.urgencia}</span>
           </div>
-          <div style={{fontSize:12,color:GR,marginTop:3}}>{f.descricao}</div>
+          <div style={{fontSize:12,color:GR,marginTop:3}}>{f.descricao}{f.quantidade&&" — Qtd: "+f.quantidade}</div>
           <div style={{fontSize:10,color:GR,marginTop:2}}>{f.date} {f.time} — {f.responsavel}</div>
         </Cd>)}
       </div>}
@@ -2964,6 +3008,8 @@ function Auxiliar({user,db,setDb,showToast}){
       <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
         <button onClick={()=>setAba("plano")} style={{flex:1,minWidth:100,padding:9,borderRadius:9,border:"2px solid "+(aba==="plano"?"#b45309":"#e0e0e0"),background:aba==="plano"?"#b45309":LC,color:aba==="plano"?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🗓️ Plano de Higienização</button>
         <button onClick={()=>setAba("mapa")} style={{flex:1,minWidth:100,padding:9,borderRadius:9,border:"2px solid "+(aba==="mapa"?"#b45309":"#e0e0e0"),background:aba==="mapa"?"#b45309":LC,color:aba==="mapa"?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🗺️ Mapa da Cozinha</button>
+        <button onClick={()=>setAba("naoConf")} style={{flex:1,minWidth:100,padding:9,borderRadius:9,border:"2px solid "+(aba==="naoConf"?"#9d174d":"#e0e0e0"),background:aba==="naoConf"?"#9d174d":LC,color:aba==="naoConf"?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>⚠️ Não Conformidades</button>
+        <button onClick={()=>setAba("faltas")} style={{flex:1,minWidth:100,padding:9,borderRadius:9,border:"2px solid "+(aba==="faltas"?"#b45309":"#e0e0e0"),background:aba==="faltas"?"#b45309":LC,color:aba==="faltas"?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>📦 Faltas e Necessidades</button>
       </div>
 
       {aba==="diaria"&&<>
@@ -3069,6 +3115,8 @@ function Auxiliar({user,db,setDb,showToast}){
 
       {aba==="plano"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {aba==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
+      {aba==="naoConf"&&<NaoConf user={user} db={db} setDb={setDb} showToast={showToast}/>}
+      {aba==="faltas"&&<Faltas user={user} db={db} setDb={setDb} showToast={showToast}/>}
     </div>
   );
 }
