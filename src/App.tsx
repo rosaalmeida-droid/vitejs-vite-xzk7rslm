@@ -502,7 +502,7 @@ function DashAluno({user,db,setModule}){
       </div>
 
       {aba==="modulos"&&<div>
-        <div style={{fontSize:11,fontWeight:800,color:"#0e7490",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:2,borderLeft:"3px solid #0e7490",paddingLeft:8}}>Registos HACCP Obrigatórios Diários</div>
+        <div style={{fontSize:11,fontWeight:800,color:"#0e7490",textTransform:"uppercase",letterSpacing:1,marginBottom:8,borderLeft:"3px solid #0e7490",paddingLeft:8}}>Registos HACCP Obrigatórios Diários</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
           {MODS_DIARIOS.map(m=>{
             const feito=!!feitoMap[m.id];
@@ -2827,7 +2827,7 @@ function Auxiliar({user,db,setDb,showToast}){
   const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
   const [notaEdit,setNotaEdit]=useState("");
   const [showNota,setShowNota]=useState(false);
-  const [aba,setAba]=useState("diaria");
+  const [aba,setAba]=useState("final");
   const tI=Object.values(ZONAS).flat().length,tF=Object.keys(regs).length;
   const nomeAux=db.assinaturas&&db.assinaturas[user.id];
 
@@ -2835,14 +2835,48 @@ function Auxiliar({user,db,setDb,showToast}){
   const kVF="auxvf-"+h;
   const vf=(db.auxVerifFinal&&db.auxVerifFinal[kVF])||{};
   const vfRespostas=vf.respostas||{};
-  const vfTotal=VERIFICACAO_FINAL.length;
-  const vfFeitos=Object.keys(vfRespostas).length;
+
+  // Tarefas periódicas (quinzenal/mensal) pendentes do período atual — entram automaticamente na Verificação Final
+  const semanaAtualAux=()=>{const d=new Date();const onejan=new Date(d.getFullYear(),0,1);return Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);};
+  const quinzenaAtualAux=Math.ceil(semanaAtualAux()/2);
+  const mesAtualAux=(new Date().getMonth()+1)+"-"+new Date().getFullYear();
+  const chaveQuinz="quinz-"+new Date().getFullYear()+"-"+quinzenaAtualAux;
+  const chaveMes="mes-"+mesAtualAux;
+  const regsQuinz=(db.tarefasPeriodicas&&db.tarefasPeriodicas[chaveQuinz])||{};
+  const regsMes=(db.tarefasPeriodicas&&db.tarefasPeriodicas[chaveMes])||{};
+  const tarefasPendentesPeriodicas=[
+    ...TAREFAS_PERIODICAS.quinzenal.filter(t=>!regsQuinz[t.id]).map(t=>({...t,_periodo:"quinzenal",_chave:chaveQuinz})),
+    ...TAREFAS_PERIODICAS.mensal.filter(t=>!regsMes[t.id]).map(t=>({...t,_periodo:"mensal",_chave:chaveMes})),
+  ];
+
+  // Lista combinada: itens fixos da Verificação Final + tarefas periódicas pendentes
+  const listaVF=[
+    ...VERIFICACAO_FINAL.map(item=>({tipo:"fixo",label:item})),
+    ...tarefasPendentesPeriodicas.map(t=>({tipo:"periodica",label:t.lb+" ("+(t._periodo==="quinzenal"?"Quinzenal":"Mensal")+")",tarefa:t})),
+  ];
+
+  const vfTotal=listaVF.length;
+  const vfFeitos=Object.keys(vfRespostas).filter(idx=>Number(idx)<VERIFICACAO_FINAL.length).length;
   const vfCorrigidos=Object.values(vfRespostas).filter(r=>r.estado==="corrigir").length;
 
   const marcarVF=(idx,estado,detalhe)=>{
     const novaResp={...vfRespostas,[idx]:{estado,detalhe:detalhe||"",aux:nomeAux||user.id,time:gT()}};
     setDb(p=>{const a={...(p.auxVerifFinal||{})};a[kVF]={respostas:novaResp,date:h,turma:user.turma||""};return{...p,auxVerifFinal:a};});
     if(estado==="corrigir")enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,VERIFICACAO_FINAL[idx],detalhe||"","Corrigido pela Auxiliar"]);
+  };
+
+  // Marcar tarefa periódica como concluída a partir da Verificação Final
+  const marcarPeriodica=(tarefa,idx)=>{
+    const respKey="per-"+tarefa._periodo+"-"+tarefa.id;
+    const novaResp={...vfRespostas,[respKey]:{estado:"ok",detalhe:"",aux:nomeAux||user.id,time:gT()}};
+    setDb(p=>{
+      const a={...(p.auxVerifFinal||{})};a[kVF]={respostas:novaResp,date:h,turma:user.turma||""};
+      const tp={...(p.tarefasPeriodicas||{})};
+      const regsAtual=tp[tarefa._chave]||{};
+      tp[tarefa._chave]={...regsAtual,[tarefa.id]:{aluno:nomeAux||user.id,time:gT(),date:h,turma:user.turma||""}};
+      return{...p,auxVerifFinal:a,tarefasPeriodicas:tp};
+    });
+    showToast("Tarefa periódica registada!");
   };
 
   const mk=item=>{
@@ -2880,10 +2914,9 @@ function Auxiliar({user,db,setDb,showToast}){
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-        <button onClick={()=>setAba("diaria")} style={{flex:1,minWidth:100,padding:10,borderRadius:9,border:"2px solid "+(aba==="diaria"?"#0f766e":"#e0e0e0"),background:aba==="diaria"?"#0f766e":LC,color:aba==="diaria"?W:GR,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Verificação Diária</button>
         <button onClick={()=>setAba("final")} style={{flex:1,minWidth:100,padding:10,borderRadius:9,border:"2px solid "+(aba==="final"?"#9d174d":"#e0e0e0"),background:aba==="final"?"#9d174d":LC,color:aba==="final"?W:GR,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",position:"relative"}}>
-          Verificação Final
-          {vfFeitos<vfTotal&&<span style={{position:"absolute",top:-4,right:-4,width:10,height:10,borderRadius:"50%",background:"#dc2626"}}></span>}
+          Verificação Final do Dia
+          {(vfFeitos<vfTotal)&&<span style={{position:"absolute",top:-4,right:-4,width:10,height:10,borderRadius:"50%",background:"#dc2626"}}></span>}
         </button>
       </div>
       <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
@@ -2956,10 +2989,30 @@ function Auxiliar({user,db,setDb,showToast}){
           <div style={{marginTop:8,fontSize:11,fontWeight:700,color:vfFeitos===vfTotal?V:"#9d174d"}}>{vfFeitos}/{vfTotal} verificados{vfCorrigidos>0&&" — "+vfCorrigidos+" corrigido(s)"}</div>
         </Cd>
 
-        {VERIFICACAO_FINAL.map((item,idx)=>{
-          const r=vfRespostas[idx];
+        {tarefasPendentesPeriodicas.length>0&&(
+          <Cd st={{borderLeft:"3px solid #b45309",marginBottom:10,background:"#fffbeb"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#b45309",textTransform:"uppercase"}}>🗓️ Tarefas periódicas pendentes este período</div>
+            <div style={{fontSize:11,color:GR,marginTop:2}}>Aparecem aqui até serem feitas.</div>
+          </Cd>
+        )}
+
+        {listaVF.map((entry,idx)=>{
+          if(entry.tipo==="fixo"){
+            const fixedIdx=idx;
+            const r=vfRespostas[fixedIdx];
+            return <VerifFinalItem key={idx} item={entry.label} resposta={r} onMarcar={(estado,detalhe)=>marcarVF(fixedIdx,estado,detalhe)}/>;
+          }
+          const respKey="per-"+entry.tarefa._periodo+"-"+entry.tarefa.id;
+          const r=vfRespostas[respKey];
+          if(r)return <VerifFinalItem key={idx} item={entry.label} resposta={r} onMarcar={()=>{}}/>;
           return(
-            <VerifFinalItem key={idx} item={item} resposta={r} onMarcar={(estado,detalhe)=>marcarVF(idx,estado,detalhe)}/>
+            <Cd key={idx} st={{marginBottom:8,borderLeft:"3px solid #b45309"}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#333",marginBottom:8}}>{entry.label}</div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>marcarPeriodica(entry.tarefa,idx)} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #b45309",background:LC,color:"#b45309",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Feito</button>
+                {entry.tarefa.procKey&&<ProcedimentoBtn item={entry.tarefa.procKey}/>}
+              </div>
+            </Cd>
           );
         })}
 
