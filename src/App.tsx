@@ -1527,6 +1527,33 @@ function Encerramento({user,db,setDb,showToast}){
 }
 
 
+function DecisaoNC({onDecidir}){
+  const [passo,setPasso]=useState(1);
+
+  if(passo===1){
+    return(
+      <div>
+        <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>1. Foi resolvido na hora?</div>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={()=>onDecidir("aceitar")} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid "+V,background:V,color:W,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Sim, já está resolvido</button>
+          <button onClick={()=>setPasso(2)} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #d35400",background:"#fff3e0",color:"#d35400",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Não, ainda não</button>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div>
+      <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>2. Precisa de equipamento/ação externa (manutenção)?</div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={()=>onDecidir("escalar")} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #7c3aed",background:"#f3e8ff",color:"#7c3aed",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Sim — Escalar</button>
+        <button onClick={()=>onDecidir("corrigir")} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #d35400",background:"#fff3e0",color:"#d35400",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Não — Vamos corrigir</button>
+      </div>
+      <button onClick={()=>setPasso(1)} style={{marginTop:6,padding:"5px 10px",borderRadius:6,border:"none",background:"transparent",color:GR,fontSize:11,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>← Voltar</button>
+    </div>
+  );
+}
+
 function Professor({user,db,setDb,showToast}){
   const [turma,setT]=useState("1º ACP");
   const [obs,setObs]=useState("");
@@ -1552,7 +1579,7 @@ function Professor({user,db,setDb,showToast}){
     setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?ncAtualizada:n)}));
     if(decisao==="escalar"){
       enviar("NãoConformidades",[gD(),gT(),nc.turma,nc.responsavel,nc.nomeAluno||"",nc.zona,"[ESCALADA AO COORDENADOR] "+nc.descricao,nc.acaoCorretiva||"",novoEstado]);
-      showToast("NC escalada à Coordenadora — email enviado.");
+      showToast("Encaminhado para a gestão de equipamentos/manutenção.");
     }else if(decisao==="aceitar"){
       gerarRelatorioNC(ncAtualizada);
       showToast("NC aceite e validada! Relatório gerado.");
@@ -1594,11 +1621,7 @@ function Professor({user,db,setDb,showToast}){
               {nc.acaoCorretiva&&<div style={{fontSize:11,color:"#0e7490",fontStyle:"italic"}}>Ação proposta: {nc.acaoCorretiva}</div>}
               <div style={{fontSize:10,color:GR,marginBottom:5}}>Registado por {nc.nomeAluno||nc.responsavel} às {nc.time}</div>
               {!nc.decisao?(
-                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                  <button onClick={()=>decidirNC(nc,"aceitar")} style={{padding:"6px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid "+V,background:V,color:W,fontFamily:"inherit"}}>✓ Aceitar</button>
-                  <button onClick={()=>decidirNC(nc,"corrigir")} style={{padding:"6px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid #d35400",background:"#fff3e0",color:"#d35400",fontFamily:"inherit"}}>Corrigir</button>
-                  <button onClick={()=>decidirNC(nc,"escalar")} style={{padding:"6px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid #7c3aed",background:"#f3e8ff",color:"#7c3aed",fontFamily:"inherit"}}>Escalar à Coordenadora</button>
-                </div>
+                <DecisaoNC onDecidir={decisao=>decidirNC(nc,decisao)}/>
               ):(
                 <div style={{display:"flex",gap:4,alignItems:"center"}}>
                   <span style={{padding:"3px 8px",borderRadius:5,fontSize:10,fontWeight:600,background:nc.estado==="validada"?V:nc.estado==="escalada"?"#7c3aed":"#d35400",color:W}}>{nc.estado}</span>
