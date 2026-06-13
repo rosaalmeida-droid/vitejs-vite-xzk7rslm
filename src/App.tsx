@@ -218,11 +218,11 @@ const MODS_DIARIOS=[
   {id:"presenca",lb:"Presença",cor:"#0e7490"},
   {id:"higienePessoal",lb:"Higiene Pessoal",cor:"#0e7490"},
   {id:"temperaturas",lb:"Temperaturas",cor:"#0e7490"},
-  {id:"recepcao",lb:"Receção Matérias-Primas",cor:"#0e7490"},
   {id:"higienizacao",lb:"Higienização",cor:"#0e7490"},
   {id:"encerramento",lb:"Encerramento da Aula",cor:"#0e7490"},
 ];
 const MODS_ESPECIFICOS=[
+  {id:"recepcao",lb:"Receção Matérias-Primas",cor:"#6d28d9"},
   {id:"conservacao",lb:"Conservação de Produtos",cor:"#6d28d9"},
   {id:"regeneracao",lb:"Regeneração/Cook-Chill",cor:"#6d28d9"},
   {id:"testemunho",lb:"Amostra Testemunho",cor:"#6d28d9"},
@@ -383,11 +383,12 @@ function DashAluno({user,db,setModule}){
 
   const tempI=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"]);
   const tempF=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"]);
-  const encerrado=!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]);
+  const encerrado=!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]&&db.encerramento["enc-"+user.turma+"-"+h].emProgresso===false);
   const higPessoal=!!(db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h]);
   const presencaFeita=!!(db.presencas&&db.presencas["presenca-"+user.turma+"-"+h]&&db.presencas["presenca-"+user.turma+"-"+h][user.id]);
-  const recepcao=!!(db.recepcao||[]).find(r=>r.turma===user.turma&&r.date===h);
-  const higienizacao=!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos);
+  const higRegsCount=Object.keys((db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos)||{}).length;
+  const higTotal=Object.values(ZONAS).flat().length;
+  const higienizacao=higRegsCount>0&&higRegsCount>=higTotal;
 
   const higK2="hig-"+user.turma+"-"+h;
   const panosInicioD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["inicio"]);
@@ -396,7 +397,6 @@ function DashAluno({user,db,setModule}){
     presenca:presencaFeita,
     higienePessoal:higPessoal,
     temperaturas:tempI&&tempF,
-    recepcao:recepcao,
     higienizacao:higienizacao,
     encerramento:encerrado,
   };
@@ -511,8 +511,8 @@ function DashAluno({user,db,setModule}){
             const shadow=fullWidth?"0 4px 12px rgba(3,105,161,.35)":"0 4px 12px rgba(14,116,144,.3)";
             return(
               <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:bg,border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:shadow}}>
-                {feito&&<div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.8)",textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>✓ Feito</div>}
-                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+                {feito&&<div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.8)",textTransform:"uppercase",letterSpacing:.5,marginBottom:4,textAlign:fullWidth?"center":"left"}}>✓ Feito</div>}
+                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3,textAlign:fullWidth?"center":"left"}}>{m.lb}</div>
               </button>
             );
           })}
@@ -524,7 +524,7 @@ function DashAluno({user,db,setModule}){
             const fullWidth=m.id==="naoConf";
             return(
               <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:fullWidth?"#9d174d":"#db2777",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:fullWidth?"0 4px 12px rgba(157,23,77,.35)":"0 4px 12px rgba(219,39,119,.25)"}}>
-                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3,textAlign:fullWidth?"center":"left"}}>{m.lb}</div>
               </button>
             );
           })}
@@ -536,7 +536,7 @@ function DashAluno({user,db,setModule}){
             const fullWidth=m.id==="faltas";
             return(
               <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:fullWidth?"#92400e":"#d97706",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:fullWidth?"0 4px 12px rgba(146,64,14,.35)":"0 4px 12px rgba(217,119,6,.25)"}}>
-                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3}}>{m.lb}</div>
+                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3,textAlign:fullWidth?"center":"left"}}>{m.lb}</div>
               </button>
             );
           })}
@@ -1320,42 +1320,20 @@ function Encerramento({user,db,setDb,showToast}){
     {id:"ti",l:"Temperaturas de início registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"])},
     {id:"tf",l:"Temperaturas de final registadas",auto:!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"])},
     {id:"panos",l:"Panos e esponjas em solução desinfetante — Final da aula",auto:panosFinalEnc},
-    {id:"hig",l:"Higienização concluída",auto:!!(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos)},
+    {id:"hig",l:"Higienização concluída",auto:(()=>{const r=(db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos)||{};return Object.keys(r).length>0&&Object.keys(r).length>=Object.values(ZONAS).flat().length;})()},
     {id:"val",l:"Validação do professor",auto:!!(db.validacoes&&db.validacoes["val-"+user.turma+"-"+h])},
     {id:"ncs",l:"Não conformidades analisadas pelo professor",auto:ncsPendentes.length===0},
   ];
 
+  // Agrupado em blocos — 1 clique marca todos os itens do bloco
   const ITEMS_MANUAL=[
-    {id:"b1",l:"Bancada 1 limpa e higienizada"},
-    {id:"b2",l:"Bancada 2 limpa e higienizada"},
-    {id:"b3",l:"Bancada 3 limpa e higienizada"},
-    {id:"b4",l:"Bancada 4 limpa e higienizada"},
-    {id:"b5",l:"Bancada 5 limpa e higienizada"},
-    {id:"r1",l:"Ralos das cubas limpos"},
-    {id:"bl",l:"Bancadas laterais limpas e higienizadas"},
-    {id:"ab1",l:"Abatedor 1 desligado e higienizado"},
-    {id:"ab2",l:"Abatedor 2 desligado e higienizado"},
-    {id:"mv1",l:"Máq. vácuo 1 limpa e desligada"},
-    {id:"mv2",l:"Máq. vácuo 2 limpa e desligada"},
-    {id:"am1",l:"Amassadeira 1 desligada e protegida"},
-    {id:"am2",l:"Amassadeira 2 desligada e protegida"},
-    {id:"bat",l:"Batedeira desligada e protegida"},
-    {id:"pic",l:"Picadora limpa e protegida"},
-    {id:"proc",l:"Processadores limpos e protegidos"},
-    {id:"fog",l:"Fogões todos desligados"},
-    {id:"arc",l:"Ar condicionado desligado"},
-    {id:"fri",l:"Frigoríficos verificados"},
-    {id:"equip_limp",l:"Equipamentos de preparacao limpos e higienizados"},
-    {id:"proc_limp",l:"Processadores limpos e protegidos"},
-    {id:"loi",l:"Loiça lavada e arrumada"},
-    {id:"ml1",l:"Máq. lavagem 1 drenada e porta aberta"},
-    {id:"ml2",l:"Máq. lavagem 2 drenada e porta aberta"},
-    {id:"cop",l:"Copa sem utensílios por lavar"},
-    {id:"eco",l:"Economato mat.-primas organizado"},
-    {id:"ecu",l:"Economato material organizado"},
-    {id:"lix",l:"Lixos despejados e separados corretamente"},
-    {id:"cx",l:"Caixotes lavados e com saco novo"},
-    {id:"car",l:"Carrinhos limpos e higienizados"},
+    {id:"bancadas",l:"Bancadas e Ralos",sub:["Bancada 1 limpa e higienizada","Bancada 2 limpa e higienizada","Bancada 3 limpa e higienizada","Bancada 4 limpa e higienizada","Bancada 5 limpa e higienizada","Ralos das cubas limpos","Bancadas laterais limpas e higienizadas"]},
+    {id:"equipamentos",l:"Equipamentos (abatedores, vácuo, amassadeiras, batedeira, picadora, processadores)",sub:["Abatedor 1 desligado e higienizado","Abatedor 2 desligado e higienizado","Máq. vácuo 1 limpa e desligada","Máq. vácuo 2 limpa e desligada","Amassadeira 1 desligada e protegida","Amassadeira 2 desligada e protegida","Batedeira desligada e protegida","Picadora limpa e protegida","Processadores limpos e protegidos"]},
+    {id:"fogoes",l:"Fogões e Ar Condicionado",sub:["Fogões todos desligados","Ar condicionado desligado"]},
+    {id:"frio",l:"Frigoríficos e Congeladores",sub:["Frigoríficos verificados (temperatura, sem produtos fora de validade)"]},
+    {id:"copa",l:"Copa e Loiça",sub:["Loiça lavada e arrumada","Máq. lavagem 1 drenada e porta aberta","Máq. lavagem 2 drenada e porta aberta","Copa sem utensílios por lavar"]},
+    {id:"economatos",l:"Economatos",sub:["Economato mat.-primas organizado","Economato material organizado"]},
+    {id:"residuos",l:"Resíduos e Carrinhos",sub:["Lixos despejados e separados corretamente","Caixotes lavados e com saco novo","Carrinhos limpos e higienizados"]},
   ];
 
   // Cálculo do Responsável rotativo + Suplentes (baseado em presenças de hoje e histórico dos últimos 15 dias)
@@ -1468,19 +1446,55 @@ function Encerramento({user,db,setDb,showToast}){
         {ITEMS_MANUAL.map(item=>{
           const na=naLocal[item.id];
           return(
-          <div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",borderBottom:"1px solid "+LC}}>
-            <div onClick={()=>!na&&toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,flex:1,cursor:done||na?"default":"pointer",opacity:na?0.45:1}}>
-              <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(checks[item.id]?V:BE),background:checks[item.id]?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
+          <div key={item.id} style={{padding:"9px 0",borderBottom:"1px solid "+LC}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div onClick={()=>!na&&toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,flex:1,cursor:done||na?"default":"pointer",opacity:na?0.45:1}}>
+                <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(checks[item.id]?V:BE),background:checks[item.id]?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
+                </div>
+                <span style={{fontSize:13,fontWeight:600,color:checks[item.id]?V:GR,textDecoration:na?"line-through":"none"}}>{item.l}</span>
               </div>
-              <span style={{fontSize:13,color:checks[item.id]?V:GR,textDecoration:na?"line-through":"none"}}>{item.l}</span>
+              {!done&&<button onClick={()=>toggleNA(item.id)} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,border:"1.5px solid "+(na?"#7c5c3a":"#e0e0e0"),background:na?"#7c5c3a":"transparent",color:na?W:"#9ca3af",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Não aplicável hoje</button>}
+              {done&&na&&<span style={{fontSize:10,fontWeight:600,color:"#7c5c3a",flexShrink:0}}>N/A</span>}
             </div>
-            {!done&&<button onClick={()=>toggleNA(item.id)} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,border:"1.5px solid "+(na?"#7c5c3a":"#e0e0e0"),background:na?"#7c5c3a":"transparent",color:na?W:"#9ca3af",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Não aplicável hoje</button>}
-            {done&&na&&<span style={{fontSize:10,fontWeight:600,color:"#7c5c3a",flexShrink:0}}>N/A</span>}
+            {item.sub&&<div style={{paddingLeft:35,marginTop:4}}>
+              {item.sub.map((s,i)=><div key={i} style={{fontSize:11,color:"#9ca3af",lineHeight:1.6}}>• {s}</div>)}
+            </div>}
           </div>
           );
         })}
       </Cd>
+      {!done&&(()=>{
+        // Tudo feito pelo aluno (limpeza/checklist), mas falta validação do professor e/ou NCs por decidir
+        const itemsAlunoOk=ITEMS_OBG.filter(i=>i.id!=="val"&&i.id!=="ncs").every(i=>i.auto)&&allManual;
+        const faltaProf=!ITEMS_OBG.find(i=>i.id==="val").auto;
+        const faltaNcs=!ITEMS_OBG.find(i=>i.id==="ncs").auto;
+        if(itemsAlunoOk&&(faltaProf||faltaNcs)){
+          const jaAvisado=!!(db.avisosProfessor&&db.avisosProfessor["aviso-"+user.turma+"-"+h]);
+          const avisar=()=>{
+            enviar("Avisos",[h,gT(),user.turma,user.id,(db.assinaturas&&db.assinaturas[user.id])||user.id,"Aula pronta para validação"]);
+            setDb(p=>{const a={...(p.avisosProfessor||{})};a["aviso-"+user.turma+"-"+h]={aluno:user.id,time:gT()};return{...p,avisosProfessor:a};});
+            showToast("Professor avisado!");
+          };
+          return(
+            <Cd st={{borderLeft:"3px solid #0369a1",textAlign:"center"}}>
+              <div style={{fontSize:28,marginBottom:6}}>✓</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#0369a1",marginBottom:6}}>Limpeza e verificações concluídas!</div>
+              <div style={{fontSize:12,color:GR,marginBottom:10,lineHeight:1.6}}>
+                {faltaNcs&&<>Há Não Conformidades à espera de decisão do professor.<br/></>}
+                {faltaProf&&<>Falta a validação da sessão pelo professor.<br/></>}
+                Avisa o professor para confirmar antes de poderem sair.
+              </div>
+              {!jaAvisado?(
+                <B lb="📣 Avisar Professor para validar" onClick={avisar} cor="#0369a1"/>
+              ):(
+                <div style={{fontSize:12,fontWeight:700,color:"#0369a1"}}>✓ Professor avisado às {db.avisosProfessor["aviso-"+user.turma+"-"+h].time} — aguarda confirmação</div>
+              )}
+            </Cd>
+          );
+        }
+        return null;
+      })()}
       {!done?(
         <Cd>
           <Ta lb="Observações finais" val={obs} onChange={setObs} ph="Notas para o professor... (ex: equipamento avariado, falta de material)"/>
@@ -1562,6 +1576,11 @@ function Professor({user,db,setDb,showToast}){
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{h}</div>
       </div>
       <button onClick={()=>setVista("mapa")} style={{width:"100%",marginBottom:14,padding:"10px 14px",borderRadius:9,border:"2px solid #b45309",background:LC,color:"#b45309",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>🗺️ Mapa da Cozinha</button>
+      {db.avisosProfessor&&db.avisosProfessor["aviso-"+turma+"-"+h]&&!jaV&&(
+        <Cd st={{borderLeft:"3px solid #0369a1",background:"#e0f2fe",marginBottom:14}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#0369a1"}}>📣 {db.avisosProfessor["aviso-"+turma+"-"+h].aluno} avisou: a turma {turma} está pronta para validação ({db.avisosProfessor["aviso-"+turma+"-"+h].time})</div>
+        </Cd>
+      )}
       <div>
         <div style={{display:"flex",gap:7,marginBottom:13}}>{["1º ACP","2º ACP","3º ACP"].map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,fontWeight:600,color:V}}>Verificados</span><span style={{fontSize:12,fontWeight:700,color:ok?V:CA}}>{tot}/{PC.length}</span></div><Pg val={tot} max={PC.length}/></div>
