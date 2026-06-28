@@ -4269,6 +4269,33 @@ export default function App(){
   const [showRanking,setShowRanking]=useState(false);
   const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}]}}});
 
+  // ── Login automático via parâmetros URL ────────────────────
+  // A Avaliação ECL passa ?turma=1º CP&num=1&pin=1001&tipo=aluno
+  // O KitchenFlow faz login automaticamente sem o aluno ter de repetir as credenciais
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    const turmaParam=params.get('turma');
+    const numParam=params.get('num');
+    const pinParam=params.get('pin');
+    const tipoParam=params.get('tipo')||'aluno';
+    if(turmaParam&&numParam&&pinParam&&tipoParam==='aluno'){
+      // Aguardar que os alunos sejam carregados da Sheet antes de tentar login
+      setTimeout(()=>{
+        setDb(dbActual=>{
+          const lista=dbActual.alunosList||[];
+          const aluno=lista.find(a=>String(a.numero)===String(numParam)&&a.turma===turmaParam);
+          if(aluno&&(aluno.pin===pinParam||!aluno.pin)){
+            setUser({tipo:'aluno',id:turmaParam+'-'+numParam,turma:turmaParam,nomeAluno:aluno.nome});
+          }
+          return dbActual;
+        });
+      },1500);
+    }
+    if(tipoParam==='professor'&&pinParam==='1111'){
+      setUser({tipo:'professor',id:turmaParam||'Prof'});
+    }
+  },[]);
+
   // Load alunos from Sheets on startup
   useEffect(()=>{
     fetch(SHEET_URL+"?tabela=Alunos")
