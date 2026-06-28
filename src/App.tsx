@@ -603,7 +603,31 @@ function Temperaturas({user,db,setDb,showToast}){
   });
 
   const STATUS_LABELS={on:"Em funcionamento",off:"Desligado",inactive:"Não ativo"};
+  // Verificar se início foi feito antes de permitir fim
+  const podeRegistarFim = momento === "inicio" || !!svI;
+
+  // Verificar espaço temporal mínimo entre início e fim (30 min)
+  const tempoSuficiente = ()=>{
+    if(momento === "inicio") return true;
+    if(!svI || !svI.time) return true;
+    const [hI, mI] = svI.time.split(":").map(Number);
+    const [hA, mA] = gT().split(":").map(Number);
+    const minI = hI*60+mI;
+    const minA = hA*60+mA;
+    return (minA - minI) >= 30;
+  };
+
   const save=()=>{
+    // Bloquear fim se início não foi feito
+    if(momento === "final" && !svI){
+      showToast("⚠️ Tens de registar as temperaturas de início antes do final!");
+      return;
+    }
+    // Verificar espaço temporal mínimo
+    if(momento === "final" && !tempoSuficiente()){
+      showToast("⚠️ Tem de passar pelo menos 30 minutos entre o registo de início e de final!");
+      return;
+    }
     const cab=["Data","Turma","Aluno","Momento","Hora",...FRIOS.flatMap(eq=>[eq+" Temp",eq+" Conf"]),"Validado Prof"];
     const records=FRIOS.map(eq=>{
       const st=statusEq[eq]||"on";
@@ -646,11 +670,37 @@ function Temperaturas({user,db,setDb,showToast}){
             return r&&r.temperatura!=="";
           });
           return(
-            <button key={m} onClick={()=>switchMomento(m)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#0e7490":BE),background:momento===m?"#0e7490":completo?"#e0f2fe":feito?"#fff3e0":LC,color:momento===m?W:completo?"#0e7490":feito?"#d97706":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-              {m==="inicio"?"Início de Aula":"Final de Aula"}
-              {completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Completo {m==="inicio"?svI.time:svF.time}</span>}
-              {feito&&!completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Incompleto — continuar</span>}
-            </button>
+            {(() => {
+              // Calcular se já passaram 30 min desde o início
+              const podeVerFinal = m === "inicio" || (()=>{
+                if(!svI||!svI.time) return false;
+                const [hI,mI]=svI.time.split(":").map(Number);
+                const agora=new Date();
+                const minI=hI*60+mI;
+                const minA=agora.getHours()*60+agora.getMinutes();
+                return (minA-minI)>=30;
+              })();
+              // Final só aparece depois de início feito E 30 min passados
+              if(m==="final"&&!svI) return(
+                <div key={m} style={{flex:1,padding:10,borderRadius:9,border:"2px solid #e5e7eb",background:"#f9fafb",color:"#d1d5db",fontWeight:600,fontSize:13,textAlign:"center",fontFamily:"inherit"}}>
+                  Final de Aula
+                  <span style={{fontSize:10,display:"block",opacity:.7}}>Disponível após início</span>
+                </div>
+              );
+              if(m==="final"&&svI&&!podeVerFinal) return(
+                <div key={m} style={{flex:1,padding:10,borderRadius:9,border:"2px solid #fde68a",background:"#fffbeb",color:"#92400e",fontWeight:600,fontSize:13,textAlign:"center",fontFamily:"inherit"}}>
+                  Final de Aula
+                  <span style={{fontSize:10,display:"block",opacity:.8}}>Disponível em breve</span>
+                </div>
+              );
+              return(
+                <button key={m} onClick={()=>switchMomento(m)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#0e7490":BE),background:momento===m?"#0e7490":completo?"#e0f2fe":feito?"#fff3e0":LC,color:momento===m?W:completo?"#0e7490":feito?"#d97706":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  {m==="inicio"?"Início de Aula":"Final de Aula"}
+                  {completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Completo {m==="inicio"?svI.time:svF.time}</span>}
+                  {feito&&!completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Incompleto — continuar</span>}
+                </button>
+              );
+            })()}
           );
         })}
       </div>
@@ -4267,6 +4317,7 @@ export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
   const [showRanking,setShowRanking]=useState(false);
+  const [contextoAula,setContextoAula]=useState<{uc:string;ucNome:string;pratos:string[]}>({uc:'',ucNome:'',pratos:[]});
   const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}]}}});
 
   // ── Login automático via parâmetros URL ────────────────────
@@ -4278,6 +4329,13 @@ export default function App(){
     const numParam=params.get('num');
     const pinParam=params.get('pin');
     const tipoParam=params.get('tipo')||'aluno';
+    // Contexto da aula — guardado no estado para mostrar no cabeçalho
+    const ucParam=params.get('uc')||'';
+    const ucNomeParam=params.get('ucNome')||'';
+    const pratosParam=params.get('pratos')||'';
+    if(ucParam||ucNomeParam||pratosParam){
+      setContextoAula({uc:ucParam,ucNome:ucNomeParam,pratos:pratosParam.split('|').filter(Boolean)});
+    }
     if(turmaParam&&numParam&&pinParam&&tipoParam==='aluno'){
       // Aguardar que os alunos sejam carregados da Sheet antes de tentar login
       setTimeout(()=>{
@@ -4323,12 +4381,38 @@ export default function App(){
   const logout=()=>{setUser(null);setMod(null);};
   const back=()=>setMod(null);
   if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}} db={db} showRanking={showRanking} setShowRanking={setShowRanking}/>;
+
+  // Cabeçalho de contexto da aula — só para alunos e professores, não auxiliares
+  const BannerContexto=()=>{
+    if(!contextoAula.ucNome&&!contextoAula.pratos.length) return null;
+    if(user?.tipo==='auxiliar') return null;
+    return(
+      <div style={{background:'#1a1714',padding:'8px 16px',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+        {contextoAula.ucNome&&(
+          <div style={{fontSize:11,color:'rgba(247,241,230,0.7)',lineHeight:1.3}}>
+            <span style={{background:'rgba(181,101,29,0.4)',color:'#f0b470',borderRadius:4,padding:'1px 6px',fontSize:10,fontWeight:700,marginRight:6}}>
+              {contextoAula.uc}
+            </span>
+            {contextoAula.ucNome}
+          </div>
+        )}
+        {contextoAula.pratos.length>0&&(
+          <div style={{fontSize:11,color:'rgba(247,241,230,0.5)',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+            <span>🍽️</span>
+            {contextoAula.pratos.map((p,i)=>(
+              <span key={i} style={{background:'rgba(255,255,255,0.08)',borderRadius:4,padding:'1px 8px'}}>{p}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
   // Auto-set name from alunosList if available
   if(user.tipo==="aluno"&&user.nomeAluno&&!(db.assinaturas&&db.assinaturas[user.id])){
     setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:user.nomeAluno}}));
   }
   if(user.tipo==="aluno"&&!(db.assinaturas&&db.assinaturas[user.id])&&!user.nomeAluno){
-    return(<div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
+    return(<div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}><Hd user={user} onOut={()=>setUser(null)}/><BannerContexto/><AssinaturaDigital onSave={nome=>{setDb(p=>({...p,assinaturas:{...(p.assinaturas||{}),[user.id]:nome}}));}}/></div>);
   }
   const p={user,db,setDb,showToast,setModule:setMod};
   let page;
