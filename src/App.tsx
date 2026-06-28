@@ -669,38 +669,30 @@ function Temperaturas({user,db,setDb,showToast}){
             const r=sv2&&sv2.records&&sv2.records.find(x=>x.equipamento===eq);
             return r&&r.temperatura!=="";
           });
+          // Calcular se já passaram 30 min desde o início
+          const podeVerFinal=m==="inicio"||(svI&&svI.time&&(()=>{
+            const [hI,mI]=svI.time.split(":").map(Number);
+            const agora=new Date();
+            return (agora.getHours()*60+agora.getMinutes())-(hI*60+mI)>=30;
+          })());
+          if(m==="final"&&!svI) return(
+            <div key={m} style={{flex:1,padding:10,borderRadius:9,border:"2px solid #e5e7eb",background:"#f9fafb",color:"#d1d5db",fontWeight:600,fontSize:13,textAlign:"center",fontFamily:"inherit"}}>
+              Final de Aula
+              <span style={{fontSize:10,display:"block",opacity:.7}}>Disponível após início</span>
+            </div>
+          );
+          if(m==="final"&&svI&&!podeVerFinal) return(
+            <div key={m} style={{flex:1,padding:10,borderRadius:9,border:"2px solid #fde68a",background:"#fffbeb",color:"#92400e",fontWeight:600,fontSize:13,textAlign:"center",fontFamily:"inherit"}}>
+              Final de Aula
+              <span style={{fontSize:10,display:"block",opacity:.8}}>Disponível em breve</span>
+            </div>
+          );
           return(
-            {(() => {
-              // Calcular se já passaram 30 min desde o início
-              const podeVerFinal = m === "inicio" || (()=>{
-                if(!svI||!svI.time) return false;
-                const [hI,mI]=svI.time.split(":").map(Number);
-                const agora=new Date();
-                const minI=hI*60+mI;
-                const minA=agora.getHours()*60+agora.getMinutes();
-                return (minA-minI)>=30;
-              })();
-              // Final só aparece depois de início feito E 30 min passados
-              if(m==="final"&&!svI) return(
-                <div key={m} style={{flex:1,padding:10,borderRadius:9,border:"2px solid #e5e7eb",background:"#f9fafb",color:"#d1d5db",fontWeight:600,fontSize:13,textAlign:"center",fontFamily:"inherit"}}>
-                  Final de Aula
-                  <span style={{fontSize:10,display:"block",opacity:.7}}>Disponível após início</span>
-                </div>
-              );
-              if(m==="final"&&svI&&!podeVerFinal) return(
-                <div key={m} style={{flex:1,padding:10,borderRadius:9,border:"2px solid #fde68a",background:"#fffbeb",color:"#92400e",fontWeight:600,fontSize:13,textAlign:"center",fontFamily:"inherit"}}>
-                  Final de Aula
-                  <span style={{fontSize:10,display:"block",opacity:.8}}>Disponível em breve</span>
-                </div>
-              );
-              return(
-                <button key={m} onClick={()=>switchMomento(m)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#0e7490":BE),background:momento===m?"#0e7490":completo?"#e0f2fe":feito?"#fff3e0":LC,color:momento===m?W:completo?"#0e7490":feito?"#d97706":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  {m==="inicio"?"Início de Aula":"Final de Aula"}
-                  {completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Completo {m==="inicio"?svI.time:svF.time}</span>}
-                  {feito&&!completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Incompleto — continuar</span>}
-                </button>
-              );
-            })()}
+            <button key={m} onClick={()=>switchMomento(m)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(momento===m?"#0e7490":BE),background:momento===m?"#0e7490":completo?"#e0f2fe":feito?"#fff3e0":LC,color:momento===m?W:completo?"#0e7490":feito?"#d97706":GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+              {m==="inicio"?"Início de Aula":"Final de Aula"}
+              {completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Completo {m==="inicio"?svI.time:svF.time}</span>}
+              {feito&&!completo&&<span style={{fontSize:10,display:"block",opacity:.8}}>Incompleto — continuar</span>}
+            </button>
           );
         })}
       </div>
