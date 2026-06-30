@@ -17,6 +17,58 @@ document.head.appendChild(fontStyle);
 const SHEET_URL="https://script.google.com/macros/s/AKfycbyP34XxTPKvhxrG9dvmb4J28q_dKh1v6WqPgDSykZUGgwZ5zuygKapchAsVkrMao0SMKg/exec";
 const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
 
+// ── Zona temporal da aula ────────────────────────────────────
+// Verifica se o registo está dentro da janela permitida:
+// das horaInicio até 2h depois de horaFim do plano activo
+function dentroZonaTemporal(planoActivo) {
+  if(!planoActivo) return false;
+  const agora=new Date();
+  const minAgora=agora.getHours()*60+agora.getMinutes();
+  // Parsear hora início
+  const [hI,mI]=(planoActivo.horaInicio||'08:00').split(':').map(Number);
+  const minInicio=hI*60+mI;
+  // Parsear hora fim + 2h de tolerância
+  const [hF,mF]=(planoActivo.horaFim||'17:00').split(':').map(Number);
+  const minFim=(hF*60+mF)+120; // +2 horas
+  return minAgora>=minInicio && minAgora<=minFim;
+}
+
+// ── Registos partilhados de turma ───────────────────────────
+// Tabelas onde o registo é feito UMA vez por turma/dia
+// O primeiro aluno que regista fica como responsável
+// Os outros vêem "Já feito por [nome] às [hora]"
+const REGISTOS_TURMA=[
+  'Temperaturas',
+  'Panos Solução',
+  'Higienização',
+  'Encerramento',
+  'Faltas e Necessidades',
+  'Manutenção, Avarias e Prevenção',
+  'VerificacaoFinalAuxiliares',
+];
+
+// Chave de registo partilhado: tabela-turma-data-momento
+function chavePartilhada(tabela,turma,data,momento=''){
+  return 'kf_shared_'+tabela+'_'+turma+'_'+data+(momento?'_'+momento:'');
+}
+
+// Ler registo partilhado do localStorage
+function lerRegistoPartilhado(tabela,turma,data,momento='') {
+  try {
+    const k=chavePartilhada(tabela,turma,data,momento);
+    const v=localStorage.getItem(k);
+    return v?JSON.parse(v):null;
+  } catch { return null; }
+}
+
+// Guardar registo partilhado
+function guardarRegistoPartilhado(tabela,turma,data,nomeAluno,hora,momento='') {
+  try {
+    const k=chavePartilhada(tabela,turma,data,momento);
+    localStorage.setItem(k,JSON.stringify({nome:nomeAluno,hora,momento}));
+  } catch {}
+}
+
 // Calcula Responsável + Suplentes pelo Encerramento, rotativo, considerando os últimos 15 dias de histórico
 function calcResponsavelEncerramento(db,turma,h){
   const presencasHoje=(db.presencas&&db.presencas["presenca-"+turma+"-"+h])||{};
@@ -645,6 +697,7 @@ function Temperaturas({user,db,setDb,showToast}){
     });
     enviar("Temperaturas",{cabecalho:cab,linha});
     showToast("Temperaturas "+momento+" guardadas!");
+    guardarRegistoPartilhado('Temperaturas',user.turma,h,nomeAluno||user.id,gT(),momento);
     if(momento==="inicio"&&todosPreenchidos)setMomento("final");
   };
 
@@ -1101,13 +1154,55 @@ function Testemunho({user,db,setDb,showToast}){
   const [form,setForm]=useState({prato:"",dataRefeicao:new Date().toISOString().split("T")[0],horaRefeicao:gT(),tipoRefeicao:"almoço",pesoAmostra:"150",localArmazenamento:"Frig. Vert. 1"});
   const lista=(db.testemunho||[]).filter(t=>t.turma===user.turma).slice(-5).reverse();
   const cD=d=>{if(!d)return"";const x=new Date(d);x.setDate(x.getDate()+3);return x.toISOString().split("T")[0];};
-  const save=()=>{if(!form.prato)return;const dest=cD(form.dataRefeicao);const nomeT=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,testemunho:[...(p.testemunho||[]),{...form,dataDestruicao:dest,responsavel:user.id,nomeAluno:nomeT,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Amostra Testemunho",[gD(),gT(),user.turma,user.id,nomeT,form.prato,form.tipoRefeicao,form.horaRefeicao,form.pesoAmostra,form.localArmazenamento,fD(dest)]);showToast("Amostra registada! Destruir em "+fD(dest));};
+  const save=()=>{
+    if(!form.prato)return;
+    // Verificar zona temporal
+    const planoActivo=(window as any).__kf_plano_activo;
+    if(user.tipo==='aluno'&&!dentroZonaTemporal(planoActivo)){
+      showToast("⚠️ Fora da janela da aula — não é possível registar agora.");return;
+    }
+    // Verificar se já existe amostra para este prato hoje nesta turma
+    // NÃO bloquear — apenas avisar. Grupos diferentes podem registar o mesmo prato.
+    const hoje=gD();
+    const jaExiste=(db.testemunho||[]).find(t=>
+      t.turma===user.turma &&
+      t.date===hoje &&
+      t.prato.trim().toLowerCase()===form.prato.trim().toLowerCase()
+    );
+    if(jaExiste){
+      // Apenas informar — o aluno decide se pertence ao mesmo grupo ou não
+      showToast("ℹ️ Já existe amostra de '"+form.prato+"' por "+jaExiste.nomeAluno+". Se és do mesmo grupo não precisas de repetir.");
+      // Não return — deixar continuar e registar
+    }
+    const dest=cD(form.dataRefeicao);
+    const nomeT=(db.assinaturas&&db.assinaturas[user.id])||"";
+    setDb(p=>({...p,testemunho:[...(p.testemunho||[]),{...form,dataDestruicao:dest,responsavel:user.id,nomeAluno:nomeT,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));
+    enviar("Amostra Testemunho",[gD(),gT(),user.turma,user.id,nomeT,form.prato,form.tipoRefeicao,form.horaRefeicao,form.pesoAmostra,form.localArmazenamento,fD(dest)]);
+    showToast("Amostra registada! Destruir em "+fD(dest));
+  };
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Amostra de Testemunho</div><InfoBtn modId="testemunho"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Guardar 150g de cada refeição durante 72h a 0-3°C</div>
       <Cd>
         <Ip lb="Nome do Prato" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>
+        {form.prato&&(()=>{
+          const hoje=gD();
+          const existentes=(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===hoje&&t.prato.trim().toLowerCase()===form.prato.trim().toLowerCase());
+          if(existentes.length===0) return null;
+          return(
+            <div style={{background:'#fefce8',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#854d0e',border:'1px solid #fde047'}}>
+              <div style={{fontWeight:700,marginBottom:4}}>⚠️ Já {existentes.length===1?'existe uma amostra':'existem amostras'} de "{form.prato}" hoje:</div>
+              {existentes.map((t,i)=>(
+                <div key={i} style={{marginBottom:2}}>• <strong>{t.nomeAluno||t.responsavel}</strong> às {t.time}</div>
+              ))}
+              <div style={{marginTop:6,fontStyle:'italic',fontSize:11}}>
+                Se és do mesmo grupo, não precisas de repetir.<br/>
+                Se és de um grupo diferente que produziu o mesmo prato, podes registar a tua.
+              </div>
+            </div>
+          );
+        })()}
         <div style={{display:"flex",gap:9}}><div style={{flex:1}}><Ip lb="Data" type="date" val={form.dataRefeicao} onChange={v=>setForm(p=>({...p,dataRefeicao:v}))}/></div><div style={{flex:1}}><Ip lb="Hora" type="time" val={form.horaRefeicao} onChange={v=>setForm(p=>({...p,horaRefeicao:v}))}/></div></div>
         <Sl lb="Tipo" val={form.tipoRefeicao} onChange={v=>setForm(p=>({...p,tipoRefeicao:v}))} opts={["almoço","jantar","lanche","pequeno-almoço"]}/>
         <Ip lb="Peso (g)" type="number" val={form.pesoAmostra} onChange={v=>setForm(p=>({...p,pesoAmostra:v}))}/>
@@ -1187,11 +1282,36 @@ function Higienizacao({user,db,setDb,showToast}){
     showToast("Verificado!");
   };
 
+  // Verificar se passaram 30 min desde início dos panos
+  const panosFinalDisponivel=()=>{
+    if(!panos["inicio"]||!panos["inicio"].time) return false;
+    const [hI,mI]=panos["inicio"].time.split(":").map(Number);
+    const agora=new Date();
+    return (agora.getHours()*60+agora.getMinutes())-(hI*60+mI)>=30;
+  };
+
   const marcarPanos=(momento)=>{
+    // Verificar zona temporal
+    const planoActivo=(window as any).__kf_plano_activo;
+    if(user.tipo==='aluno'&&!dentroZonaTemporal(planoActivo)){
+      showToast("⚠️ Fora da janela da aula — não é possível registar agora.");return;
+    }
+    // Verificar registo partilhado
+    const regExist=lerRegistoPartilhado('Panos Solução',user.turma,h,momento);
+    if(regExist){
+      showToast("✓ Já registado por "+regExist.nome+" às "+regExist.hora);return;
+    }
+    if(momento==="final"&&!panos["inicio"]){
+      showToast("⚠️ Regista primeiro o início da aula!");return;
+    }
+    if(momento==="final"&&!panosFinalDisponivel()){
+      showToast("⚠️ Ainda falta tempo — regista o final perto do fim da aula!");return;
+    }
     if(panos[momento]){showToast("Já registado às "+panos[momento].time);return;}
     const np={...panos,[momento]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
     setDb(p=>{const hg={...(p.higienizacao||{})};const existing=hg[k]||{registos:{},turma:user.turma,date:h};hg[k]={...existing,panos:np,turma:user.turma,date:h};return{...p,higienizacao:hg};});
     enviar("Panos Solução",[h,gT(),user.turma,user.id,nomeAluno||user.id,momento]);
+    guardarRegistoPartilhado('Panos Solução',user.turma,h,nomeAluno||user.id,gT(),momento);
     showToast("Panos e esponjas — "+momento+" registado!");
   };
 
@@ -1224,7 +1344,7 @@ function Higienizacao({user,db,setDb,showToast}){
               </div>
             )}
           </button>
-          <button onClick={()=>marcarPanos("final")} style={{flex:1,padding:"14px 8px",borderRadius:11,border:"2px solid "+(panosFinal?"#4ade80":"rgba(255,255,255,.4)"),background:panosFinal?"#16a34a":"rgba(255,255,255,.15)",color:"#fff",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+          <button onClick={()=>marcarPanos("final")} style={{flex:1,padding:"14px 8px",borderRadius:11,border:"2px solid "+(panosFinal?"#4ade80":!panosInicio||!panosFinalDisponivel()?"rgba(255,255,255,.2)":"rgba(255,255,255,.4)"),background:panosFinal?"#16a34a":!panosInicio||!panosFinalDisponivel()?"rgba(255,255,255,.05)":"rgba(255,255,255,.15)",color:"#fff",cursor:panosFinal||(!panosInicio||!panosFinalDisponivel())?"not-allowed":"pointer",opacity:!panosInicio||(!panosFinal&&!panosFinalDisponivel())?0.5:1,fontFamily:"inherit",textAlign:"center"}}>
             <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>Final da Aula</div>
             {panosFinal?(
               <div>
@@ -4310,7 +4430,7 @@ export default function App(){
   const [mod,setMod]=useState(null);
   const [showRanking,setShowRanking]=useState(false);
   const [contextoAula,setContextoAula]=useState<{uc:string;ucNome:string;pratos:string[]}>({uc:'',ucNome:'',pratos:[]});
-  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º ACP",numero:"9999",pin:"1234"}]}}});
+  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º CP",numero:"9999",pin:"1234"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º CP",numero:"9999",pin:"1234"}]}}});
 
   // ── Login automático via parâmetros URL ────────────────────
   // A Avaliação ECL passa ?turma=1º CP&num=1&pin=1001&tipo=aluno
@@ -4321,28 +4441,31 @@ export default function App(){
     const numParam=params.get('num');
     const pinParam=params.get('pin');
     const tipoParam=params.get('tipo')||'aluno';
-    // Contexto da aula — guardado no estado para mostrar no cabeçalho
     const ucParam=params.get('uc')||'';
     const ucNomeParam=params.get('ucNome')||'';
     const pratosParam=params.get('pratos')||'';
     if(ucParam||ucNomeParam||pratosParam){
       setContextoAula({uc:ucParam,ucNome:ucNomeParam,pratos:pratosParam.split('|').filter(Boolean)});
     }
-    if(turmaParam&&numParam&&pinParam&&tipoParam==='aluno'){
-      // Aguardar que os alunos sejam carregados da Sheet antes de tentar login
-      setTimeout(()=>{
-        setDb(dbActual=>{
-          const lista=dbActual.alunosList||[];
-          const aluno=lista.find(a=>String(a.numero)===String(numParam)&&a.turma===turmaParam);
-          if(aluno&&(aluno.pin===pinParam||!aluno.pin)){
-            setUser({tipo:'aluno',id:turmaParam+'-'+numParam,turma:turmaParam,nomeAluno:aluno.nome});
-          }
-          return dbActual;
-        });
-      },1500);
+    // Zona temporal — guardar dados do plano para controlo de registos
+    const horaInicioParam=params.get('horaInicio')||'';
+    const horaFimParam=params.get('horaFim')||'';
+    const planoDataParam=params.get('planoData')||'';
+    if(horaInicioParam||horaFimParam){
+      (window as any).__kf_plano_activo={
+        horaInicio:horaInicioParam,
+        horaFim:horaFimParam,
+        data:planoDataParam,
+      };
     }
+    // Login professor directo — não precisa de Sheet
     if(tipoParam==='professor'&&pinParam==='1111'){
       setUser({tipo:'professor',id:turmaParam||'Prof'});
+      return;
+    }
+    // Login aluno — guardar parâmetros para usar depois do fetch da Sheet
+    if(turmaParam&&numParam&&pinParam&&tipoParam==='aluno'){
+      window.__kf_login_params={turma:turmaParam,numero:numParam,pin:pinParam};
     }
   },[]);
 
@@ -4352,7 +4475,7 @@ export default function App(){
       .then(r=>r.json())
       .then(data=>{
         if(data.ok&&data.dados&&data.dados.length>4){
-          const alunos=data.dados.slice(4).filter(r=>r[0]&&String(r[0]).trim()).map(r=>({
+          const alunos=data.dados.slice(4).filter((r:any[])=>r[0]&&String(r[0]).trim()).map((r:any[])=>({
             id:String(r[0]),
             numero:String(r[0]).trim(),
             nome:String(r[1]).trim(),
@@ -4361,7 +4484,16 @@ export default function App(){
             estado:String(r[4]).trim()
           }));
           if(alunos.length>0){
-            setDb(p=>({...p,alunosList:alunos}));
+            setDb((p:any)=>({...p,alunosList:alunos}));
+            // Login automático após carregar alunos da Sheet
+            const lp=(window as any).__kf_login_params;
+            if(lp&&lp.turma&&lp.numero&&lp.pin){
+              const aluno=alunos.find((a:any)=>String(a.numero)===String(lp.numero)&&a.turma===lp.turma);
+              if(aluno&&aluno.pin===lp.pin){
+                setUser({tipo:'aluno',id:lp.turma+'-'+lp.numero,turma:lp.turma,nomeAluno:aluno.nome});
+              }
+              delete (window as any).__kf_login_params;
+            }
           }
         }
       })
@@ -4435,6 +4567,7 @@ export default function App(){
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}>
       <Hd user={user} onOut={logout} onRanking={()=>setMod("ranking")}/>
+      <BannerContexto/>
       <div style={{paddingBottom:36}}>
         {mod&&<div style={{padding:"11px 15px 3px"}}><button onClick={back} style={{background:"none",border:"1.5px solid "+BE,color:V,fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:7,padding:"5px 13px",fontFamily:"inherit"}}>Voltar</button></div>}
         {page}
