@@ -78,15 +78,15 @@ function calcResponsavelEncerramento(db,turma,h){
   const hoje=new Date(h.split("/").reverse().join("-"));
   const limite=new Date(hoje);limite.setDate(limite.getDate()-15);
 
-  const historicoEnc=Object.values(db.encerramento||{}).filter(e=>{
+  const historicoEnc=(Object.values(db.encerramento||{}) as any[]).filter((e:any)=>{
     if(e.emProgresso||!e.nomeAluno||e.turma!==turma)return false;
     const d=new Date(e.date.split("/").reverse().join("-"));
     return d>=limite&&d<=hoje;
   });
-  const contagemEnc={};
-  historicoEnc.forEach(e=>{contagemEnc[e.aluno]=(contagemEnc[e.aluno]||0)+1;});
-  const ultimaVez={};
-  historicoEnc.forEach(e=>{if(!ultimaVez[e.aluno]||e.date>ultimaVez[e.aluno])ultimaVez[e.aluno]=e.date;});
+  const contagemEnc:Record<string,number>={};
+  historicoEnc.forEach((e:any)=>{contagemEnc[e.aluno]=(contagemEnc[e.aluno]||0)+1;});
+  const ultimaVez:Record<string,string>={};
+  historicoEnc.forEach((e:any)=>{if(!ultimaVez[e.aluno]||e.date>ultimaVez[e.aluno])ultimaVez[e.aluno]=e.date;});
 
   const candidatos=[...presentesHoje].sort((a,b)=>{
     const ca=contagemEnc[a.turma+"-"+a.numero]||0,cb=contagemEnc[b.turma+"-"+b.numero]||0;
