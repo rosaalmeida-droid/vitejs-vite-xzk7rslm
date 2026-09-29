@@ -264,6 +264,60 @@ function ProcedimentoBtn({item}){
   );
 }
 
+
+// ── Folhas de impressão ──────────────────────────────────────
+// Antes, «Imprimir» imprimia o ecrã inteiro da aplicação. Agora abre uma
+// folha própria (A4 deitado) só com o registo: cabeçalho da escola, título,
+// turma, período, a tabela tal e qual e o espaço para as assinaturas.
+const escHTML=(v)=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function abrirFolhaImpressao(titulo,sub,corpo,legenda=""){
+  const w=window.open("","_blank");
+  if(!w){alert("O navegador bloqueou a janela de impressão. Permite janelas (pop-ups) para esta aplicação.");return;}
+  const agora=new Date().toLocaleString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  w.document.write(`<!doctype html><html lang="pt"><head><meta charset="utf-8"><title>${escHTML(titulo)}${sub?" — "+escHTML(sub):""}</title><style>
+    @page{size:A4 landscape;margin:12mm}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:16px;font-size:11px}
+    .cab{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #0e7490;padding-bottom:8px;margin-bottom:12px}
+    .esc{font-size:11px;font-weight:bold;letter-spacing:.08em;color:#0e7490}
+    h1{font-size:18px;margin:3px 0 0}
+    .sub{font-size:12px;color:#333;margin-top:2px}
+    .imp{font-size:10px;color:#555;text-align:right}
+    table{border-collapse:collapse;width:100%;font-size:10px}
+    th,td{border:1px solid #999 !important;padding:4px 6px !important;vertical-align:top}
+    th{background:#e6f1f4 !important;color:#0c4a6e !important;font-weight:bold}
+    tr{page-break-inside:avoid}
+    thead{display:table-header-group}
+    .leg{margin-top:8px;font-size:10px;color:#444}
+    .ass{display:flex;gap:40px;margin-top:28px;font-size:11px}
+    .ass div{flex:1;border-top:1px solid #333;padding-top:4px}
+    .bt{position:fixed;top:10px;right:10px;padding:10px 18px;background:#0e7490;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+    @media print{.bt{display:none}body{padding:0}}
+  </style></head><body>
+  <button class="bt" onclick="window.print()">Imprimir / Guardar PDF</button>
+  <div class="cab"><div><div class="esc">ESCOLA DE COMÉRCIO DE LISBOA · REGISTOS HACCP</div><h1>${escHTML(titulo)}</h1>${sub?`<div class="sub">${escHTML(sub)}</div>`:""}</div>
+  <div class="imp">KitchenFlow ECL<br>Impresso em ${agora}</div></div>
+  ${corpo}
+  ${legenda?`<div class="leg">${escHTML(legenda)}</div>`:""}
+  <div class="ass"><div>Verificado por (Professor/a)</div><div>Coordenação</div><div>Data</div></div>
+  </body></html>`);
+  w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch{}},500);
+}
+/** Imprime a tabela que está no mesmo bloco do botão, tal e qual aparece no ecrã. */
+function imprimirTabelaDoBloco(ev,titulo,sub,legenda=""){
+  const bloco=ev.currentTarget.parentElement&&ev.currentTarget.parentElement.parentElement;
+  const tabela=bloco&&bloco.querySelector("table");
+  if(!tabela){alert("Não encontrei a tabela para imprimir.");return;}
+  abrirFolhaImpressao(titulo,sub,tabela.outerHTML,legenda);
+}
+/** Uma tabela simples a partir de colunas e linhas (texto). */
+function tabelaHTML(colunas,linhas){
+  return `<table><thead><tr>${colunas.map(c=>`<th>${escHTML(c)}</th>`).join("")}</tr></thead><tbody>${
+    linhas.length?linhas.map(l=>`<tr>${l.map(v=>`<td>${escHTML(v)}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${colunas.length}">Sem registos neste período.</td></tr>`
+  }</tbody></table>`;
+}
+
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
 const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
 const MODS_DIARIOS=[
@@ -1112,7 +1166,7 @@ function ConsTabela(){
             </div>
           ))}
           <div style={{fontSize:10,color:"#888",marginTop:8}}>Fonte: Regulamento CE 852/2004 — valores indicativos. Respeitar sempre as indicações do fabricante.</div>
-          <div style={{marginTop:12}}><button onClick={()=>window.print()} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
+          <div style={{marginTop:12}}><button onClick={()=>abrirFolhaImpressao("Tempos de Conservação — Referência HACCP","",tabelaHTML(["Categoria","Produto","Temperatura","Tempo"],CONSERVACAO.flatMap(c=>c.items.map(i=>[c.cat,i.prod,i.temp,i.dias]))),"Fonte: Regulamento CE 852/2004 — valores indicativos. Respeitar sempre as indicações do fabricante.")} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
     </div>
@@ -2559,7 +2613,7 @@ function Coordenadora({user,db,setDb,showToast}){
           </table>
           <div style={{marginTop:10,fontSize:11,color:"#888"}}>Verde = conforme | Vermelho = não conforme | --- = sem registo</div>
           <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
-            <button onClick={()=>window.print()} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Registo de Temperaturas — Equipamentos de Frio",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`,"Verde = conforme | Vermelho = não conforme | --- = sem registo")} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <span style={{fontSize:11,color:"#888"}}>Orientação paisagem recomendada</span>
           </div>
         </div>
@@ -2578,7 +2632,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
-          <div style={{marginTop:12}}><button onClick={()=>window.print()} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
+          <div style={{marginTop:12}}><button onClick={()=>abrirFolhaImpressao("Receção de Matérias-Primas",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`,tabelaHTML(["Dia","Hora","Fornecedor","Fatura","Produto","Categoria","Quantidade","Lote","Validade","Conformidade","Aluno"],dias.filter(Boolean).flatMap(dia=>(db.recepcao||[]).filter(r=>r.turma===turma&&r.date===dia).flatMap(r=>(r.produtos||[]).map(pr=>[dia,r.time,r.fornecedor,r.fatura,pr.nome,pr.categoria,pr.quantidade,pr.lote||"",pr.validade?fD(pr.validade):"",pr.conforme,r.aluno])))))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
 
@@ -2619,7 +2673,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={()=>window.print()} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Amostras Testemunho",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2664,7 +2718,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={()=>window.print()} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Produtos Confecionados",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2709,7 +2763,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={()=>window.print()} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Desinfeção de Alimentos em Cru",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2730,7 +2784,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
-          <div style={{marginTop:12}}><button onClick={()=>window.print()} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
+          <div style={{marginTop:12}}><button onClick={()=>abrirFolhaImpressao("Higienização de Equipamentos e Utensílios",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`,tabelaHTML(["Dia","Zona","Tarefa","Hora","Aluno"],dias.filter(Boolean).flatMap(dia=>{const hig=db.higienizacao&&db.higienizacao["hig-"+turma+"-"+dia];if(!hig)return [];const regs=hig.registos||{};const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||"";const panos=hig.panos||{};return [...Object.entries(regs).map(([it,r])=>[dia,zonaDe(it),it,r&&r.time||"",r&&r.aluno||""]),...["inicio","final"].filter(m=>panos[m]).map(m=>[dia,"Panos e esponjas","Solução desinfetante — "+(m==="inicio"?"início":"final")+" da aula",panos[m].time||"",panos[m].aluno||""])];})))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
 
