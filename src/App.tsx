@@ -631,6 +631,19 @@ function Assistente({titulo,passos,onSair,onConcluir,textoConcluir="Guardar",ini
     </div>
   );
 }
+/** Ecrã cheio sem Anterior/Seguinte, para registos que já têm os seus próprios passos. */
+function EcraSimples({titulo,onSair,children}){
+  useEffect(()=>{const a=document.body.style.overflow;document.body.style.overflow="hidden";return()=>{document.body.style.overflow=a;};},[]);
+  return(
+    <div role="dialog" aria-modal="true" aria-label={titulo} style={{position:"fixed",inset:0,zIndex:1000,background:FUNDO_PASSO,display:"flex",flexDirection:"column",textAlign:"left"}}>
+      <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,paddingTop:"max(10px, env(safe-area-inset-top))"}}>
+        <button onClick={onSair} style={{padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.5)",background:"transparent",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ Sair</button>
+        <div style={{flex:1,minWidth:0,fontSize:15,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"uppercase",letterSpacing:.4}}>{titulo}</div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch"}}><div style={{maxWidth:560,margin:"0 auto",padding:16}}>{children}</div></div>
+    </div>
+  );
+}
 /** O último passo: o que foi escrito, para conferir antes de guardar. */
 function ReverPasso({linhas}){
   return <div style={{background:W,borderRadius:14,padding:"6px 14px"}}>{linhas.filter(Boolean).map(([k,v],i)=>
@@ -1863,6 +1876,7 @@ function Encerramento({user,db,setDb,showToast}){
   const [pinConfirm,setPinConfirm]=useState("");
   const [errPin,setErrPin]=useState("");
   const [showHist,setShowHist]=useState(false);
+  const [aberto,setAberto]=useState(false);
   const done=!!(sv&&sv.emProgresso===false);
 
   // Auto-save progress as user checks items (even before final submit)
@@ -1980,39 +1994,33 @@ function Encerramento({user,db,setDb,showToast}){
           <span style={{background:todosOk?V:CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>{totalFeito}/{total}</span>
         </div>
         <Pg val={totalFeito} max={total}/>
-        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:8,textTransform:"uppercase"}}>Registos automáticos</div>
-        {ITEMS_OBG.map(item=>(
-          <div key={item.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid "+LC,alignItems:"center"}}>
-            <span style={{fontSize:13,color:item.auto?V:GR}}>{item.l}</span>
-            <span style={{fontWeight:700,fontSize:13,color:item.auto?V:R}}>{item.auto?"OK":"Em falta"}</span>
-          </div>
-        ))}
-        {ncsPendentes.length>0&&<Cd st={{borderLeft:"3px solid "+R,marginTop:8,marginBottom:8}}>
-          <div style={{fontSize:11,fontWeight:700,color:R,marginBottom:6}}>⚠️ NCs ainda não analisadas pelo professor</div>
-          {ncsPendentes.map(nc=><div key={nc.id} style={{fontSize:11,color:GR,marginBottom:2}}>• {nc.zona}: {nc.descricao}</div>)}
-        </Cd>}
-        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",margin:"12px 0 8px",textTransform:"uppercase"}}>Verificação manual</div>
-        {ITEMS_MANUAL.map(item=>{
-          const na=naLocal[item.id];
-          return(
-          <div key={item.id} style={{padding:"9px 0",borderBottom:"1px solid "+LC}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div onClick={()=>!na&&toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,flex:1,cursor:done||na?"default":"pointer",opacity:na?0.45:1}}>
-                <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(checks[item.id]?V:BE),background:checks[item.id]?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
-                </div>
-                <span style={{fontSize:13,fontWeight:600,color:checks[item.id]?V:GR,textDecoration:na?"line-through":"none"}}>{item.l}</span>
-              </div>
-              {!done&&<button onClick={()=>toggleNA(item.id)} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,border:"1.5px solid "+(na?"#7c5c3a":"#e0e0e0"),background:na?"#7c5c3a":"transparent",color:na?W:"#9ca3af",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Não aplicável hoje</button>}
-              {done&&na&&<span style={{fontSize:10,fontWeight:600,color:"#7c5c3a",flexShrink:0}}>N/A</span>}
-            </div>
-            {item.sub&&<div style={{paddingLeft:35,marginTop:4}}>
-              {item.sub.map((s,i)=><div key={i} style={{fontSize:11,color:"#9ca3af",lineHeight:1.6}}>• {s}</div>)}
-            </div>}
-          </div>
-          );
-        })}
+        {!done&&<B lb={totalFeito?"▶ Continuar o encerramento":"▶ Fazer o encerramento"} onClick={()=>setAberto(true)} cor={V}/>}
       </Cd>
+      {aberto&&!done&&<Assistente titulo="Encerramento da aula" onSair={()=>setAberto(false)} textoConcluir="✓ Confirmo — encerrar"
+        onConcluir={confirmarFecho}
+        passos={[
+          {nome:"Registos do dia",titulo:"Os registos de hoje",ajuda:"Estes ficam feitos sozinhos quando os registos são feitos.",conteudo:<>
+            {ITEMS_OBG.map(item=><div key={item.id} style={{display:"flex",justifyContent:"space-between",gap:8,padding:"12px 14px",marginBottom:6,borderRadius:12,background:W}}>
+              <span style={{fontSize:15,color:"#0c4a6e",fontWeight:600}}>{item.l}</span>
+              <span style={{fontWeight:800,fontSize:14,color:item.auto?"#166534":R,whiteSpace:"nowrap"}}>{item.auto?"✓ OK":"Em falta"}</span></div>)}
+            {ncsPendentes.length>0&&<div style={{marginTop:8,padding:"12px 14px",borderRadius:12,background:"#fdecea",color:R,fontSize:14}}>
+              <b>Não conformidades à espera do professor:</b>{ncsPendentes.map(nc=><div key={nc.id}>• {nc.zona}: {nc.descricao}</div>)}</div>}
+          </>},
+          ...ITEMS_MANUAL.map(item=>({nome:"Verificar",titulo:item.l,pode:!!checks[item.id]||!!naLocal[item.id],conteudo:<>
+            {item.sub&&<div style={{background:W,borderRadius:12,padding:"10px 14px",marginBottom:12}}>{item.sub.map((x,i)=><div key={i} style={{fontSize:15,color:"#334155",lineHeight:1.7}}>• {x}</div>)}</div>}
+            <Escolha ativo={!!checks[item.id]} onClick={()=>{if(naLocal[item.id])toggleNA(item.id);if(!checks[item.id])toggle(item.id);}}>Está tudo feito</Escolha>
+            <Escolha ativo={!!naLocal[item.id]} cor="#7c5c3a" onClick={()=>{if(!naLocal[item.id])toggleNA(item.id);}}>Não se aplica hoje</Escolha>
+          </>})),
+          {nome:"Observações",titulo:"Alguma nota para o professor?",ajuda:"Ex: equipamento avariado, falta de material. Se não houver, avança.",conteudo:<TextoPasso val={obs} onChange={setObs}/>},
+          {nome:"Confirmar",titulo:todosOk?"Confirmar o encerramento":"Ainda não se pode encerrar",pode:todosOk&&(!(alunoAtual&&alunoAtual.pin)||pinConfirm.length>=4),conteudo:todosOk?<>
+            <div style={{background:"#fef3c7",borderRadius:12,padding:14,fontSize:15,color:"#78350f",lineHeight:1.6,marginBottom:12}}>
+              Estás a confirmar que <b>verificaste pessoalmente todos os pontos</b>. O teu nome fica registado como responsável pelo encerramento.</div>
+            {alunoAtual&&alunoAtual.pin&&<><div style={{fontSize:14,fontWeight:700,color:"#0e7490",marginBottom:6}}>O teu PIN, para confirmar</div>
+              <CampoPasso type="password" val={pinConfirm} onChange={setPinConfirm} ph="PIN"/></>}
+            {errPin&&<div style={{color:R,fontSize:14,fontWeight:700,marginTop:8}}>{errPin}</div>}
+          </>:<div style={{background:"#fdecea",borderRadius:12,padding:14,fontSize:15,color:R,lineHeight:1.6}}>
+            Faltam {total-totalFeito} pontos. Volta atrás e completa-os{(!ITEMS_OBG.find(i=>i.id==="val").auto||ncsPendentes.length>0)?"; e avisa o professor para validar a sessão e decidir as não conformidades":""}.</div>},
+        ]}/>}
       {!done&&(()=>{
         // Tudo feito pelo aluno (limpeza/checklist), mas falta validação do professor e/ou NCs por decidir
         const itemsAlunoOk=ITEMS_OBG.filter(i=>i.id!=="val"&&i.id!=="ncs").every(i=>i.auto)&&allManual;
@@ -2044,28 +2052,7 @@ function Encerramento({user,db,setDb,showToast}){
         }
         return null;
       })()}
-      {!done?(
-        <Cd>
-          <Ta lb="Observações finais" val={obs} onChange={setObs} ph="Notas para o professor... (ex: equipamento avariado, falta de material)"/>
-          {!showConfirm?(
-            <B lb={todosOk?"Encerrar Aula Prática":"Faltam "+(total-totalFeito)+" itens"} onClick={()=>setShowConfirm(true)} cor={todosOk?V:"#ccc"} dis={!todosOk}/>
-          ):(
-            <div style={{background:"#fef3c7",borderRadius:10,padding:14}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#92400e",marginBottom:8}}>⚠️ Confirmar Responsabilidade</div>
-              <div style={{fontSize:12,color:"#78350f",marginBottom:10,lineHeight:1.6}}>
-                Estás a confirmar que <strong>verificaste pessoalmente TODOS os pontos</strong> desta checklist. O teu nome ficará registado como responsável pelo encerramento.
-              </div>
-              {alunoAtual&&alunoAtual.pin&&<Ip lb="Introduz o teu PIN para confirmar" type="password" val={pinConfirm} onChange={setPinConfirm} ph="PIN pessoal"/>}
-              {errPin&&<div style={{color:"#dc2626",fontSize:12,marginBottom:8}}>{errPin}</div>}
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>{setShowConfirm(false);setPinConfirm("");setErrPin("");}} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #fbbf24",background:"transparent",color:"#92400e",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
-                <button onClick={confirmarFecho} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#16a34a",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Confirmo — Encerrar</button>
-              </div>
-            </div>
-          )}
-          {!todosOk&&!showConfirm&&<div style={{marginTop:8,fontSize:12,color:R,textAlign:"center"}}>Complete todos os pontos antes de encerrar.</div>}
-        </Cd>
-      ):(
+      {!done?null:(
         <div style={{textAlign:"center",padding:14,color:V,fontWeight:600,background:W,borderRadius:11}}>
           <div>Aula prática encerrada — Aguarda validação do professor</div>
           <div style={{fontSize:12,color:GR,marginTop:6,fontWeight:400}}>Responsável: {sv.nomeAluno} • {sv.time}</div>
@@ -4167,6 +4154,8 @@ function ConservacaoProd({user,db,setDb,showToast}){
           </div>}
         </Cd>}
 
+        {step>1&&<EcraSimples titulo="Conservação de produtos" onSair={()=>setStep(1)}>
+        {stepBar}
         {step===2&&<Cd>
           <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 2 — Temperatura de conservação</div>
           <div style={{fontSize:11,color:GR,marginBottom:14}}>Estado: <strong>{form.estado==="cru"?"Cru/Fresco":"Confeccionado"}</strong></div>
@@ -4250,6 +4239,7 @@ function ConservacaoProd({user,db,setDb,showToast}){
             <button onClick={save} disabled={form.produto==="__manual__"?(!form.produtoManual||!form.prazoManual):!form.produto} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#0891b2",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Registo</button>
           </div>
         </div>}
+        </EcraSimples>}
       </div>}
 
       {aba==="tabela"&&<div>
@@ -4689,6 +4679,7 @@ function InfoBtn({modId}){
 
 function Regeneracao({user,db,setDb,showToast}){
   const [step,setStep]=useState(1);
+  const [aberto,setAberto]=useState(false);
   const [form,setForm]=useState({
     prato:"",tipoProd:"",
     horaInicio:gT(),horaFim:"",
@@ -4732,6 +4723,7 @@ function Regeneracao({user,db,setDb,showToast}){
     if(!tempOk)setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Temp. NC: "+form.tempFinal+"°C (mín. 75°C)",acaoCorretiva:"Continuar a aquecer até 75°C",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     if(tempoDecorrido&&tempoDecorrido>60)setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now()+1,date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Tempo NC: "+tempoDecorrido+"min (máx. 60min)",acaoCorretiva:"Reportar ao responsável",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     showToast(tempOk?"Regeneração registada!":"NC criada!");
+    setAberto(false);
     setForm({prato:"",tipoProd:"",horaInicio:gT(),horaFim:"",tempFinal:"",tempServico:"",equipamento:"",obs:"",conservacaoAnterior:"refrigerado",dataConfeacao:new Date().toISOString().split("T")[0],embalagem:"normal"});
     setStep(1);
   };
@@ -4758,6 +4750,8 @@ function Regeneracao({user,db,setDb,showToast}){
         <InfoBtn modId="regeneracao"/>
       </div>
 
+      <B lb="▶ Registar regeneração" onClick={()=>{setStep(1);setAberto(true);}} cor="#d97706"/>
+      {aberto&&<EcraSimples titulo="Regeneração / cook-chill" onSair={()=>setAberto(false)}>
       {stepBar}
 
       {/* PASSO 1 — Verificar validade */}
@@ -4888,6 +4882,7 @@ function Regeneracao({user,db,setDb,showToast}){
           <button onClick={save} style={{flex:2,padding:14,borderRadius:11,border:"none",background:"#d97706",color:W,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Registo</button>
         </div>
       </div>}
+      </EcraSimples>}
     </div>
   );
 }
