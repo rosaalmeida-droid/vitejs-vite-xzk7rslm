@@ -323,11 +323,23 @@ function nomeCurto(db,v,nome){
 const MESES_PT=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 /** Folha oficial de um mês, com os registos de TODAS as turmas juntos, por data e hora
  *  (para a ASAE interessa o registo e quem o fez, não a turma). */
-function imprimirFolhaOficial(tipo,db,mes){
-  const [ano,m]=mes.split("-").map(Number);
-  const noMes=d=>{const x=String(d||"").split("/");return x.length===3&&Number(x[1])===m&&Number(x[2])===ano;};
+/** O período a imprimir: um mês, um trimestre, um ano ou entre duas datas. */
+function periodoDeImpressao(per,mes){
+  const d2=n=>String(n).padStart(2,"0");
+  const fim=(a,m)=>a+"-"+d2(m)+"-"+d2(new Date(a,m,0).getDate());
+  const Mx=m=>MESES_PT[m-1].charAt(0).toUpperCase()+MESES_PT[m-1].slice(1);
+  if(per.modo==="trimestre"){const a=Number(per.ano),m1=(Number(per.tri)-1)*3+1;return {inicio:a+"-"+d2(m1)+"-01",fim:fim(a,m1+2),rotulo:per.tri+"º trimestre de "+a+" ("+MESES_PT[m1-1]+" a "+MESES_PT[m1+1]+")"};}
+  if(per.modo==="ano"){const a=Number(per.ano);return {inicio:a+"-01-01",fim:a+"-12-31",rotulo:"Ano de "+a};}
+  if(per.modo==="datas"){const de=per.de||per.ate,ate=per.ate||per.de;return {inicio:de,fim:ate,rotulo:"De "+fD(de)+" a "+fD(ate)};}
+  const [a,m]=mes.split("-").map(Number);
+  return {inicio:a+"-"+d2(m)+"-01",fim:fim(a,m),rotulo:Mx(m)+" de "+a};
+}
+function imprimirFolhaOficial(tipo,db,periodoEscolhido){
+  const {inicio,fim,rotulo}=periodoEscolhido;
+  if(!inicio||!fim){alert("Escolhe as datas do período a imprimir.");return;}
+  const noMes=d=>{const x=nD(d);return !!x&&x>=inicio&&x<=fim;};
   const ordem=(a,b)=>nD(a[0]).localeCompare(nD(b[0]))||String(a[1]).localeCompare(String(b[1]));
-  const periodo=MESES_PT[m-1].charAt(0).toUpperCase()+MESES_PT[m-1].slice(1)+" de "+ano;
+  const periodo=rotulo;
   const nc=v=>v===false?"NC":v===true?"OK":"";
   let titulo="",col=[],lin=[],leg="";
   if(tipo==="temperaturas"){
@@ -2655,6 +2667,8 @@ function Coordenadora({user,db,setDb,showToast}){
   const [turma,setTurma]=useState("1º ACP");
   const [mes,setMes]=useState(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");});
   const [folha,setFolha]=useState("temperaturas");
+  // Período das folhas impressas (o ecrã continua a mostrar o mês escolhido).
+  const [per,setPer]=useState(()=>({modo:"mes",tri:String(Math.floor(new Date().getMonth()/3)+1),ano:String(new Date().getFullYear()),de:"",ate:""}));
 
   const getDias=()=>{
     const [ano,m]=mes.split("-").map(Number);
@@ -2687,6 +2701,32 @@ function Coordenadora({user,db,setDb,showToast}){
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Mes</div>
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
+      {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao"].includes(folha)&&(
+        <div style={{marginBottom:11,background:W,border:"1.5px solid "+BE,borderRadius:10,padding:"10px 12px"}}>
+          <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:6,textTransform:"uppercase"}}>Período para imprimir (todas as turmas)</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:per.modo==="mes"?0:8}}>
+            {[["mes","Mês acima"],["trimestre","Trimestre"],["ano","Ano"],["datas","Entre datas"]].map(([id,lb])=>(
+              <button key={id} onClick={()=>setPer(x=>({...x,modo:id}))} style={{flex:1,minWidth:70,padding:"8px 4px",borderRadius:8,border:"2px solid "+(per.modo===id?V:BE),background:per.modo===id?V:LC,color:per.modo===id?W:V,fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
+            ))}
+          </div>
+          {(per.modo==="trimestre"||per.modo==="ano")&&(
+            <div style={{display:"flex",gap:6}}>
+              {per.modo==="trimestre"&&<select value={per.tri} onChange={e=>setPer(x=>({...x,tri:e.target.value}))} style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,fontFamily:"inherit"}}>
+                {["1","2","3","4"].map(t=><option key={t} value={t}>{t}º trimestre</option>)}
+              </select>}
+              <input type="number" value={per.ano} onChange={e=>setPer(x=>({...x,ano:e.target.value}))} style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,fontFamily:"inherit"}}/>
+            </div>
+          )}
+          {per.modo==="datas"&&(
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <input type="date" value={per.de} onChange={e=>setPer(x=>({...x,de:e.target.value}))} style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,fontFamily:"inherit"}}/>
+              <span style={{fontSize:12,color:GR}}>a</span>
+              <input type="date" value={per.ate} onChange={e=>setPer(x=>({...x,ate:e.target.value}))} style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,fontFamily:"inherit"}}/>
+            </div>
+          )}
+          <div style={{fontSize:11,color:GR,marginTop:6}}>A folha impressa: {periodoDeImpressao(per,mes).rotulo||"escolhe as datas"}</div>
+        </div>
+      )}
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
         {["alunos","relatorios","copia","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
@@ -2745,7 +2785,7 @@ function Coordenadora({user,db,setDb,showToast}){
           </table>
           <div style={{marginTop:10,fontSize:11,color:"#888"}}>Verde = conforme | Vermelho = não conforme | --- = sem registo</div>
           <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
-            <button onClick={()=>imprimirFolhaOficial("temperaturas",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("temperaturas",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <span style={{fontSize:11,color:"#888"}}>Orientação paisagem recomendada</span>
           </div>
         </div>
@@ -2764,7 +2804,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
-          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("recepcao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
+          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("recepcao",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
 
@@ -2805,7 +2845,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={()=>imprimirFolhaOficial("testemunho",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("testemunho",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2850,7 +2890,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={()=>imprimirFolhaOficial("producao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("producao",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2895,7 +2935,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={()=>imprimirFolhaOficial("desinfecao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("desinfecao",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2916,7 +2956,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
-          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("higienizacao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
+          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("higienizacao",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
 
