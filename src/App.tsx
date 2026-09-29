@@ -1212,43 +1212,46 @@ function Recepcao({user,db,setDb,showToast}){
       </Cd>)}
     </div>
   );
-  if(step==="nova")return(
-    <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Nova Receção</div>
-      <Cd>
-        <Ip lb="Fornecedor" val={form.fornecedor} onChange={v=>setForm(p=>({...p,fornecedor:v}))}/>
-        <Ip lb="Fatura" val={form.fatura} onChange={v=>setForm(p=>({...p,fatura:v}))}/>
-        <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={PROFESSORES_ECL.map(x=>x.nome)}/>
-      </Cd>
-      <div style={{display:"flex",gap:8}}>
-        <B lb="Voltar" sm out cor={GR} onClick={()=>setStep("lista")} st={{flex:1}}/>
-        <B lb="Adicionar Produtos" sm onClick={()=>{if(form.fornecedor&&form.fatura)setStep("produtos");}} st={{flex:2}}/>
-      </div>
-    </div>
-  );
+  // Um passo de cada vez: fornecedor, fatura, professor, os produtos (cada
+  // produto abre os seus passos) e rever antes de guardar.
+  const passoProduto=(titulo,conteudo,pode=true,ajuda="")=>({nome:"Produto",titulo,conteudo,pode,ajuda});
+  const tempOk=!pedeTemp||String(np.temperatura).trim()!=="";
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Produtos — Ft {form.fatura}</div>
-      {prods.length>0&&<Cd st={{marginBottom:10}}>
-        {prods.map(p=><div key={p.id} style={{padding:"6px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
-          <div><div style={{fontWeight:600,fontSize:13}}>{p.nome}</div><div style={{fontSize:11,color:GR}}>{p.categoria} — {p.quantidade}{p.temperatura!==""&&p.temperatura!=null?" — "+p.temperatura+" °C":""}</div></div>
-          <span style={{fontSize:11,color:p.conforme==="conforme"?V:R,fontWeight:600}}>{p.conforme}</span>
-        </div>)}
-      </Cd>}
-      <Cd>
-        <Sl lb="Categoria" val={np.categoria} onChange={v=>setNp(p=>({...p,categoria:v}))} opts={CATS}/>
-        <Ip lb="Nome" val={np.nome} onChange={v=>setNp(p=>({...p,nome:v}))}/>
-        <Ip lb="Quantidade" val={np.quantidade} onChange={v=>setNp(p=>({...p,quantidade:v}))} ph="Ex: 5 kg"/>
-        <Ip lb="Lote" val={np.lote} onChange={v=>setNp(p=>({...p,lote:v}))}/>
-        <Ip lb="Validade" type="date" val={np.validade} onChange={v=>setNp(p=>({...p,validade:v}))}/>
-        {(pedeTemp||np.categoria==="Outros")&&<Ip lb={"Temperatura à chegada (°C)"+(pedeTemp?"":" — se for refrigerado ou congelado")} type="number" val={np.temperatura} onChange={v=>setNp(p=>({...p,temperatura:v}))} ph={np.categoria==="Congelados"?"Ex: -18":"Ex: 3"}/>}
-        <Sl lb="Conformidade" val={np.conforme} onChange={v=>setNp(p=>({...p,conforme:v}))} opts={["conforme","não conforme"]}/>
-        <B lb="+ Adicionar Produto" sm onClick={addP} cor={V2}/>
-      </Cd>
-      <div style={{display:"flex",gap:8,marginTop:6}}>
-        <B lb="Voltar" sm out cor={GR} onClick={()=>setStep("nova")} st={{flex:1}}/>
-        <B lb="Guardar Receção" sm onClick={save} cor={prods.length>0?V:"#ccc"} dis={prods.length===0} st={{flex:2}}/>
-      </div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Receção de Matérias-Primas</div>
+      {step==="produto"&&<Assistente titulo={"Produto — "+form.fatura} onSair={()=>setStep("nova")} textoConcluir="✓ Juntar este produto"
+        onConcluir={()=>{addP();setStep("nova");}}
+        passos={[
+          passoProduto("Que tipo de produto é?",<>{CATS.map(c=><Escolha key={c} ativo={np.categoria===c} onClick={()=>setNp(p=>({...p,categoria:c}))}>{c}</Escolha>)}</>,!!np.categoria),
+          passoProduto("Nome do produto",<CampoPasso val={np.nome} onChange={v=>setNp(p=>({...p,nome:v}))} ph="Ex: Peito de frango"/>,!!np.nome.trim()),
+          passoProduto("Quantidade",<CampoPasso val={np.quantidade} onChange={v=>setNp(p=>({...p,quantidade:v}))} ph="Ex: 5 kg"/>),
+          passoProduto("Lote",<CampoPasso val={np.lote} onChange={v=>setNp(p=>({...p,lote:v}))} ph="Está no rótulo"/>,true,"Se não tiver lote, avança."),
+          passoProduto("Data de validade",<CampoPasso type="date" val={np.validade} onChange={v=>setNp(p=>({...p,validade:v}))}/>),
+          ...(pedeTemp||np.categoria==="Outros"?[passoProduto("Temperatura à chegada (°C)",<CampoPasso type="number" val={np.temperatura} onChange={v=>setNp(p=>({...p,temperatura:v}))} ph={np.categoria==="Congelados"?"-18":"3"}/>,tempOk,
+            pedeTemp?"Mede com o termómetro antes de arrumar. É obrigatório nos refrigerados e congelados.":"Só se for refrigerado ou congelado. Se não, avança.")]:[]),
+          passoProduto("O produto está conforme?",<>
+            <Escolha ativo={np.conforme==="conforme"} onClick={()=>setNp(p=>({...p,conforme:"conforme"}))} sub="Embalagem, aspeto, validade e temperatura em ordem">Conforme</Escolha>
+            <Escolha ativo={np.conforme==="não conforme"} onClick={()=>setNp(p=>({...p,conforme:"não conforme"}))} cor={R} sub="Avisa o professor e regista uma não conformidade">Não conforme</Escolha>
+          </>),
+        ]}/>}
+      {step!=="produto"&&<Assistente titulo="Nova receção" inicio={prods.length?3:0} onSair={()=>setStep("lista")} textoConcluir="✓ Guardar receção"
+        onConcluir={save}
+        passos={[
+          {nome:"Fatura",titulo:"Fornecedor",conteudo:<CampoPasso val={form.fornecedor} onChange={v=>setForm(p=>({...p,fornecedor:v}))} ph="Ex: Makro"/>,pode:!!form.fornecedor.trim()},
+          {nome:"Fatura",titulo:"Número da fatura ou guia",conteudo:<CampoPasso val={form.fatura} onChange={v=>setForm(p=>({...p,fatura:v}))} ph="Ex: FT 2026/123"/>,pode:!!form.fatura.trim()},
+          {nome:"Fatura",titulo:"Professor",conteudo:<>{PROFESSORES_ECL.map(x=><Escolha key={x.nome} ativo={form.professor===x.nome} onClick={()=>setForm(p=>({...p,professor:x.nome}))}>{x.nome}</Escolha>)}</>},
+          {nome:"Produtos",titulo:"Produtos recebidos",ajuda:prods.length?"Junta os que faltam. Quando estiverem todos, avança.":"Junta cada produto da fatura, um de cada vez.",pode:prods.length>0,conteudo:<>
+            {prods.map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",gap:8,padding:"10px 12px",marginBottom:6,borderRadius:10,background:W}}>
+              <div><div style={{fontWeight:700,fontSize:15,color:"#0c4a6e"}}>{p.nome}</div><div style={{fontSize:12.5,color:GR}}>{p.categoria} · {p.quantidade}{p.temperatura!==""&&p.temperatura!=null?" · "+p.temperatura+" °C":""}</div></div>
+              <span style={{fontSize:12.5,fontWeight:700,color:p.conforme==="conforme"?V:R,alignSelf:"center"}}>{p.conforme}</span>
+            </div>)}
+            <button onClick={()=>setStep("produto")} style={{width:"100%",minHeight:56,borderRadius:14,border:"2px dashed #0e7490",background:W,color:"#0e7490",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:"inherit",marginTop:4}}>+ Juntar {prods.length?"outro ":""}produto</button>
+          </>},
+          {nome:"Rever",titulo:"Confere antes de guardar",conteudo:<div style={{background:W,borderRadius:12,padding:14,fontSize:15,color:"#0c4a6e",lineHeight:1.7}}>
+            <div><b>Fornecedor:</b> {form.fornecedor}</div><div><b>Fatura:</b> {form.fatura}</div><div><b>Professor:</b> {form.professor||"—"}</div>
+            <div><b>Produtos:</b> {prods.length}</div>{prods.map(p=><div key={p.id} style={{fontSize:13.5,color:GR}}>• {p.nome} — {p.quantidade}{p.temperatura?" — "+p.temperatura+" °C":""} — {p.conforme}</div>)}
+          </div>},
+        ]}/>}
     </div>
   );
 }
