@@ -323,6 +323,7 @@ function periodoDeImpressao(per,mes){
   if(per.modo==="trimestre"){const a=Number(per.ano),m1=(Number(per.tri)-1)*3+1;return {inicio:a+"-"+d2(m1)+"-01",fim:fim(a,m1+2),rotulo:per.tri+"º trimestre de "+a+" ("+MESES_PT[m1-1]+" a "+MESES_PT[m1+1]+")"};}
   if(per.modo==="ano"){const a=Number(per.ano);return {inicio:a+"-01-01",fim:a+"-12-31",rotulo:"Ano de "+a};}
   if(per.modo==="datas"){const de=per.de||per.ate,ate=per.ate||per.de;return {inicio:de,fim:ate,rotulo:"De "+fD(de)+" a "+fD(ate)};}
+  if(per.modo==="dia"){const d=per.dia||new Date().toISOString().slice(0,10);return {inicio:d,fim:d,rotulo:"Dia "+fD(d)};}
   const [a,m]=mes.split("-").map(Number);
   return {inicio:a+"-"+d2(m)+"-01",fim:fim(a,m),rotulo:Mx(m)+" de "+a};
 }
@@ -374,7 +375,7 @@ function tarefaPeriodicaDoItem(item){
 // foram registadas por um colega, e a coordenadora veja tudo. O que já está
 // no aparelho nunca é substituído — só se acrescenta o que falta.
 const SINC_DO_DIA=["Temperaturas","Higienização","Panos Solução","Encerramento","Presenças","Higiene Pessoal","NãoConformidades"];
-const SINC_TUDO=[...SINC_DO_DIA,"Receção Matérias-Primas","Amostra Testemunho","Desinfeção","Produção"];
+const SINC_TUDO=[...SINC_DO_DIA,"Receção Matérias-Primas","Amostra Testemunho","Desinfeção","Produção","Faltas e Necessidades","Manutenção, Avarias e Prevenção"];
 async function lerDoSheetsParaJuntar(tabelas){
   const out={};
   await Promise.all(tabelas.map(async t=>{const x=await linhasDoSheets(t);if(x)out[t]=x;}));
@@ -489,6 +490,8 @@ function juntarDoSheets(p,dados,soDia){
     }
     if(dados["Amostra Testemunho"])junta("testemunho",T("Amostra Testemunho"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],prato:l[5],tipoRefeicao:l[6],horaRefeicao:hr(l[7]),pesoAmostra:l[8],localArmazenamento:l[9],dataDestruicao:dataDaLinhaSheets(l[10])?nD(dataDaLinhaSheets(l[10])):String(l[10]||""),doSheets:true}),x=>[x.date,x.time,x.responsavel,x.prato].join("|"));
     if(dados["Desinfeção"])junta("desinfecao",T("Desinfeção"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],alimento:l[5],quantidade:l[6],produto:l[7],concentracao:l[8],tempoContacto:l[9],temperatura:l[10],doSheets:true}),x=>[x.date,x.time,x.responsavel,x.alimento].join("|"));
+    if(dados["Faltas e Necessidades"])junta("faltas",T("Faltas e Necessidades"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],tipo:l[5],descricao:l[6],quantidade:l[7],urgencia:l[8],estado:l[9]||"pendente",doSheets:true}),x=>[x.date,x.time,x.responsavel,x.descricao].join("|"));
+    if(dados["Manutenção, Avarias e Prevenção"])junta("manutencao",T("Manutenção, Avarias e Prevenção"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],equipamento:l[5],tipoOcorrencia:l[6],descricao:l[7],acaoImediata:l[8],estado:l[9],doSheets:true}),x=>[x.date,x.time,x.responsavel,x.equipamento].join("|"));
     if(dados["Produção"])junta("producao",T("Produção"),l=>({id:"sh-"+l[0]+l[2]+l[4],date:l[0],time:l[10]?hr(l[10]):"",turma:l[1],aluno:l[2],nome:l[3],lote:l[4],conservacao:l[5],dataProducao:dataDaLinhaSheets(l[6])?nD(dataDaLinhaSheets(l[6])):String(l[6]||""),dataLimite:dataDaLinhaSheets(l[7])?nD(dataDaLinhaSheets(l[7])):String(l[7]||""),local:l[8],professor:l[9],doSheets:true}),x=>[x.date,x.aluno,x.nome,x.lote].join("|"));
   }
   return n;
@@ -502,23 +505,55 @@ async function sincronizarKF(setDb,soDia){
 /** Folha oficial de um período, com os registos de TODAS as turmas juntos, por data e hora
  *  (para a ASAE interessa o registo e quem o fez, não a turma). Lê do Google Sheets, onde
  *  chegam os registos de todos os telemóveis; sem ligação, usa o que está neste aparelho. */
+// Folhas que só se leem do Sheets (a mesma ordem de colunas com que são enviadas).
+const FOLHAS_DO_SHEETS={
+  presencas:{tabela:"Presenças",titulo:"Presenças",col:["Dia","Hora","Aluno"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),n(l[3],l[4])]},
+  higPessoal:{tabela:"Higiene Pessoal",titulo:"Higiene Pessoal",col:["Dia","Hora","Aluno","Estado"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),n(l[3],l[4]),l[5]||""]},
+  encerramento:{tabela:"Encerramento",titulo:"Encerramento da Aula",col:["Dia","Hora","Responsável","Estado"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),n(l[3],l[4]),l[5]||""]},
+  oleos:{tabela:"Controlo Óleos",titulo:"Controlo de Óleos de Fritura",col:["Dia","Hora","Equipamento","Temp.","Cor","Espuma","Cheiro","Teste","Ação","Resultado","Registado por"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6]?l[6]+" °C":"",l[7],l[8],l[9],l[10],l[11],l[12],n(l[3],l[4])]},
+  servico:{tabela:"Temperatura Serviço",titulo:"Temperatura de Serviço",col:["Dia","Hora","Prato","Tipo","Temp.","Resultado","Início do serviço","Equipamento","Registado por"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7]?l[7]+" °C":"",l[8],horaDaLinhaSheets(l[9]),l[10]||"",n(l[3],l[4])]},
+  conservacao:{tabela:"Conservação Produtos",titulo:"Conservação de Produtos",col:["Dia","Hora","Produto","Estado","Conservação","Embalagem","Produzido em","Consumir até","Lote","Notas","Registado por"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),l[6],l[5],l[8],l[9],fD(dataDaLinhaSheets(l[11])||String(l[11]||"")),fD(dataDaLinhaSheets(l[12])||String(l[12]||"")),l[13]||"",l[10]||"",n(l[3],l[4])]},
+  regeneracao:{tabela:"Regeneração",titulo:"Regeneração / Cook-Chill",col:["Dia","Hora","Prato","Tipo","Temp. final","Resultado","Início","Fim","Tempo","Temp. serviço","Resultado serviço","Equipamento","Registado por"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7]?l[7]+" °C":"",l[8],horaDaLinhaSheets(l[9]),horaDaLinhaSheets(l[10]),l[11]||"",l[12]?l[12]+" °C":"",l[13]||"",l[14]||"",n(l[3],l[4])]},
+  faltas:{tabela:"Faltas e Necessidades",titulo:"Faltas e Necessidades",col:["Dia","Hora","Tipo","Descrição","Quantidade","Urgência","Estado","Registado por"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7]||"",l[8]||"",l[9]||"",n(l[3],l[4])]},
+  manutencao:{tabela:"Manutenção, Avarias e Prevenção",titulo:"Manutenção, Avarias e Prevenção",col:["Dia","Hora","Equipamento","Tipo","Descrição","Ação imediata","Estado","Registado por"],map:(l,n)=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8]||"",l[9]||"",n(l[3],l[4])]},
+};
+/** Imprime uma folha oficial. A janela abre-se já (depois de esperar pelo Sheets o telemóvel bloqueava-a). */
 async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
-  const {inicio,fim,rotulo}=periodoEscolhido;
-  if(!inicio||!fim){alert("Escolhe as datas do período a imprimir.");return;}
-  // A janela abre-se já (depois de esperar pelo Sheets o telemóvel bloqueava-a).
+  if(!periodoEscolhido.inicio||!periodoEscolhido.fim){alert("Escolhe as datas do período a imprimir.");return;}
   const w=window.open("","_blank");
   if(!w){alert("O navegador bloqueou a janela de impressão. Permite janelas (pop-ups) para esta aplicação.");return;}
   w.document.write('<p style="font-family:Arial;padding:24px;font-size:16px">A preparar a folha: a ler os registos de todos os telemóveis…</p>');
+  const d=await dadosDaFolha(tipo,db,periodoEscolhido);
+  abrirFolhaImpressao(d.titulo,periodoEscolhido.rotulo,tabelaHTML(d.col,d.lin),d.leg,w);
+}
+/** Relatório completo: todas as folhas do período num só documento (tudo o que foi registado). */
+const ORDEM_RELATORIO=["presencas","higPessoal","temperaturas","higienizacao","recepcao","conservacao","regeneracao","testemunho","desinfecao","producao","oleos","servico","naoconf","manutencao","faltas","encerramento","auxiliares"];
+async function imprimirRelatorioCompleto(db,periodoEscolhido){
+  if(!periodoEscolhido.inicio||!periodoEscolhido.fim){alert("Escolhe as datas do período.");return;}
+  const w=window.open("","_blank");
+  if(!w){alert("O navegador bloqueou a janela de impressão. Permite janelas (pop-ups) para esta aplicação.");return;}
+  w.document.write('<p style="font-family:Arial;padding:24px;font-size:16px">A preparar o relatório: a ler todos os registos…</p>');
+  const partes=await Promise.all(ORDEM_RELATORIO.map(t=>dadosDaFolha(t,db,periodoEscolhido)));
+  const resumo=`<table><thead><tr><th>Registo</th><th>Nº de registos</th></tr></thead><tbody>${partes.map(p=>`<tr><td>${escHTML(p.titulo)}</td><td>${p.lin.length}</td></tr>`).join("")}</tbody></table>`;
+  const corpo=`<h2 style="font-size:14px;margin:4px 0 6px">Resumo</h2>${resumo}`+partes.map(p=>
+    `<h2 style="font-size:14px;margin:18px 0 6px;page-break-after:avoid">${escHTML(p.titulo)} <span style="font-weight:normal;color:#555">(${p.lin.length})</span></h2>`+
+    (p.lin.length?tabelaHTML(p.col,p.lin):`<div style="font-size:11px;color:#555">Sem registos neste período.</div>`)+(p.leg?`<div class="leg">${escHTML(p.leg)}</div>`:"")).join("");
+  abrirFolhaImpressao("Relatório completo de registos HACCP",periodoEscolhido.rotulo,corpo,"",w);
+}
+/** As colunas e as linhas de uma folha, para o período. Lê do Sheets; sem ligação, usa o aparelho. */
+async function dadosDaFolha(tipo,db,periodoEscolhido){
+  const {inicio,fim}=periodoEscolhido;
   const noMes=d=>{const x=nD(d);return !!x&&x>=inicio&&x<=fim;};
   const ordem=(a,b)=>nD(a[0]).localeCompare(nD(b[0]))||String(a[1]).localeCompare(String(b[1]));
-  const periodo=rotulo;
   const nomeDe=(id,nome)=>nomeCurto(db,id,nome);
   const doSheets=async()=>{
     const L=async t=>{const x=await linhasDoSheets(t);return x&&x.filter(l=>noMes(l[0]));};
+    if(FOLHAS_DO_SHEETS[tipo]){const f=FOLHAS_DO_SHEETS[tipo];const x=await L(f.tabela);return x&&x.map(l=>f.map(l,nomeDe));}
     if(tipo==="temperaturas"){const x=await L("Temperaturas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5]==="final"?"Final":l[5]==="inicio"?"Início":String(l[5]||""),nomeDe(l[3],l[4]),...FRIOS.map((_,i)=>{const v=l[6+2*i],e=l[7+2*i];if(v===""||v==null)return "";return e==="N/A"?String(v):v+" °C "+(e==="---"?"":e);})]);}
     if(tipo==="recepcao"){const x=await L("Receção Matérias-Primas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10],l[11]?fD(dataDaLinhaSheets(l[11])||String(l[11])):"",l[13]!==""&&l[13]!=null?l[13]+" °C":"",l[12],nomeDe(l[3],l[4])]);}
     if(tipo==="testemunho"){const x=await L("Amostra Testemunho");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[7]||l[1]),l[5],l[6],l[8]?l[8]+" g":"",l[9],l[10],nomeDe(l[3],l[4])]);}
     if(tipo==="producao"){const x=await L("Produção");return x&&x.map(l=>[l[0],l[10]?horaDaLinhaSheets(l[10]):"",l[3],l[4],l[5],fD(dataDaLinhaSheets(l[6])||String(l[6]||"")),fD(dataDaLinhaSheets(l[7])||String(l[7]||"")),l[8],nomeDe(l[2],l[11]||""),l[9]||""]);}
+    if(tipo==="auxiliares"){const x=await L("VerificacaoFinalAuxiliares");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),nomeCurto(db,"",l[3]),l[4],l[5]||"",l[6]||""]);}
     if(tipo==="naoconf"){
       const x=await linhasDoSheets("NãoConformidades");if(!x)return null;
       // Cada NC numa linha, com a decisão mais recente (medida corretiva, estado, quem decidiu).
@@ -577,6 +612,10 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
     titulo="Desinfeção de Alimentos em Cru";
     col=["Dia","Hora","Alimento","Quantidade","Produto","Conc. (ml/L)","Tempo (min)","Temp. água","Registado por"];
     (db.desinfecao||[]).filter(d=>noMes(d.date)).forEach(d=>lin.push([d.date,d.time,d.alimento,d.quantidade,d.produto,d.concentracao,d.tempoContacto,d.temperatura!==""&&d.temperatura!=null?d.temperatura+" °C":"",nomeCurto(db,d.responsavel,d.nomeAluno)]));
+  }else if(tipo==="auxiliares"){
+    titulo="Verificação das Auxiliares de Apoio";
+    col=["Dia","Hora","Auxiliar","Tarefa / ponto verificado","Detalhe","Estado"];
+    lin=[];
   }else if(tipo==="naoconf"){
     titulo="Não Conformidades";
     col=["Dia","Hora","Zona / equipamento","Descrição","Ação imediata","Medida corretiva","Estado","Decidido por","Registado por"];
@@ -592,11 +631,12 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
       ["inicio","final"].forEach(mo=>{const x=hig.panos&&hig.panos[mo];if(x)lin.push([mm[1],x.time||"","Panos e esponjas","Solução desinfetante — "+(mo==="inicio"?"início":"final")+" da aula",nomeCurto(db,"",x.aluno)]);});
     });
   }
+  if(FOLHAS_DO_SHEETS[tipo]){titulo=FOLHAS_DO_SHEETS[tipo].titulo;col=FOLHAS_DO_SHEETS[tipo].col;}
   const doSh=await doSheets();
   if(doSh)lin=doSh;
-  else leg=(leg?leg+" · ":"")+"Sem ligação ao Google Sheets: esta folha só tem os registos feitos neste aparelho.";
+  else leg=(leg?leg+" · ":"")+"Sem ligação ao Google Sheets: "+(FOLHAS_DO_SHEETS[tipo]?"não foi possível ler estes registos.":"só tem os registos feitos neste aparelho.");
   lin.sort(ordem);
-  abrirFolhaImpressao(titulo,periodo,tabelaHTML(col,lin),leg,w);
+  return {titulo,col,lin,leg};
 }
 
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
@@ -2217,6 +2257,7 @@ function Professor({user,db,setDb,showToast}){
         <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Painel do Professor - {user.id}</div>
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>{h}</div>
       </div>
+      <button onClick={()=>{const d=new Date().toISOString().slice(0,10);imprimirRelatorioCompleto(db,{inicio:d,fim:d,rotulo:"Dia "+fD(d)});}} style={{width:"100%",marginBottom:8,padding:"10px 14px",borderRadius:9,border:"2px solid #0e7490",background:LC,color:"#0e7490",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📋 Relatório de hoje — tudo o que foi registado</button>
       <button onClick={()=>setVista("mapa")} style={{width:"100%",marginBottom:8,padding:"10px 14px",borderRadius:9,border:"2px solid #b45309",background:LC,color:"#b45309",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>🗺️ Mapa da Cozinha</button>
       <div style={{display:"flex",gap:8,marginBottom:14}}>
         <button onClick={()=>setVista("naoConf")} style={{flex:1,padding:"10px 14px",borderRadius:9,border:"2px solid #9d174d",background:LC,color:"#9d174d",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>⚠️ Não Conformidades</button>
@@ -2879,6 +2920,38 @@ function PainelNCs({db,turma,setDb,user,showToast}){
 }
 
 
+// ── O trabalho das auxiliares, para a coordenação ────────────
+// Lê a folha «VerificacaoFinalAuxiliares» do Sheets: o que cada auxiliar
+// verificou, corrigiu ou deixou em nota, dia a dia.
+function AtividadeAuxiliares({db,periodo}){
+  const [linhas,setLinhas]=useState(null);
+  useEffect(()=>{let vivo=true;setLinhas(null);
+    linhasDoSheets("VerificacaoFinalAuxiliares").then(x=>{if(!vivo)return;
+      setLinhas(x?x.filter(l=>{const d=nD(l[0]);return d>=periodo.inicio&&d<=periodo.fim;}).sort((a,b)=>nD(b[0]).localeCompare(nD(a[0]))||String(horaDaLinhaSheets(b[1])).localeCompare(String(horaDaLinhaSheets(a[1])))):[]);});
+    return()=>{vivo=false;};},[periodo.inicio,periodo.fim]);
+  if(!linhas)return <Cd><div style={{fontSize:13,color:GR}}>A ler o que as auxiliares registaram…</div></Cd>;
+  const dias=[...new Set(linhas.map(l=>l[0]))];
+  const cor=e=>/Corrigido/.test(e)?"#d35400":/Nota/.test(e)?"#7c3aed":/Desmarcado/.test(e)?GR:V;
+  return(
+    <div>
+      <div style={{fontSize:12,color:GR,marginBottom:10}}>{periodo.rotulo} · {linhas.length} registo{linhas.length===1?"":"s"}</div>
+      {!linhas.length&&<Cd><div style={{fontSize:13,color:GR}}>Sem registos das auxiliares neste período.</div></Cd>}
+      {dias.map(d=>(
+        <Cd key={d} st={{marginBottom:10}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#0c4a6e",marginBottom:6}}>{d}</div>
+          {linhas.filter(l=>l[0]===d).map((l,i)=>(
+            <div key={i} style={{display:"flex",gap:8,padding:"6px 0",borderTop:i?"1px solid "+LC:"none",fontSize:12.5}}>
+              <span style={{minWidth:40,color:GR,fontWeight:700}}>{horaDaLinhaSheets(l[1])}</span>
+              <span style={{flex:1}}><b>{nomeCurto(db,"",l[3])}</b> · {l[4]}{l[5]?<span style={{color:GR}}> — {l[5]}</span>:null}</span>
+              <span style={{fontWeight:700,color:cor(String(l[6]||"")),whiteSpace:"nowrap"}}>{l[6]}</span>
+            </div>
+          ))}
+        </Cd>
+      ))}
+    </div>
+  );
+}
+
 // ── Cópia de segurança ───────────────────────────────────────
 // Um ficheiro com tudo: o que está guardado neste aparelho e todas as folhas
 // do Google Sheets. Guarda-se no computador (ou numa pen/Drive). Repor só
@@ -2990,11 +3063,11 @@ function Coordenadora({user,db,setDb,showToast}){
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Mes</div>
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
-      {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].includes(folha)&&(
+      {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf","auxiliares","relatorio"].includes(folha)&&(
         <div style={{marginBottom:11,background:W,border:"1.5px solid "+BE,borderRadius:10,padding:"10px 12px"}}>
           <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:6,textTransform:"uppercase"}}>Período para imprimir (todas as turmas)</div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:per.modo==="mes"?0:8}}>
-            {[["mes","Mês acima"],["trimestre","Trimestre"],["ano","Ano"],["datas","Entre datas"]].map(([id,lb])=>(
+            {[["dia","Um dia"],["mes","Mês acima"],["trimestre","Trimestre"],["ano","Ano"],["datas","Entre datas"]].map(([id,lb])=>(
               <button key={id} onClick={()=>setPer(x=>({...x,modo:id}))} style={{flex:1,minWidth:70,padding:"8px 4px",borderRadius:8,border:"2px solid "+(per.modo===id?V:BE),background:per.modo===id?V:LC,color:per.modo===id?W:V,fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
             ))}
           </div>
@@ -3006,6 +3079,7 @@ function Coordenadora({user,db,setDb,showToast}){
               <input type="number" value={per.ano} onChange={e=>setPer(x=>({...x,ano:e.target.value}))} style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,fontFamily:"inherit"}}/>
             </div>
           )}
+          {per.modo==="dia"&&<input type="date" value={per.dia||new Date().toISOString().slice(0,10)} onChange={e=>setPer(x=>({...x,dia:e.target.value}))} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,fontFamily:"inherit"}}/>}
           {per.modo==="datas"&&(
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
               <input type="date" value={per.de} onChange={e=>setPer(x=>({...x,de:e.target.value}))} style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:V,fontFamily:"inherit"}}/>
@@ -3017,11 +3091,21 @@ function Coordenadora({user,db,setDb,showToast}){
         </div>
       )}
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["relatorios","copia","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["relatorio","relatorios","copia","auxiliares","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorio:"📋 Relatório completo",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",auxiliares:"🧹 Auxiliares",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
       {folha==="relatorios"&&<RelatoriosPDF/>}
       {folha==="copia"&&<CopiaSeguranca/>}
+      {folha==="relatorio"&&<Cd>
+        <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Tudo o que foi registado</div>
+        <div style={{fontSize:12.5,color:GR,lineHeight:1.6,marginBottom:12}}>Um só documento com todas as folhas do período escolhido acima (um dia, um mês…), de todas as turmas: presenças, higiene pessoal, temperaturas, higienização, receção, conservação, regeneração, amostras, desinfeção, produção, óleos, serviço, não conformidades, manutenção, faltas, encerramento e auxiliares. Começa com um resumo.</div>
+        <B lb="📋 Gerar o relatório completo" onClick={()=>imprimirRelatorioCompleto(db,periodoDeImpressao(per,mes))} cor="#0e7490"/>
+      </Cd>}
+      {folha==="auxiliares"&&<div>
+        <B lb="Imprimir / Guardar PDF" onClick={()=>imprimirFolhaOficial("auxiliares",db,periodoDeImpressao(per,mes))} cor="#1a3d2b"/>
+        <div style={{height:10}}/>
+        <AtividadeAuxiliares db={db} periodo={periodoDeImpressao(per,mes)}/>
+      </div>}
       {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="tarefasPeriodicas"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="ncsPainel"&&<PainelNCs db={db} turma={turma} setDb={setDb} user={user} showToast={showToast}/>}
@@ -3645,7 +3729,8 @@ function Auxiliar({user,db,setDb,showToast}){
   const marcarVF=(idx,estado,detalhe)=>{
     const novaResp={...vfRespostas,[idx]:{estado,detalhe:detalhe||"",aux:nomeAux||user.id,time:gT()}};
     setDb(p=>{const a={...(p.auxVerifFinal||{})};a[kVF]={respostas:novaResp,date:h,turma:user.turma||""};return{...p,auxVerifFinal:a};});
-    if(estado==="corrigir")enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,VERIFICACAO_FINAL[idx],detalhe||"","Corrigido pela Auxiliar"]);
+    // Tudo o que a auxiliar verifica vai para o Sheets (antes só o que corrigia): a coordenação vê o trabalho feito.
+    enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,VERIFICACAO_FINAL[idx],detalhe||"",estado==="corrigir"?"Corrigido pela Auxiliar":"Verificado — OK"]);
   };
 
   // Marcar tarefa periódica como concluída a partir da Verificação Final
@@ -3659,6 +3744,8 @@ function Auxiliar({user,db,setDb,showToast}){
       tp[tarefa._chave]={...regsAtual,[tarefa.id]:{aluno:nomeAux||user.id,time:gT(),date:h,turma:user.turma||""}};
       return{...p,auxVerifFinal:a,tarefasPeriodicas:tp};
     });
+    enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,tarefa.lb+" ("+PERIODOS_TAREFAS[tarefa._periodo]+")","","Tarefa periódica feita"]);
+    enviar("Higienização",[h,gT(),user.turma||"",user.id,nomeAux||user.id,PERIODOS_TAREFAS[tarefa._periodo]+": "+tarefa.lb]);
     showToast("Tarefa periódica registada!");
   };
 
@@ -3666,15 +3753,18 @@ function Auxiliar({user,db,setDb,showToast}){
     if(regs[item]){
       const n={...regs};delete n[item];
       setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,notas,date:h};return{...p,auxHig:ah};});
+      enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,item,"","Desmarcado"]);
       return;
     }
     const n={...regs,[item]:{aluno:nomeAux||user.id,time:gT()}};
     setDb(p=>{const ah={...p.auxHig};ah[k]={registos:n,notas,date:h};return{...p,auxHig:ah};});
+    enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,item,"","Verificado — OK"]);
     showToast("Verificado!");
   };
 
   const guardarNota=()=>{
     const n={...notas,[zona]:notaEdit};
+    if(notaEdit.trim())enviar("VerificacaoFinalAuxiliares",[h,gT(),user.turma||"",nomeAux||user.id,"Nota — "+zona,notaEdit.trim(),"Nota"]);
     setDb(p=>{const ah={...p.auxHig};ah[k]={registos:regs,notas:n,date:h};return{...p,auxHig:ah};});
     setShowNota(false);
     showToast("Nota guardada!");
