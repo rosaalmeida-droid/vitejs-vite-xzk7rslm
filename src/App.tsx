@@ -348,6 +348,25 @@ async function linhasDoSheets(tabela){
     return j.dados.filter(l=>Array.isArray(l)&&dataDaLinhaSheets(l[0])).map(l=>[dataDaLinhaSheets(l[0]),...l.slice(1)]);
   }catch{return null;}
 }
+// ── Tarefas periódicas no Sheets ─────────────────────────────
+// Vão para a folha «Higienização» (são limpezas), com o período à frente:
+// «Semanal: Limpeza das hottes». Assim ficam no registo oficial e na folha
+// impressa, sem precisar de uma folha nova no Google Sheets.
+const PERIODOS_TAREFAS={diario:"Diário",semanal:"Semanal",quinzenal:"Quinzenal",mensal:"Mensal"};
+function semanaDoAno(d){const onejan=new Date(d.getFullYear(),0,1);return Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);}
+function chaveDoPeriodo(periodo,d){
+  return periodo==="diario"?("dia-"+d.toLocaleDateString("pt-PT")):periodo==="semanal"?("sem-"+d.getFullYear()+"-"+semanaDoAno(d))
+    :periodo==="quinzenal"?("quinz-"+d.getFullYear()+"-"+Math.ceil(semanaDoAno(d)/2)):("mes-"+(d.getMonth()+1)+"-"+d.getFullYear());
+}
+/** «Semanal: Limpeza…» → {periodo, tarefa}; null se não for uma tarefa periódica. */
+function tarefaPeriodicaDoItem(item){
+  const m=String(item||"").match(/^(Diário|Semanal|Quinzenal|Mensal): (.+)$/);
+  if(!m)return null;
+  const periodo=Object.keys(PERIODOS_TAREFAS).find(k=>PERIODOS_TAREFAS[k]===m[1]);
+  const tarefa=(TAREFAS_PERIODICAS[periodo]||[]).find(t=>t.lb===m[2]);
+  return tarefa?{periodo,tarefa}:null;
+}
+
 // ── Registos partilhados entre telemóveis ────────────────────
 // Cada registo vai para o Google Sheets. Aqui faz-se o caminho de volta:
 // lê-se o Sheets e junta-se ao que o aparelho já tem, para que o professor
@@ -383,7 +402,18 @@ function juntarDoSheets(p,dados,soDia){
   // Higienização e panos (desmarcar também chega)
   if(dados["Higienização"]||dados["Panos Solução"]){
     const hg={...(n.higienizacao||{})};
+    (dados["Higienização"]||[]).forEach(l=>{
+      const tp=tarefaPeriodicaDoItem(l[5]);if(!tp)return;
+      const [dd,mm,aa]=String(l[0]).split("/").map(Number);const quando=new Date(aa,mm-1,dd);
+      const ch=chaveDoPeriodo(tp.periodo,quando);
+      if(ch!==chaveDoPeriodo(tp.periodo,new Date()))return;
+      const tpp={...(n.tarefasPeriodicas||{})};const x={...(tpp[ch]||{})};
+      if(String(l[6]||"")==="Desmarcado")delete x[tp.tarefa.id];
+      else if(!x[tp.tarefa.id])x[tp.tarefa.id]={aluno:l[4]||l[3],time:hr(l[1]),date:l[0],turma:l[2]};
+      tpp[ch]=x;n.tarefasPeriodicas=tpp;
+    });
     T("Higienização").forEach(l=>{
+      if(tarefaPeriodicaDoItem(l[5]))return;
       const k="hig-"+l[2]+"-"+l[0];
       const x={...(hg[k]||{registos:{},turma:l[2],date:l[0]})};x.registos={...(x.registos||{})};
       if(String(l[6]||"")==="Desmarcado")delete x.registos[l[5]];
@@ -426,10 +456,16 @@ function juntarDoSheets(p,dados,soDia){
     const igual=(a,l,desc)=>a.date===l[0]&&String(a.responsavel)===String(l[3])&&a.zona===l[5]&&a.descricao===desc;
     T("NãoConformidades").forEach(l=>{
       const desc=String(l[6]||"");
-      if(desc.startsWith("[ESCALADA AO COORDENADOR] ")){
-        const orig=desc.replace("[ESCALADA AO COORDENADOR] ","");
+      const pref=desc.startsWith("[ESCALADA AO COORDENADOR] ")?"[ESCALADA AO COORDENADOR] ":desc.startsWith("[DECISÃO] ")?"[DECISÃO] ":"";
+      if(pref){
+        // A decisão (do professor ou da coordenadora) sobre uma NC já registada.
+        const orig=desc.slice(pref.length);
         const i=ncs.findIndex(a=>String(a.responsavel)===String(l[3])&&a.zona===l[5]&&a.descricao===orig);
-        if(i>=0&&ncs[i].estado!=="validada")ncs[i]={...ncs[i],estado:"escalada",decisao:ncs[i].decisao||"escalar"};
+        const est=String(l[8]||"")||(pref.startsWith("[ESCALADA")?"escalada":"");
+        if(i>=0&&est){
+          const dec=est==="validada"?"aceitar":est==="escalada"?"escalar":"corrigir";
+          ncs[i]={...ncs[i],estado:est,decisao:dec,medidaCorretiva:l[7]||ncs[i].medidaCorretiva||"",professor:l[9]||ncs[i].professor||""};
+        }
         return;
       }
       if(ncs.some(a=>igual(a,l,desc)&&(a.time===hr(l[1])||!a.time)))return;
@@ -483,10 +519,19 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
     if(tipo==="recepcao"){const x=await L("Receção Matérias-Primas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10],l[11]?fD(dataDaLinhaSheets(l[11])||String(l[11])):"",l[13]!==""&&l[13]!=null?l[13]+" °C":"",l[12],nomeDe(l[3],l[4])]);}
     if(tipo==="testemunho"){const x=await L("Amostra Testemunho");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[7]||l[1]),l[5],l[6],l[8]?l[8]+" g":"",l[9],l[10],nomeDe(l[3],l[4])]);}
     if(tipo==="producao"){const x=await L("Produção");return x&&x.map(l=>[l[0],l[10]?horaDaLinhaSheets(l[10]):"",l[3],l[4],l[5],fD(dataDaLinhaSheets(l[6])||String(l[6]||"")),fD(dataDaLinhaSheets(l[7])||String(l[7]||"")),l[8],nomeDe(l[2],l[11]||""),l[9]||""]);}
-    if(tipo==="naoconf"){const x=await L("NãoConformidades");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7]||"",l[8]||"",nomeDe(l[3],l[4])]);}
+    if(tipo==="naoconf"){
+      const x=await linhasDoSheets("NãoConformidades");if(!x)return null;
+      // Cada NC numa linha, com a decisão mais recente (medida corretiva, estado, quem decidiu).
+      const orig=[];
+      x.forEach(l=>{const d=String(l[6]||"");const pref=d.startsWith("[ESCALADA AO COORDENADOR] ")?"[ESCALADA AO COORDENADOR] ":d.startsWith("[DECISÃO] ")?"[DECISÃO] ":"";
+        if(!pref){orig.push({l,medida:"",estado:l[8]||"aberta",quem:""});return;}
+        const o=[...orig].reverse().find(y=>String(y.l[3])===String(l[3])&&y.l[5]===l[5]&&y.l[6]===d.slice(pref.length));
+        if(o){o.medida=l[7]||o.medida;o.estado=l[8]||(pref.startsWith("[ESCALADA")?"escalada":o.estado);o.quem=l[9]||o.quem;}});
+      return orig.filter(o=>noMes(o.l[0])).map(({l,medida,estado,quem})=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7]||"",medida,estado,quem,nomeDe(l[3],l[4])]);
+    }
     if(tipo==="desinfecao"){const x=await L("Desinfeção");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10]!==""&&l[10]!=null?l[10]+" °C":"",nomeDe(l[3],l[4])]);}
     if(tipo==="higienizacao"){
-      const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||"";
+      const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||(tarefaPeriodicaDoItem(it)?"Tarefas periódicas":"");
       const a=await L("Higienização"),b=await L("Panos Solução");
       if(!a||!b)return null;
       // «Desmarcado» anula a marcação anterior da mesma tarefa, no mesmo dia e turma.
@@ -534,12 +579,12 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
     (db.desinfecao||[]).filter(d=>noMes(d.date)).forEach(d=>lin.push([d.date,d.time,d.alimento,d.quantidade,d.produto,d.concentracao,d.tempoContacto,d.temperatura!==""&&d.temperatura!=null?d.temperatura+" °C":"",nomeCurto(db,d.responsavel,d.nomeAluno)]));
   }else if(tipo==="naoconf"){
     titulo="Não Conformidades";
-    col=["Dia","Hora","Zona / equipamento","Descrição","Ação corretiva","Estado","Registado por"];
-    (db.ncs||[]).filter(x=>noMes(x.date)).forEach(x=>lin.push([x.date,x.time||"",x.zona,x.descricao,x.acaoCorretiva||"",x.estado||"",nomeCurto(db,x.responsavel,x.nomeAluno)]));
+    col=["Dia","Hora","Zona / equipamento","Descrição","Ação imediata","Medida corretiva","Estado","Decidido por","Registado por"];
+    (db.ncs||[]).filter(x=>noMes(x.date)).forEach(x=>lin.push([x.date,x.time||"",x.zona,x.descricao,x.acaoCorretiva||"",x.medidaCorretiva||"",x.estado||"",x.professor||"",nomeCurto(db,x.responsavel,x.nomeAluno)]));
   }else if(tipo==="higienizacao"){
     titulo="Higienização de Equipamentos e Utensílios";
     col=["Dia","Hora","Zona","Tarefa","Registado por"];
-    const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||"";
+    const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||(tarefaPeriodicaDoItem(it)?"Tarefas periódicas":"");
     Object.entries(db.higienizacao||{}).forEach(([k,hig])=>{
       const mm=k.match(/(\d{2}\/\d{2}\/\d{4})$/);
       if(!mm||!noMes(mm[1])||!hig)return;
@@ -783,8 +828,8 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
           </>}
 
           {tipo==="professor"&&<><Sl lb="Professor" val={prof} onChange={setProf} opts={PROFESSORES_ECL.map(x=>x.nome)}/></>}
-          {tipo==="coord"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Coordenadora — PIN: 1006</div>}
-          {tipo==="auxiliar"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Auxiliar de Apoio — PIN: 2222</div>}
+          {tipo==="coord"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Coordenadora — escreve o teu PIN</div>}
+          {tipo==="auxiliar"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Auxiliar de apoio — escreve o teu PIN</div>}
 
           {!criarPin&&<>
             {tipo!=="aluno"&&<Ip lb="PIN" type="password" val={pin} onChange={setPin} ph="PIN"/>}
@@ -1806,15 +1851,15 @@ function NaoConf({user,db,setDb,showToast}){
     }
   };
 
-  const decidirAgora=(nc,decisao)=>{
+  const decidirAgora=(nc,decisao,medida)=>{
     let novoEstado=decisao==="aceitar"?"validada":decisao==="corrigir"?"em resolução":"escalada";
-    const ncAtualizada={...nc,estado:novoEstado,professor:user.id,decisao};
+    const ncAtualizada={...nc,estado:novoEstado,professor:user.id,decisao,medidaCorretiva:medida||""};
     setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?ncAtualizada:n)}));
     // Toda NC gera relatório PDF para a Coordenadora, independentemente da decisão
     gerarRelatorioNC(ncAtualizada);
+    enviarDecisaoNC(nc,novoEstado,medida,user.id);
     if(decisao==="escalar"){
-      enviar("NãoConformidades",[gD(),gT(),nc.turma||"",nc.responsavel,nc.nomeAluno||"",nc.zona,"[ESCALADA AO COORDENADOR] "+nc.descricao,nc.acaoCorretiva||"",novoEstado]);
-      showToast("NC registada e encaminhada para gestão de equipamentos.");
+      showToast("NC registada e encaminhada para a coordenação.");
     }else if(decisao==="aceitar"){
       showToast("NC registada e resolvida! Relatório enviado à Coordenação.");
     }else{
@@ -1834,7 +1879,7 @@ function NaoConf({user,db,setDb,showToast}){
         <Cd st={{borderLeft:"3px solid #0c4a6e",marginBottom:12,background:"#f0f9ff"}}>
           <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:8}}>NC registada — {ncPendenteDecisao.zona}</div>
           <div style={{fontSize:12,color:GR,marginBottom:10}}>{ncPendenteDecisao.descricao}</div>
-          <DecisaoNC onDecidir={decisao=>decidirAgora(ncPendenteDecisao,decisao)}/>
+          <DecisaoNC onDecidir={(decisao,medida)=>decidirAgora(ncPendenteDecisao,decisao,medida)}/>
         </Cd>
       )}
 
@@ -2063,31 +2108,51 @@ function Encerramento({user,db,setDb,showToast}){
 }
 
 
+/** A decisão sobre uma não conformidade: resolvida na hora, a corrigir, ou
+ *  escalada à coordenação — sempre com a medida corretiva escrita. */
 function DecisaoNC({onDecidir}){
   const [passo,setPasso]=useState(1);
-
-  if(passo===1){
-    return(
-      <div>
-        <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>1. Foi resolvido na hora?</div>
-        <div style={{display:"flex",gap:6}}>
-          <button onClick={()=>onDecidir("aceitar")} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid "+V,background:V,color:W,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✓ Sim, já está resolvido</button>
-          <button onClick={()=>setPasso(2)} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #d35400",background:"#fff3e0",color:"#d35400",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Não, ainda não</button>
-        </div>
-      </div>
-    );
-  }
-
-  return(
+  const [decisao,setDecisao]=useState("");
+  const [medida,setMedida]=useState("");
+  const bt=(cor,fundo)=>({flex:1,padding:"11px 8px",borderRadius:9,border:"2px solid "+cor,background:fundo,color:fundo===W||fundo.startsWith("#f")?cor:W,fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"});
+  const voltar=<button onClick={()=>setPasso(passo===3?(decisao==="aceitar"?1:2):1)} style={{marginTop:6,padding:"5px 10px",borderRadius:6,border:"none",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>← Voltar</button>;
+  if(passo===1)return(
     <div>
-      <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>2. Precisa de equipamento/ação externa (manutenção)?</div>
+      <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>1. Foi resolvido na hora?</div>
       <div style={{display:"flex",gap:6}}>
-        <button onClick={()=>onDecidir("escalar")} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #7c3aed",background:"#f3e8ff",color:"#7c3aed",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Sim — Escalar</button>
-        <button onClick={()=>onDecidir("corrigir")} style={{flex:1,padding:"9px",borderRadius:8,border:"2px solid #d35400",background:"#fff3e0",color:"#d35400",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>Não — Vamos corrigir</button>
+        <button onClick={()=>{setDecisao("aceitar");setPasso(3);}} style={bt(V,V)}>✓ Sim, já está resolvido</button>
+        <button onClick={()=>setPasso(2)} style={bt("#d35400","#fff3e0")}>Não, ainda não</button>
       </div>
-      <button onClick={()=>setPasso(1)} style={{marginTop:6,padding:"5px 10px",borderRadius:6,border:"none",background:"transparent",color:GR,fontSize:11,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>← Voltar</button>
     </div>
   );
+  if(passo===2)return(
+    <div>
+      <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>2. Precisa de manutenção ou de alguém de fora?</div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={()=>{setDecisao("escalar");setPasso(3);}} style={bt("#7c3aed","#f3e8ff")}>Sim — passar à coordenação</button>
+        <button onClick={()=>{setDecisao("corrigir");setPasso(3);}} style={bt("#d35400","#fff3e0")}>Não — corrigimos nós</button>
+      </div>
+      {voltar}
+    </div>
+  );
+  return(
+    <div>
+      <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>
+        {decisao==="aceitar"?"3. Que medida corretiva se tomou?":decisao==="escalar"?"3. Que medida corretiva é precisa?":"3. Que medida corretiva vai ser tomada?"}</div>
+      <textarea value={medida} onChange={e=>setMedida(e.target.value)} rows={3} placeholder="Ex: produto rejeitado, equipamento desligado e produtos passados para o Frig. Vert. 2…"
+        style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+BE,fontSize:14,fontFamily:"inherit",marginBottom:8}}/>
+      <button disabled={!medida.trim()} onClick={()=>onDecidir(decisao,medida.trim())} style={{width:"100%",padding:"12px",borderRadius:9,border:"none",background:medida.trim()?V:"#cbd5e1",color:W,fontWeight:800,fontSize:14,cursor:medida.trim()?"pointer":"not-allowed",fontFamily:"inherit"}}>
+        ✓ Registar a decisão</button>
+      {voltar}
+    </div>
+  );
+}
+/** A decisão vai também para o Sheets, numa linha da folha «NãoConformidades»
+ *  ligada à original — assim o professor, a coordenadora e a folha impressa
+ *  veem o estado, a medida corretiva e quem decidiu. */
+function enviarDecisaoNC(nc,novoEstado,medida,quem){
+  const prefixo=novoEstado==="escalada"?"[ESCALADA AO COORDENADOR] ":"[DECISÃO] ";
+  enviar("NãoConformidades",[gD(),gT(),nc.turma||"",nc.responsavel,nc.nomeAluno||"",nc.zona,prefixo+nc.descricao,medida||nc.medidaCorretiva||"",novoEstado,quem]);
 }
 
 function Professor({user,db,setDb,showToast}){
@@ -2104,18 +2169,19 @@ function Professor({user,db,setDb,showToast}){
   const uNC=(id,es)=>{
     setDb(p=>{
       const updated=(p.ncs||[]).map(n=>n.id===id?{...n,estado:es,professor:user.id}:n);
-      if(es==="validada"){const nc=updated.find(n=>n.id===id);if(nc)gerarRelatorioNC(nc);}
+      const nc=updated.find(n=>n.id===id);
+      if(nc){enviarDecisaoNC(nc,es,nc.medidaCorretiva,user.id);if(es==="validada")gerarRelatorioNC(nc);}
       return{...p,ncs:updated};
     });
     showToast("NC atualizada!");
   };
-  const decidirNC=(nc,decisao)=>{
+  const decidirNC=(nc,decisao,medida)=>{
     let novoEstado=decisao==="aceitar"?"validada":decisao==="corrigir"?"em resolução":"escalada";
-    const ncAtualizada={...nc,estado:novoEstado,professor:user.id,decisao};
+    const ncAtualizada={...nc,estado:novoEstado,professor:user.id,decisao,medidaCorretiva:medida||""};
     setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?ncAtualizada:n)}));
+    enviarDecisaoNC(nc,novoEstado,medida,user.id);
     if(decisao==="escalar"){
-      enviar("NãoConformidades",[gD(),gT(),nc.turma,nc.responsavel,nc.nomeAluno||"",nc.zona,"[ESCALADA AO COORDENADOR] "+nc.descricao,nc.acaoCorretiva||"",novoEstado]);
-      showToast("Encaminhado para a gestão de equipamentos/manutenção.");
+      showToast("Encaminhado para a coordenação.");
     }else if(decisao==="aceitar"){
       gerarRelatorioNC(ncAtualizada);
       showToast("NC aceite e validada! Relatório gerado.");
@@ -2124,7 +2190,8 @@ function Professor({user,db,setDb,showToast}){
     }
   };
   const val=()=>{if(!ok){showToast("Verifica todos os pontos!");return;}setDb(p=>{const v={...p.validacoes};v[vK2]={professor:user.id,turma,date:h,time:gT(),obs};return{...p,validacoes:v};});enviar("Validações",[h,turma,user.id,obs,tot+"/"+PC.length]);showToast("Sessão validada!");setObs("");};
-  const ncs=(db.ncs||[]).filter(n=>n.turma===turma&&n.date===h&&(n.estado==="aberta"||n.estado==="em resolução"));
+  // As que estão por decidir ou em correção, de qualquer dia (não desaparecem no dia seguinte).
+  const ncs=(db.ncs||[]).filter(n=>n.turma===turma&&(n.estado==="aberta"||n.estado==="em resolução"));
   const [vista,setVista]=useState("painel");
   if(vista==="mapa")return(
     <div style={{padding:15}}>
@@ -2173,7 +2240,7 @@ function Professor({user,db,setDb,showToast}){
               {nc.acaoCorretiva&&<div style={{fontSize:11,color:"#0e7490",fontStyle:"italic"}}>Ação proposta: {nc.acaoCorretiva}</div>}
               <div style={{fontSize:10,color:GR,marginBottom:5}}>Registado por {nc.nomeAluno||nc.responsavel} às {nc.time}</div>
               {!nc.decisao?(
-                <DecisaoNC onDecidir={decisao=>decidirNC(nc,decisao)}/>
+                <DecisaoNC onDecidir={(decisao,medida)=>decidirNC(nc,decisao,medida)}/>
               ):(
                 <div style={{display:"flex",gap:4,alignItems:"center"}}>
                   <span style={{padding:"3px 8px",borderRadius:5,fontSize:10,fontWeight:600,background:nc.estado==="validada"?V:nc.estado==="escalada"?"#7c3aed":"#d35400",color:W}}>{nc.estado}</span>
@@ -2420,13 +2487,16 @@ function TarefasPeriodicas({user,db,setDb,showToast}){
 
   const toggle=(tarefa)=>{
     const id=tarefa.id;
+    const item=PERIODOS_TAREFAS[periodo]+": "+tarefa.lb;
     if(regs[id]){
       const n={...regs};delete n[id];
       setDb(p=>{const tp={...(p.tarefasPeriodicas||{})};tp[chave]=n;return{...p,tarefasPeriodicas:tp};});
+      enviar("Higienização",[gD(),gT(),user.turma||"",user.id,nomeAluno||user.id,item,"Desmarcado"]);
       return;
     }
     const n={...regs,[id]:{aluno:nomeAluno||user.id,time:gT(),date:gD(),turma:user.turma||""}};
     setDb(p=>{const tp={...(p.tarefasPeriodicas||{})};tp[chave]=n;return{...p,tarefasPeriodicas:tp};});
+    enviar("Higienização",[gD(),gT(),user.turma||"",user.id,nomeAluno||user.id,item]);
     showToast("Tarefa registada!");
   };
 
@@ -2752,7 +2822,14 @@ function Presenca({user,db,setDb,showToast}){
   );
 }
 
-function PainelNCs({db,turma}){
+function PainelNCs({db,turma,setDb,user,showToast}){
+  // A coordenadora também decide e regista a medida corretiva (sobretudo nas escaladas).
+  const decidir=(nc,decisao,medida)=>{
+    const novoEstado=decisao==="aceitar"?"validada":decisao==="corrigir"?"em resolução":"escalada";
+    setDb(p=>({...p,ncs:(p.ncs||[]).map(n=>n.id===nc.id?{...n,estado:novoEstado,decisao,medidaCorretiva:medida,professor:user.id}:n)}));
+    enviarDecisaoNC(nc,novoEstado,medida,user.id);
+    showToast("Decisão registada.");
+  };
   const [filtro,setFiltro]=useState("todas");
   const todas=(db.ncs||[]).filter(n=>n.turma===turma).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
   const FILTROS=[
@@ -2791,6 +2868,8 @@ function PainelNCs({db,turma}){
           {nc.acaoCorretiva&&<div style={{fontSize:11,color:"#0e7490",fontStyle:"italic",marginBottom:2}}>Ação: {nc.acaoCorretiva}</div>}
           <div style={{fontSize:10,color:GR}}>{nc.date} {nc.time} — registado por {nc.nomeAluno||nc.responsavel}</div>
           {nc.decisao&&<div style={{fontSize:11,fontWeight:600,color:"#0e7490",marginTop:4}}>{decisaoLb[nc.decisao]||nc.decisao}{nc.professor&&" — "+nc.professor}</div>}
+          {nc.medidaCorretiva&&<div style={{fontSize:12,color:"#0c4a6e",marginTop:4,padding:"6px 8px",background:"#f0f9ff",borderRadius:6}}><b>Medida corretiva:</b> {nc.medidaCorretiva}</div>}
+          {nc.estado!=="validada"&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px solid "+LC}}><DecisaoNC onDecidir={(d,m)=>decidir(nc,d,m)}/></div>}
           {nc.pdfUrl&&<a href={nc.pdfUrl} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:6,fontSize:11,fontWeight:700,color:"#0369a1",textDecoration:"underline"}}>📄 Ver relatório PDF</a>}
           {nc.estado==="validada"&&!nc.pdfUrl&&<div style={{fontSize:10,color:GR,marginTop:6,fontStyle:"italic"}}>Relatório PDF a ser gerado — consulta a folha "NãoConformidades" no Excel para o link.</div>}
         </Cd>
@@ -2945,7 +3024,7 @@ function Coordenadora({user,db,setDb,showToast}){
       {folha==="copia"&&<CopiaSeguranca/>}
       {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="tarefasPeriodicas"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
-      {folha==="ncsPainel"&&<PainelNCs db={db} turma={turma}/>}
+      {folha==="ncsPainel"&&<PainelNCs db={db} turma={turma} setDb={setDb} user={user} showToast={showToast}/>}
       {folha==="registarNC"&&<NaoConf user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="registarFalta"&&<Faltas user={user} db={db} setDb={setDb} showToast={showToast}/>}
 
