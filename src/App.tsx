@@ -589,6 +589,65 @@ const fD=s=>{if(!s)return"?";if(s.includes("/"))return s;const p=s.split("-");re
 const nD=s=>s?(s.includes("/")?s.split("/").reverse().join("-"):s):"";
 const iC=(nm,t)=>{const v=parseFloat(t);if(isNaN(v))return null;const cg=nm.toLowerCase().includes("congelador")||nm.toLowerCase().includes("congel");return cg?v<=-18:v>=0&&v<=4;};
 
+// ── Um ecrã de cada vez (como na Avaliação ECL) ──────────────
+// Abre por cima da aplicação: em cima «✕ Sair» e o nome do registo; a
+// meio só a pergunta deste passo; em baixo Anterior / Seguinte sempre à
+// vista. O último passo guarda.
+const FUNDO_PASSO="#dff1f5";
+function Assistente({titulo,passos,onSair,onConcluir,textoConcluir="Guardar",inicio=0}){
+  const [i,setI]=useState(inicio);
+  useEffect(()=>{const a=document.body.style.overflow;document.body.style.overflow="hidden";return()=>{document.body.style.overflow=a;};},[]);
+  const idx=Math.min(i,passos.length-1),p=passos[idx],ultimo=idx===passos.length-1;
+  const pode=p.pode!==false;
+  const seguinte=()=>{if(!pode)return;if(ultimo)onConcluir&&onConcluir();else setI(idx+1);};
+  return(
+    <div role="dialog" aria-modal="true" aria-label={titulo} style={{position:"fixed",inset:0,zIndex:1000,background:FUNDO_PASSO,display:"flex",flexDirection:"column",textAlign:"left"}}>
+      <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,paddingTop:"max(10px, env(safe-area-inset-top))"}}>
+        <button onClick={onSair} style={{padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.5)",background:"transparent",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ Sair</button>
+        <div style={{flex:1,minWidth:0,fontSize:15,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"uppercase",letterSpacing:.4}}>{titulo}</div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+        <div style={{maxWidth:560,margin:"0 auto",padding:"16px 16px 8px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+            <span style={{fontSize:13,fontWeight:700,color:"#0e7490"}}>{p.nome||""}</span>
+            <span style={{fontSize:12.5,color:GR}}>{idx+1} de {passos.length}</span>
+          </div>
+          <div style={{display:"flex",gap:3,marginBottom:18}}>
+            {passos.map((_,k)=><div key={k} style={{flex:1,height:5,borderRadius:3,background:k<idx?"#0e7490":k===idx?"#67c3d6":"rgba(255,255,255,.8)"}}/>)}
+          </div>
+          {p.titulo&&<div style={{fontSize:24,fontWeight:800,color:"#0c4a6e",lineHeight:1.25,marginBottom:6}}>{p.titulo}</div>}
+          {p.ajuda&&<div style={{fontSize:15,color:"#334155",lineHeight:1.5,marginBottom:14}}>{p.ajuda}</div>}
+          <div>{p.conteudo}</div>
+        </div>
+      </div>
+      <div style={{background:FUNDO_PASSO,borderTop:"1px solid rgba(14,116,144,.15)"}}>
+        <div style={{maxWidth:560,margin:"0 auto",display:"flex",gap:10,padding:"10px 16px max(10px, env(safe-area-inset-bottom))"}}>
+          {idx>0&&<button onClick={()=>setI(idx-1)} style={{minHeight:52,padding:"0 18px",borderRadius:12,border:"1px solid #cbd5e1",background:W,color:"#475569",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Anterior</button>}
+          <button onClick={seguinte} disabled={!pode} style={{flex:1,minHeight:52,borderRadius:12,border:"none",fontSize:16.5,fontWeight:800,fontFamily:"inherit",background:pode?(ultimo?"#16a34a":"#0e7490"):"rgba(15,23,42,.08)",color:pode?W:"rgba(15,23,42,.3)",cursor:pode?"pointer":"not-allowed"}}>
+            {ultimo?textoConcluir:"Seguinte"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+/** Botão grande de escolha, para os passos. */
+function Escolha({ativo,onClick,children,sub,cor}){
+  const c=cor||"#0e7490";
+  return <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:12,width:"100%",textAlign:"left",minHeight:56,padding:"12px 16px",borderRadius:14,marginBottom:10,cursor:"pointer",fontFamily:"inherit",border:ativo?"none":"1.5px solid #cbe4ea",background:ativo?c:W,color:ativo?W:"#0c4a6e",boxShadow:ativo?"0 3px 10px rgba(14,116,144,.25)":"0 1px 3px rgba(0,0,0,.05)"}}>
+    <span style={{flex:1}}><span style={{display:"block",fontSize:16,fontWeight:700}}>{children}</span>{sub&&<span style={{display:"block",fontSize:13,opacity:ativo?.85:.65,marginTop:2}}>{sub}</span>}</span>
+    {ativo&&<span style={{fontSize:18,fontWeight:800}}>✓</span>}
+  </button>;
+}
+/** Campo grande para um passo (texto, número ou data). */
+function CampoPasso({val,onChange,type,ph,autoFocus=true}){
+  return <input autoFocus={autoFocus} type={type||"text"} value={val??""} onChange={e=>onChange(e.target.value)} placeholder={ph||""} inputMode={type==="number"?"decimal":undefined}
+    style={{width:"100%",boxSizing:"border-box",padding:"16px 16px",borderRadius:14,border:"2px solid #9fd3de",fontSize:20,background:W,color:"#0c4a6e",outline:"none",fontFamily:"inherit"}}/>;
+}
+function TextoPasso({val,onChange,ph}){
+  return <textarea autoFocus value={val??""} onChange={e=>onChange(e.target.value)} placeholder={ph||""} rows={5}
+    style={{width:"100%",boxSizing:"border-box",padding:"14px 16px",borderRadius:14,border:"2px solid #9fd3de",fontSize:17,background:W,color:"#0c4a6e",outline:"none",fontFamily:"inherit",resize:"vertical"}}/>;
+}
 function B({lb,onClick,cor,dis,sm,out,st}){
   const bg=dis?"#ccc":out?"transparent":(cor||V);
   return <button onClick={onClick} disabled={dis} style={{background:bg,color:out?(cor||V):W,border:out?"2px solid "+(cor||V):"none",borderRadius:sm?8:11,padding:sm?"8px 14px":"13px 18px",fontSize:sm?13:15,fontWeight:600,cursor:dis?"not-allowed":"pointer",width:sm?"auto":"100%",fontFamily:"inherit",...st}}>{lb}</button>;
@@ -926,6 +985,10 @@ function Temperaturas({user,db,setDb,showToast}){
 
   // Check if all equipments have been registered (on=needs temp, off/inactive=no temp needed)
   const todosPreenchidos=FRIOS.every(eq=>statusEq[eq]!=="on"||(temps[eq]!==undefined&&temps[eq]!==""));
+  const preenchidoEq=eq=>(statusEq[eq]||"on")!=="on"||(temps[eq]!==undefined&&temps[eq]!==""&&String(temps[eq])!=="-");
+  const nPreenchidos=FRIOS.filter(preenchidoEq).length;
+  // O passo aberto (um equipamento de cada vez), ou null.
+  const [passo,setPasso]=useState(null);
   // Check if fully saved (all equipment + saved to db)
   const done=!!sv&&FRIOS.every(eq=>{
     const r=sv.records&&sv.records.find(x=>x.equipamento===eq);
@@ -977,8 +1040,8 @@ function Temperaturas({user,db,setDb,showToast}){
     });
     enviar("Temperaturas",{cabecalho:cab,linha});
     showToast("Temperaturas "+momento+" guardadas!");
-    guardarRegistoPartilhado('Temperaturas',user.turma,h,nomeAluno||user.id,gT(),momento);
-    if(momento==="inicio"&&todosPreenchidos)setMomento("final");
+    guardarRegistoPartilhado('Temperaturas',user.turma,h,nomeTemp||user.id,gT(),momento);
+    // Fica no início, já feito. O final abre-se quando for altura (os valores não passam do início para o final).
   };
 
   // When switching moment, load existing temps
@@ -1033,7 +1096,7 @@ function Temperaturas({user,db,setDb,showToast}){
       {sv&&done?(
         <div>
           <div style={{background:"#e0f2fe",borderRadius:11,padding:"10px 14px",marginBottom:12,color:"#0e7490",fontSize:13,fontWeight:600}}>
-            Registado por {sv.aluno} às {sv.time}
+            Registado por {nomeCurto(db,sv.aluno,sv.nomeAluno)} às {sv.time}
           </div>
           {FRIOS.map(eq=>{
             const r=sv.records?sv.records.find(x=>x.equipamento===eq):null;
@@ -1068,42 +1131,49 @@ function Temperaturas({user,db,setDb,showToast}){
           {sv&&!done&&<div style={{background:"#fff3e0",borderRadius:9,padding:10,marginBottom:10,color:"#d97706",fontSize:12,fontWeight:600}}>
             Registo incompleto — preenche os equipamentos em falta e guarda novamente.
           </div>}
-          <div style={{marginBottom:10,fontSize:11,color:GR}}>
-            Preenchidos: {FRIOS.filter(eq=>temps[eq]!==undefined&&temps[eq]!=="").length}/{FRIOS.length}
-          </div>
-          {FRIOS.map(eq=>{
-            const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel"),cf=iC(eq,temps[eq]);
-            const preenchido=temps[eq]!==undefined&&temps[eq]!=="";
-            const st=statusEq[eq]||"on";
+          <B lb={nPreenchidos===0?"▶ Registar as temperaturas":"▶ Continuar ("+nPreenchidos+"/"+FRIOS.length+")"} onClick={()=>setPasso(Math.max(0,FRIOS.findIndex(eq=>!preenchidoEq(eq))))} cor="#0e7490"/>
+          <div style={{fontSize:12,color:GR,margin:"10px 2px 8px"}}>Ou toca num equipamento para o registar:</div>
+          {FRIOS.map((eq,i)=>{
+            const st=statusEq[eq]||"on",cf=iC(eq,temps[eq]),feito=preenchidoEq(eq);
             return(
-              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(st!=="on"?"#9ca3af":cf===false?R:cf===true?V:preenchido?"#bae6fd":BE)}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:st!=="on"?0:6}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
-                    {st==="on"&&<>
-                      <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>
-                      <div style={{fontSize:9,color:GR,marginTop:1}}>{cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 1°C a 3°C"}</div>
-                    </>}
-                  </div>
-                  {st==="on"&&<div style={{display:"flex",alignItems:"center",gap:3}}>
-                    {cg&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:"-"+abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":BE),background:temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":"transparent",color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>−</button>
-                      <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":BE),background:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":"transparent",color:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>+</button>
-                    </div>}
-                    <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:preenchido?"#bae6fd":BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
-                    <span style={{fontSize:10,fontWeight:700,color:cf===false?R:cf===true?V:GR,minWidth:20}}>{cf===false?"NC":cf===true?"OK":""}</span>
-                  </div>}
-                </div>
-                <div style={{display:"flex",gap:5}}>
-                  {[{id:"on",lb:"Em funcionamento"},{id:"off",lb:"Desligado"},{id:"inactive",lb:"Não ativo"}].map(s=>(
-                    <button key={s.id} onClick={()=>setStatusEq(p=>({...p,[eq]:s.id}))} style={{flex:1,padding:"5px 4px",borderRadius:6,border:"1.5px solid "+(st===s.id?"#0e7490":"#e0e0e0"),background:st===s.id?"#0e7490":"#fafafa",color:st===s.id?W:"#9ca3af",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{s.lb}</button>
-                  ))}
-                </div>
-              </Cd>
+              <button key={eq} onClick={()=>setPasso(i)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"12px 14px",marginBottom:6,borderRadius:12,cursor:"pointer",fontFamily:"inherit",border:"1.5px solid "+(st!=="on"?"#d1d5db":cf===false?R:feito?"#86d0df":BE),background:W}}>
+                <span style={{flex:1,fontSize:14,fontWeight:700,color:"#0c4a6e"}}>{eq}</span>
+                <span style={{fontSize:13,fontWeight:700,color:st!=="on"?"#6b7280":cf===false?R:feito?"#0e7490":"#94a3b8"}}>
+                  {st==="off"?"Desligado":st==="inactive"?"Não ativo":feito?temps[eq]+" °C "+(cf===false?"NC":cf===true?"OK":""):"Por registar ›"}
+                </span>
+              </button>
             );
           })}
-          <B lb={todosPreenchidos?"Guardar Temperaturas "+momento.toUpperCase():"Guardar ("+FRIOS.filter(eq=>temps[eq]!==undefined&&temps[eq]!=="").length+"/"+FRIOS.length+" preenchidos)"} onClick={save} cor={todosPreenchidos?"#0e7490":"#0369a1"}/>
-          {!todosPreenchidos&&<div style={{marginTop:8,fontSize:11,color:GR,textAlign:"center"}}>Podes guardar parcialmente e continuar depois.</div>}
+          {nPreenchidos>0&&<div style={{marginTop:10}}><B lb={todosPreenchidos?"Guardar temperaturas — "+(momento==="inicio"?"início":"final"):"Guardar o que já está ("+nPreenchidos+"/"+FRIOS.length+")"} onClick={save} cor={todosPreenchidos?"#16a34a":"#0369a1"}/></div>}
+          {passo!==null&&<Assistente titulo={"Temperaturas — "+(momento==="inicio"?"início":"final")+" da aula"} inicio={passo} onSair={()=>setPasso(null)}
+            textoConcluir={todosPreenchidos?"✓ Guardar temperaturas":"Guardar o que já está"}
+            onConcluir={()=>{save();setPasso(null);}}
+            passos={[...FRIOS.map(eq=>{
+              const cg=eq.toLowerCase().includes("congel"),st=statusEq[eq]||"on",cf=iC(eq,temps[eq]);
+              const neg=temps[eq]&&String(temps[eq])[0]==="-";
+              return {nome:"Equipamentos de frio",titulo:eq,pode:st!=="on"||preenchidoEq(eq),
+                ajuda:cg?"Congelação: tem de estar a -18 °C ou menos (ideal -18 a -22 °C).":"Refrigeração: entre 0 e 4 °C (ideal 1 a 3 °C).",
+                conteudo:<>
+                  <Escolha ativo={st==="on"} onClick={()=>setStatusEq(p=>({...p,[eq]:"on"}))}>Em funcionamento</Escolha>
+                  {st==="on"&&<div style={{background:W,borderRadius:14,padding:14,marginBottom:12,border:"1.5px solid #cbe4ea"}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#0e7490",marginBottom:8}}>Temperatura que o termómetro mostra (°C)</div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      {cg&&<button onClick={()=>{const abs=String(temps[eq]||"").replace("-","");setTemps(p=>({...p,[eq]:neg?abs:"-"+abs}));}} style={{minWidth:64,height:58,borderRadius:12,border:"2px solid "+(neg?R:"#9fd3de"),background:neg?"#fdecea":W,color:neg?R:"#0c4a6e",fontSize:22,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{neg?"−":"+"}</button>}
+                      <div style={{flex:1}}><CampoPasso type="number" val={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={v=>setTemps(p=>({...p,[eq]:neg&&v?"-"+v:v}))} ph={cg?"18":"3"}/></div>
+                    </div>
+                    {cg&&<div style={{fontSize:12.5,color:GR,marginTop:6}}>Nos congeladores a temperatura é negativa: confirma o sinal «−».</div>}
+                    {cf!==null&&<div style={{marginTop:10,padding:"10px 12px",borderRadius:10,fontSize:15,fontWeight:800,background:cf?"#e8f5e9":"#fdecea",color:cf?"#166534":R}}>
+                      {cf?"✓ Conforme":"✗ Não conforme — fica registada uma não conformidade. Avisa o professor."}</div>}
+                  </div>}
+                  <Escolha ativo={st==="off"} onClick={()=>setStatusEq(p=>({...p,[eq]:"off"}))} cor="#6b7280">Desligado</Escolha>
+                  <Escolha ativo={st==="inactive"} onClick={()=>setStatusEq(p=>({...p,[eq]:"inactive"}))} cor="#6b7280">Não ativo</Escolha>
+                </>};
+            }),{nome:"Rever",titulo:"Confere antes de guardar",ajuda:todosPreenchidos?"Estão todos registados.":"Ainda faltam "+(FRIOS.length-nPreenchidos)+" equipamentos. Podes guardar o que já está e continuar depois.",
+              conteudo:<div>{FRIOS.map(eq=>{const st=statusEq[eq]||"on",cf=iC(eq,temps[eq]);return(
+                <div key={eq} style={{display:"flex",justifyContent:"space-between",padding:"9px 12px",marginBottom:4,borderRadius:10,background:W,fontSize:14}}>
+                  <span style={{fontWeight:700,color:"#0c4a6e"}}>{eq}</span>
+                  <span style={{fontWeight:700,color:st!=="on"?"#6b7280":cf===false?R:cf?"#166534":"#94a3b8"}}>{st==="off"?"Desligado":st==="inactive"?"Não ativo":preenchidoEq(eq)?temps[eq]+" °C "+(cf===false?"NC":"OK"):"falta"}</span>
+                </div>);})}</div>}]}/>}
         </div>
       )}
     </div>
