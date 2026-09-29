@@ -5075,6 +5075,9 @@ export default function App(){
     const ucParam=params.get('uc')||'';
     const ucNomeParam=params.get('ucNome')||'';
     const pratosParam=params.get('pratos')||'';
+    // A ficha técnica pode abrir logo o registo certo (um PCC: temperatura, testemunho…).
+    const moduloParam=params.get('modulo')||params.get('mod')||'';
+    if(moduloParam)(window as any).__kf_modulo=moduloParam;
     if(ucParam||ucNomeParam||pratosParam){
       setContextoAula({uc:ucParam,ucNome:ucNomeParam,pratos:pratosParam.split('|').filter(Boolean)});
     }
@@ -5100,6 +5103,15 @@ export default function App(){
       window.__kf_login_params={turma:turmaParam,numero:numParam,pin:pinParam};
     }
   },[]);
+
+  // Entrou pelo link da ficha técnica com um registo pedido: abre-o logo.
+  useEffect(()=>{
+    const m=(window as any).__kf_modulo;
+    if(!user||!m)return;
+    (window as any).__kf_modulo='';
+    const validos=["temperaturas","recepcao","producao","testemunho","desinfecao","manutencao","higienizacao","equipamentos","conservacao","regeneracao","faltas","higienePessoal","oleos","servico","naoConf","encerramento"];
+    if(validos.includes(m))setMod(m);
+  },[user]);
 
   // Os alunos são os da Avaliação ECL (as mesmas turmas, nomes e PINs).
   useEffect(()=>{
