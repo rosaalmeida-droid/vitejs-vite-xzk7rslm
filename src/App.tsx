@@ -71,34 +71,6 @@ function guardarRegistoPartilhado(tabela,turma,data,nomeAluno,hora,momento='') {
   } catch {}
 }
 
-// Calcula Responsável + Suplentes pelo Encerramento, rotativo, considerando os últimos 15 dias de histórico
-function calcResponsavelEncerramento(db,turma,h){
-  const presencasHoje=(db.presencas&&db.presencas["presenca-"+turma+"-"+h])||{};
-  const todosAlunos=(db.alunosList||[]).filter(a=>a.turma===turma);
-  const presentesHoje=todosAlunos.filter(a=>Object.keys(presencasHoje).some(id=>id.endsWith("-"+a.numero)));
-
-  const hoje=new Date(h.split("/").reverse().join("-"));
-  const limite=new Date(hoje);limite.setDate(limite.getDate()-15);
-
-  const historicoEnc=(Object.values(db.encerramento||{}) as any[]).filter((e:any)=>{
-    if(e.emProgresso||!e.nomeAluno||e.turma!==turma)return false;
-    const d=new Date(e.date.split("/").reverse().join("-"));
-    return d>=limite&&d<=hoje;
-  });
-  const contagemEnc:Record<string,number>={};
-  historicoEnc.forEach((e:any)=>{contagemEnc[e.aluno]=(contagemEnc[e.aluno]||0)+1;});
-  const ultimaVez:Record<string,string>={};
-  historicoEnc.forEach((e:any)=>{if(!ultimaVez[e.aluno]||e.date>ultimaVez[e.aluno])ultimaVez[e.aluno]=e.date;});
-
-  const candidatos=[...presentesHoje].sort((a,b)=>{
-    const ca=contagemEnc[a.turma+"-"+a.numero]||0,cb=contagemEnc[b.turma+"-"+b.numero]||0;
-    if(ca!==cb)return ca-cb;
-    const ua=ultimaVez[a.turma+"-"+a.numero]||"",ub=ultimaVez[b.turma+"-"+b.numero]||"";
-    return ua.localeCompare(ub);
-  });
-
-  return {responsavel:candidatos[0]||null,suplentes:candidatos.slice(1)};
-}
 // ── Alunos: a lista da Avaliação ECL ─────────────────────────
 // Base: a cópia da lista oficial (alunosECL.ts). Com ligação, a lista do
 // Google Sheets da Avaliação ECL manda (PIN mudado, aluno novo ou retirado).
@@ -216,7 +188,7 @@ function ProcedimentoBtn({item}){
     <>
       <button onClick={e=>{e.stopPropagation();setOpen(true);}} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,background:"rgba(124,58,237,.12)",border:"1px solid rgba(124,58,237,.3)",color:"#7c3aed",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>📋 Como?</button>
       {open&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{e.stopPropagation();setOpen(false);}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{e.stopPropagation();setOpen(false);}}>
           <div style={{background:W,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             <div style={{width:40,height:4,background:"#e9d5ff",borderRadius:2,margin:"0 auto 16px"}}></div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
@@ -376,6 +348,121 @@ async function linhasDoSheets(tabela){
     return j.dados.filter(l=>Array.isArray(l)&&dataDaLinhaSheets(l[0])).map(l=>[dataDaLinhaSheets(l[0]),...l.slice(1)]);
   }catch{return null;}
 }
+// ── Registos partilhados entre telemóveis ────────────────────
+// Cada registo vai para o Google Sheets. Aqui faz-se o caminho de volta:
+// lê-se o Sheets e junta-se ao que o aparelho já tem, para que o professor
+// veja as não conformidades dos alunos, a turma veja que as temperaturas já
+// foram registadas por um colega, e a coordenadora veja tudo. O que já está
+// no aparelho nunca é substituído — só se acrescenta o que falta.
+const SINC_DO_DIA=["Temperaturas","Higienização","Panos Solução","Encerramento","Presenças","Higiene Pessoal","NãoConformidades"];
+const SINC_TUDO=[...SINC_DO_DIA,"Receção Matérias-Primas","Amostra Testemunho","Desinfeção","Produção"];
+async function lerDoSheetsParaJuntar(tabelas){
+  const out={};
+  await Promise.all(tabelas.map(async t=>{const x=await linhasDoSheets(t);if(x)out[t]=x;}));
+  return out;
+}
+function juntarDoSheets(p,dados,soDia){
+  const hoje=gD();
+  const serve=l=>!soDia||l[0]===hoje;
+  const n={...p};
+  const T=(t)=>(dados[t]||[]).filter(serve);
+  const hr=v=>horaDaLinhaSheets(v);
+  // Temperaturas
+  if(dados["Temperaturas"]){
+    const te={...(n.temperaturas||{})};
+    T("Temperaturas").forEach(l=>{
+      const mom=l[5]==="final"?"final":"inicio",k="temp-"+l[2]+"-"+l[0]+"-"+mom;
+      if(te[k])return;
+      const records=FRIOS.map((eq,i)=>{const v=l[6+2*i],e=l[7+2*i];
+        if(e==="N/A")return {equipamento:eq,temperatura:"",conforme:null,status:v==="Desligado"?"off":"inactive"};
+        return {equipamento:eq,temperatura:v==null||v==="---"?"":String(v),conforme:e==="OK"?true:e==="NC"?false:null,status:"on"};});
+      te[k]={records,temps:{},statusEq:{},aluno:l[3],nomeAluno:l[4],turma:l[2],date:l[0],time:hr(l[1]),momento:mom,doSheets:true};
+    });
+    n.temperaturas=te;
+  }
+  // Higienização e panos (desmarcar também chega)
+  if(dados["Higienização"]||dados["Panos Solução"]){
+    const hg={...(n.higienizacao||{})};
+    T("Higienização").forEach(l=>{
+      const k="hig-"+l[2]+"-"+l[0];
+      const x={...(hg[k]||{registos:{},turma:l[2],date:l[0]})};x.registos={...(x.registos||{})};
+      if(String(l[6]||"")==="Desmarcado")delete x.registos[l[5]];
+      else if(!x.registos[l[5]])x.registos[l[5]]={aluno:l[4]||l[3],time:hr(l[1]),turma:l[2]};
+      hg[k]=x;
+    });
+    T("Panos Solução").forEach(l=>{
+      const k="hig-"+l[2]+"-"+l[0],mom=l[5]==="final"?"final":"inicio";
+      const x={...(hg[k]||{registos:{},turma:l[2],date:l[0]})};x.panos={...(x.panos||{})};
+      if(!x.panos[mom])x.panos[mom]={aluno:l[4]||l[3],time:hr(l[1]),turma:l[2]};
+      hg[k]=x;
+    });
+    n.higienizacao=hg;
+  }
+  // Encerramento
+  if(dados["Encerramento"]){
+    const en={...(n.encerramento||{})};
+    T("Encerramento").forEach(l=>{const k="enc-"+l[2]+"-"+l[0];
+      if(en[k]&&en[k].emProgresso===false)return;
+      en[k]={obs:"",checks:{},na:{},aluno:l[3],nomeAluno:l[4],turma:l[2],date:l[0],time:hr(l[1]),emProgresso:false,doSheets:true};});
+    n.encerramento=en;
+  }
+  // Presenças
+  if(dados["Presenças"]){
+    const ps={...(n.presencas||{})};
+    T("Presenças").forEach(l=>{const k="presenca-"+l[2]+"-"+l[0];
+      const x={...(ps[k]||{})};if(!x[l[3]])x[l[3]]={aluno:l[3],nomeAluno:l[4],time:hr(l[1]),date:l[0]};ps[k]=x;});
+    n.presencas=ps;
+  }
+  // Higiene pessoal
+  if(dados["Higiene Pessoal"]){
+    const hp={...(n.higPessoal||{})};
+    T("Higiene Pessoal").forEach(l=>{const k="hig-pessoal-"+l[3]+"-"+l[0];
+      if(!hp[k])hp[k]={checks:{},aluno:l[3],nomeAluno:l[4],date:l[0],time:hr(l[1]),doSheets:true};});
+    n.higPessoal=hp;
+  }
+  // Não conformidades
+  if(dados["NãoConformidades"]){
+    const ncs=[...(n.ncs||[])];
+    const igual=(a,l,desc)=>a.date===l[0]&&String(a.responsavel)===String(l[3])&&a.zona===l[5]&&a.descricao===desc;
+    T("NãoConformidades").forEach(l=>{
+      const desc=String(l[6]||"");
+      if(desc.startsWith("[ESCALADA AO COORDENADOR] ")){
+        const orig=desc.replace("[ESCALADA AO COORDENADOR] ","");
+        const i=ncs.findIndex(a=>String(a.responsavel)===String(l[3])&&a.zona===l[5]&&a.descricao===orig);
+        if(i>=0&&ncs[i].estado!=="validada")ncs[i]={...ncs[i],estado:"escalada",decisao:ncs[i].decisao||"escalar"};
+        return;
+      }
+      if(ncs.some(a=>igual(a,l,desc)&&(a.time===hr(l[1])||!a.time)))return;
+      ncs.push({id:"sh-"+l[0]+"-"+hr(l[1])+"-"+l[3]+"-"+l[5],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],zona:l[5],descricao:desc,acaoCorretiva:l[7]||"",estado:l[8]||"aberta",professor:"",decisao:"",doSheets:true});
+    });
+    n.ncs=ncs;
+  }
+  if(!soDia){
+    const junta=(chave,linhas,mapa,chaveDe)=>{
+      const arr=[...(n[chave]||[])];const tem=new Set(arr.map(chaveDe));
+      linhas.forEach(l=>{const x=mapa(l);if(!tem.has(chaveDe(x))){arr.push(x);tem.add(chaveDe(x));}});
+      n[chave]=arr;
+    };
+    if(dados["Receção Matérias-Primas"]){
+      const grupos=new Map();
+      T("Receção Matérias-Primas").forEach(l=>{const g=[l[0],hr(l[1]),l[3],l[5],l[6]].join("|");
+        const x=grupos.get(g)||{id:"sh-"+g,date:l[0],time:hr(l[1]),turma:l[2],aluno:l[3],fornecedor:l[5],fatura:l[6],produtos:[],doSheets:true};
+        x.produtos.push({id:x.produtos.length,nome:l[7],categoria:l[8],quantidade:l[9],lote:l[10],validade:dataDaLinhaSheets(l[11])?nD(dataDaLinhaSheets(l[11])):String(l[11]||""),conforme:l[12],temperatura:l[13]==null?"":String(l[13])});
+        grupos.set(g,x);});
+      junta("recepcao",[...grupos.values()],x=>x,x=>[x.date,x.time,x.aluno,x.fornecedor,x.fatura].join("|"));
+    }
+    if(dados["Amostra Testemunho"])junta("testemunho",T("Amostra Testemunho"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],prato:l[5],tipoRefeicao:l[6],horaRefeicao:hr(l[7]),pesoAmostra:l[8],localArmazenamento:l[9],dataDestruicao:dataDaLinhaSheets(l[10])?nD(dataDaLinhaSheets(l[10])):String(l[10]||""),doSheets:true}),x=>[x.date,x.time,x.responsavel,x.prato].join("|"));
+    if(dados["Desinfeção"])junta("desinfecao",T("Desinfeção"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],alimento:l[5],quantidade:l[6],produto:l[7],concentracao:l[8],tempoContacto:l[9],temperatura:l[10],doSheets:true}),x=>[x.date,x.time,x.responsavel,x.alimento].join("|"));
+    if(dados["Produção"])junta("producao",T("Produção"),l=>({id:"sh-"+l[0]+l[2]+l[4],date:l[0],time:l[10]?hr(l[10]):"",turma:l[1],aluno:l[2],nome:l[3],lote:l[4],conservacao:l[5],dataProducao:dataDaLinhaSheets(l[6])?nD(dataDaLinhaSheets(l[6])):String(l[6]||""),dataLimite:dataDaLinhaSheets(l[7])?nD(dataDaLinhaSheets(l[7])):String(l[7]||""),local:l[8],professor:l[9],doSheets:true}),x=>[x.date,x.aluno,x.nome,x.lote].join("|"));
+  }
+  return n;
+}
+/** Vai buscar ao Sheets e junta. soDia: só os registos de hoje (telemóveis dos alunos). */
+async function sincronizarKF(setDb,soDia){
+  const dados=await lerDoSheetsParaJuntar(soDia?SINC_DO_DIA:SINC_TUDO);
+  if(Object.keys(dados).length)setDb(p=>juntarDoSheets(p,dados,soDia));
+  return Object.keys(dados).length>0;
+}
 /** Folha oficial de um período, com os registos de TODAS as turmas juntos, por data e hora
  *  (para a ASAE interessa o registo e quem o fez, não a turma). Lê do Google Sheets, onde
  *  chegam os registos de todos os telemóveis; sem ligação, usa o que está neste aparelho. */
@@ -395,13 +482,20 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
     if(tipo==="temperaturas"){const x=await L("Temperaturas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5]==="final"?"Final":l[5]==="inicio"?"Início":String(l[5]||""),nomeDe(l[3],l[4]),...FRIOS.map((_,i)=>{const v=l[6+2*i],e=l[7+2*i];if(v===""||v==null)return "";return e==="N/A"?String(v):v+" °C "+(e==="---"?"":e);})]);}
     if(tipo==="recepcao"){const x=await L("Receção Matérias-Primas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10],l[11]?fD(dataDaLinhaSheets(l[11])||String(l[11])):"",l[13]!==""&&l[13]!=null?l[13]+" °C":"",l[12],nomeDe(l[3],l[4])]);}
     if(tipo==="testemunho"){const x=await L("Amostra Testemunho");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[7]||l[1]),l[5],l[6],l[8]?l[8]+" g":"",l[9],l[10],nomeDe(l[3],l[4])]);}
-    if(tipo==="producao"){const x=await L("Produção");return x&&x.map(l=>[l[0],"",l[3],l[4],l[5],fD(dataDaLinhaSheets(l[6])||String(l[6]||"")),fD(dataDaLinhaSheets(l[7])||String(l[7]||"")),l[8],nomeDe(l[2],""),l[9]||""]);}
+    if(tipo==="producao"){const x=await L("Produção");return x&&x.map(l=>[l[0],l[10]?horaDaLinhaSheets(l[10]):"",l[3],l[4],l[5],fD(dataDaLinhaSheets(l[6])||String(l[6]||"")),fD(dataDaLinhaSheets(l[7])||String(l[7]||"")),l[8],nomeDe(l[2],l[11]||""),l[9]||""]);}
+    if(tipo==="naoconf"){const x=await L("NãoConformidades");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7]||"",l[8]||"",nomeDe(l[3],l[4])]);}
     if(tipo==="desinfecao"){const x=await L("Desinfeção");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10]!==""&&l[10]!=null?l[10]+" °C":"",nomeDe(l[3],l[4])]);}
     if(tipo==="higienizacao"){
       const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||"";
       const a=await L("Higienização"),b=await L("Panos Solução");
       if(!a||!b)return null;
-      return [...a.map(l=>[l[0],horaDaLinhaSheets(l[1]),zonaDe(String(l[5])),l[5],nomeDe(l[3],l[4])]),
+      // «Desmarcado» anula a marcação anterior da mesma tarefa, no mesmo dia e turma.
+      const feitas=[];
+      a.forEach(l=>{
+        if(String(l[6]||"")==="Desmarcado"){for(let i=feitas.length-1;i>=0;i--){const f=feitas[i];if(f[0]===l[0]&&f[2]===l[2]&&f[5]===l[5]){feitas.splice(i,1);break;}}}
+        else feitas.push(l);
+      });
+      return [...feitas.map(l=>[l[0],horaDaLinhaSheets(l[1]),zonaDe(String(l[5])),l[5],nomeDe(l[3],l[4])]),
         ...b.map(l=>[l[0],horaDaLinhaSheets(l[1]),"Panos e esponjas","Solução desinfetante — "+(l[5]==="final"?"final":"início")+" da aula",nomeDe(l[3],l[4])])];
     }
     return null;
@@ -438,6 +532,10 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
     titulo="Desinfeção de Alimentos em Cru";
     col=["Dia","Hora","Alimento","Quantidade","Produto","Conc. (ml/L)","Tempo (min)","Temp. água","Registado por"];
     (db.desinfecao||[]).filter(d=>noMes(d.date)).forEach(d=>lin.push([d.date,d.time,d.alimento,d.quantidade,d.produto,d.concentracao,d.tempoContacto,d.temperatura!==""&&d.temperatura!=null?d.temperatura+" °C":"",nomeCurto(db,d.responsavel,d.nomeAluno)]));
+  }else if(tipo==="naoconf"){
+    titulo="Não Conformidades";
+    col=["Dia","Hora","Zona / equipamento","Descrição","Ação corretiva","Estado","Registado por"];
+    (db.ncs||[]).filter(x=>noMes(x.date)).forEach(x=>lin.push([x.date,x.time||"",x.zona,x.descricao,x.acaoCorretiva||"",x.estado||"",nomeCurto(db,x.responsavel,x.nomeAluno)]));
   }else if(tipo==="higienizacao"){
     titulo="Higienização de Equipamentos e Utensílios";
     col=["Dia","Hora","Zona","Tarefa","Registado por"];
@@ -491,6 +589,84 @@ const fD=s=>{if(!s)return"?";if(s.includes("/"))return s;const p=s.split("-");re
 const nD=s=>s?(s.includes("/")?s.split("/").reverse().join("-"):s):"";
 const iC=(nm,t)=>{const v=parseFloat(t);if(isNaN(v))return null;const cg=nm.toLowerCase().includes("congelador")||nm.toLowerCase().includes("congel");return cg?v<=-18:v>=0&&v<=4;};
 
+// ── Um ecrã de cada vez (como na Avaliação ECL) ──────────────
+// Abre por cima da aplicação: em cima «✕ Sair» e o nome do registo; a
+// meio só a pergunta deste passo; em baixo Anterior / Seguinte sempre à
+// vista. O último passo guarda.
+const FUNDO_PASSO="#dff1f5";
+function Assistente({titulo,passos,onSair,onConcluir,textoConcluir="Guardar",inicio=0}){
+  const [i,setI]=useState(inicio);
+  useEffect(()=>{const a=document.body.style.overflow;document.body.style.overflow="hidden";return()=>{document.body.style.overflow=a;};},[]);
+  const idx=Math.min(i,passos.length-1),p=passos[idx],ultimo=idx===passos.length-1;
+  const pode=p.pode!==false;
+  const seguinte=()=>{if(!pode)return;if(ultimo)onConcluir&&onConcluir();else setI(idx+1);};
+  return(
+    <div role="dialog" aria-modal="true" aria-label={titulo} style={{position:"fixed",inset:0,zIndex:1000,background:FUNDO_PASSO,display:"flex",flexDirection:"column",textAlign:"left"}}>
+      <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,paddingTop:"max(10px, env(safe-area-inset-top))"}}>
+        <button onClick={onSair} style={{padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.5)",background:"transparent",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ Sair</button>
+        <div style={{flex:1,minWidth:0,fontSize:15,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"uppercase",letterSpacing:.4}}>{titulo}</div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+        <div style={{maxWidth:560,margin:"0 auto",padding:"16px 16px 8px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+            <span style={{fontSize:13,fontWeight:700,color:"#0e7490"}}>{p.nome||""}</span>
+            <span style={{fontSize:12.5,color:GR}}>{idx+1} de {passos.length}</span>
+          </div>
+          <div style={{display:"flex",gap:3,marginBottom:18}}>
+            {passos.map((_,k)=><div key={k} style={{flex:1,height:5,borderRadius:3,background:k<idx?"#0e7490":k===idx?"#67c3d6":"rgba(255,255,255,.8)"}}/>)}
+          </div>
+          {p.titulo&&<div style={{fontSize:24,fontWeight:800,color:"#0c4a6e",lineHeight:1.25,marginBottom:6}}>{p.titulo}</div>}
+          {p.ajuda&&<div style={{fontSize:15,color:"#334155",lineHeight:1.5,marginBottom:14}}>{p.ajuda}</div>}
+          <div>{p.conteudo}</div>
+        </div>
+      </div>
+      <div style={{background:FUNDO_PASSO,borderTop:"1px solid rgba(14,116,144,.15)"}}>
+        <div style={{maxWidth:560,margin:"0 auto",display:"flex",gap:10,padding:"10px 16px max(10px, env(safe-area-inset-bottom))"}}>
+          {idx>0&&<button onClick={()=>setI(idx-1)} style={{minHeight:52,padding:"0 18px",borderRadius:12,border:"1px solid #cbd5e1",background:W,color:"#475569",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Anterior</button>}
+          <button onClick={seguinte} disabled={!pode} style={{flex:1,minHeight:52,borderRadius:12,border:"none",fontSize:16.5,fontWeight:800,fontFamily:"inherit",background:pode?(ultimo?"#16a34a":"#0e7490"):"rgba(15,23,42,.08)",color:pode?W:"rgba(15,23,42,.3)",cursor:pode?"pointer":"not-allowed"}}>
+            {ultimo?textoConcluir:"Seguinte"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+/** Ecrã cheio sem Anterior/Seguinte, para registos que já têm os seus próprios passos. */
+function EcraSimples({titulo,onSair,children}){
+  useEffect(()=>{const a=document.body.style.overflow;document.body.style.overflow="hidden";return()=>{document.body.style.overflow=a;};},[]);
+  return(
+    <div role="dialog" aria-modal="true" aria-label={titulo} style={{position:"fixed",inset:0,zIndex:1000,background:FUNDO_PASSO,display:"flex",flexDirection:"column",textAlign:"left"}}>
+      <div style={{background:"linear-gradient(135deg,#0e7490,#0369a1)",color:W,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,paddingTop:"max(10px, env(safe-area-inset-top))"}}>
+        <button onClick={onSair} style={{padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.5)",background:"transparent",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ Sair</button>
+        <div style={{flex:1,minWidth:0,fontSize:15,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"uppercase",letterSpacing:.4}}>{titulo}</div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch"}}><div style={{maxWidth:560,margin:"0 auto",padding:16}}>{children}</div></div>
+    </div>
+  );
+}
+/** O último passo: o que foi escrito, para conferir antes de guardar. */
+function ReverPasso({linhas}){
+  return <div style={{background:W,borderRadius:14,padding:"6px 14px"}}>{linhas.filter(Boolean).map(([k,v],i)=>
+    <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderTop:i?"1px solid #e2eef1":"none",fontSize:15}}>
+      <span style={{width:120,flexShrink:0,color:GR}}>{k}</span><span style={{flex:1,fontWeight:700,color:"#0c4a6e"}}>{v===""||v==null?"—":v}</span></div>)}</div>;
+}
+/** Botão grande de escolha, para os passos. */
+function Escolha({ativo,onClick,children,sub,cor}){
+  const c=cor||"#0e7490";
+  return <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:12,width:"100%",textAlign:"left",minHeight:56,padding:"12px 16px",borderRadius:14,marginBottom:10,cursor:"pointer",fontFamily:"inherit",border:ativo?"none":"1.5px solid #cbe4ea",background:ativo?c:W,color:ativo?W:"#0c4a6e",boxShadow:ativo?"0 3px 10px rgba(14,116,144,.25)":"0 1px 3px rgba(0,0,0,.05)"}}>
+    <span style={{flex:1}}><span style={{display:"block",fontSize:16,fontWeight:700}}>{children}</span>{sub&&<span style={{display:"block",fontSize:13,opacity:ativo?.85:.65,marginTop:2}}>{sub}</span>}</span>
+    {ativo&&<span style={{fontSize:18,fontWeight:800}}>✓</span>}
+  </button>;
+}
+/** Campo grande para um passo (texto, número ou data). */
+function CampoPasso({val,onChange,type,ph,autoFocus=true}){
+  return <input autoFocus={autoFocus} type={type||"text"} value={val??""} onChange={e=>onChange(e.target.value)} placeholder={ph||""} inputMode={type==="number"?"decimal":undefined}
+    style={{width:"100%",boxSizing:"border-box",padding:"16px 16px",borderRadius:14,border:"2px solid #9fd3de",fontSize:20,background:W,color:"#0c4a6e",outline:"none",fontFamily:"inherit"}}/>;
+}
+function TextoPasso({val,onChange,ph}){
+  return <textarea autoFocus value={val??""} onChange={e=>onChange(e.target.value)} placeholder={ph||""} rows={5}
+    style={{width:"100%",boxSizing:"border-box",padding:"14px 16px",borderRadius:14,border:"2px solid #9fd3de",fontSize:17,background:W,color:"#0c4a6e",outline:"none",fontFamily:"inherit",resize:"vertical"}}/>;
+}
 function B({lb,onClick,cor,dis,sm,out,st}){
   const bg=dis?"#ccc":out?"transparent":(cor||V);
   return <button onClick={onClick} disabled={dis} style={{background:bg,color:out?(cor||V):W,border:out?"2px solid "+(cor||V):"none",borderRadius:sm?8:11,padding:sm?"8px 14px":"13px 18px",fontSize:sm?13:15,fontWeight:600,cursor:dis?"not-allowed":"pointer",width:sm?"auto":"100%",fontFamily:"inherit",...st}}>{lb}</button>;
@@ -729,22 +905,6 @@ function DashAluno({user,db,setModule}){
         </div>
       </div>
 
-      {(()=>{
-        const {responsavel,suplentes}=calcResponsavelEncerramento(db,user.turma,h);
-        if(!responsavel)return null;
-        return(
-          <Cd st={{borderLeft:"3px solid #0e7490",marginBottom:12}}>
-            <div style={{fontSize:11,fontWeight:700,color:"#0e7490",marginBottom:4,textTransform:"uppercase"}}>Responsável de hoje pelo Encerramento</div>
-            <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e"}}>{responsavel.nome||("Aluno "+responsavel.numero)}</div>
-            {suplentes.length>0&&(
-              <div style={{fontSize:11,color:GR,marginTop:4}}>
-                {suplentes.slice(0,3).map((s,i)=>"Suplente "+(i+1)+": "+(s.nome||("Aluno "+s.numero))).join(" • ")}
-              </div>
-            )}
-          </Cd>
-        );
-      })()}
-
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["modulos","Módulos"],["historico","Histórico do Dia"]].map(([id,lb])=>(
           <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?V:BE),background:aba===id?V:LC,color:aba===id?W:GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
@@ -844,6 +1004,10 @@ function Temperaturas({user,db,setDb,showToast}){
 
   // Check if all equipments have been registered (on=needs temp, off/inactive=no temp needed)
   const todosPreenchidos=FRIOS.every(eq=>statusEq[eq]!=="on"||(temps[eq]!==undefined&&temps[eq]!==""));
+  const preenchidoEq=eq=>(statusEq[eq]||"on")!=="on"||(temps[eq]!==undefined&&temps[eq]!==""&&String(temps[eq])!=="-");
+  const nPreenchidos=FRIOS.filter(preenchidoEq).length;
+  // O passo aberto (um equipamento de cada vez), ou null.
+  const [passo,setPasso]=useState(null);
   // Check if fully saved (all equipment + saved to db)
   const done=!!sv&&FRIOS.every(eq=>{
     const r=sv.records&&sv.records.find(x=>x.equipamento===eq);
@@ -895,8 +1059,8 @@ function Temperaturas({user,db,setDb,showToast}){
     });
     enviar("Temperaturas",{cabecalho:cab,linha});
     showToast("Temperaturas "+momento+" guardadas!");
-    guardarRegistoPartilhado('Temperaturas',user.turma,h,nomeAluno||user.id,gT(),momento);
-    if(momento==="inicio"&&todosPreenchidos)setMomento("final");
+    guardarRegistoPartilhado('Temperaturas',user.turma,h,nomeTemp||user.id,gT(),momento);
+    // Fica no início, já feito. O final abre-se quando for altura (os valores não passam do início para o final).
   };
 
   // When switching moment, load existing temps
@@ -951,7 +1115,7 @@ function Temperaturas({user,db,setDb,showToast}){
       {sv&&done?(
         <div>
           <div style={{background:"#e0f2fe",borderRadius:11,padding:"10px 14px",marginBottom:12,color:"#0e7490",fontSize:13,fontWeight:600}}>
-            Registado por {sv.aluno} às {sv.time}
+            Registado por {nomeCurto(db,sv.aluno,sv.nomeAluno)} às {sv.time}
           </div>
           {FRIOS.map(eq=>{
             const r=sv.records?sv.records.find(x=>x.equipamento===eq):null;
@@ -986,42 +1150,49 @@ function Temperaturas({user,db,setDb,showToast}){
           {sv&&!done&&<div style={{background:"#fff3e0",borderRadius:9,padding:10,marginBottom:10,color:"#d97706",fontSize:12,fontWeight:600}}>
             Registo incompleto — preenche os equipamentos em falta e guarda novamente.
           </div>}
-          <div style={{marginBottom:10,fontSize:11,color:GR}}>
-            Preenchidos: {FRIOS.filter(eq=>temps[eq]!==undefined&&temps[eq]!=="").length}/{FRIOS.length}
-          </div>
-          {FRIOS.map(eq=>{
-            const cg=eq.toLowerCase().includes("congelador")||eq.toLowerCase().includes("congel"),cf=iC(eq,temps[eq]);
-            const preenchido=temps[eq]!==undefined&&temps[eq]!=="";
-            const st=statusEq[eq]||"on";
+          <B lb={nPreenchidos===0?"▶ Registar as temperaturas":"▶ Continuar ("+nPreenchidos+"/"+FRIOS.length+")"} onClick={()=>setPasso(Math.max(0,FRIOS.findIndex(eq=>!preenchidoEq(eq))))} cor="#0e7490"/>
+          <div style={{fontSize:12,color:GR,margin:"10px 2px 8px"}}>Ou toca num equipamento para o registar:</div>
+          {FRIOS.map((eq,i)=>{
+            const st=statusEq[eq]||"on",cf=iC(eq,temps[eq]),feito=preenchidoEq(eq);
             return(
-              <Cd key={eq} st={{marginBottom:8,borderLeft:"3px solid "+(st!=="on"?"#9ca3af":cf===false?R:cf===true?V:preenchido?"#bae6fd":BE)}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:st!=="on"?0:6}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:700,color:"#0c4a6e"}}>{eq}</div>
-                    {st==="on"&&<>
-                      <div style={{fontSize:10,color:cg?"#7c3aed":"#0369a1",fontWeight:600,marginTop:1}}>{cg?"Congelação: ≤ -18°C":"Refrigeração: 0°C a 4°C"}</div>
-                      <div style={{fontSize:9,color:GR,marginTop:1}}>{cg?"Zona ideal: -18°C a -22°C":"Zona ideal: 1°C a 3°C"}</div>
-                    </>}
-                  </div>
-                  {st==="on"&&<div style={{display:"flex",alignItems:"center",gap:3}}>
-                    {cg&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:"-"+abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":BE),background:temps[eq]&&String(temps[eq])[0]==="-"?"#dc2626":"transparent",color:temps[eq]&&String(temps[eq])[0]==="-"?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>−</button>
-                      <button onClick={()=>{const cur=String(temps[eq]||"");const abs=cur.replace("-","");setTemps(p=>({...p,[eq]:abs}));}} style={{width:26,height:16,borderRadius:4,border:"1.5px solid "+(temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":BE),background:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?"#16a34a":"transparent",color:temps[eq]&&String(temps[eq])[0]!=="-"&&temps[eq]?W:GR,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit",lineHeight:1,padding:0}}>+</button>
-                    </div>}
-                    <input type="number" value={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={e=>{const neg=cg&&temps[eq]&&String(temps[eq])[0]==="-";setTemps(p=>({...p,[eq]:neg&&e.target.value?"-"+e.target.value:e.target.value}));}} placeholder="0" step="0.1" min="0" style={{width:52,padding:"7px 6px",borderRadius:7,border:"2px solid "+(cf===false?R:cf===true?V:preenchido?"#bae6fd":BE),fontSize:14,fontWeight:600,textAlign:"center",background:LC,color:V,fontFamily:"inherit"}}/>
-                    <span style={{fontSize:10,fontWeight:700,color:cf===false?R:cf===true?V:GR,minWidth:20}}>{cf===false?"NC":cf===true?"OK":""}</span>
-                  </div>}
-                </div>
-                <div style={{display:"flex",gap:5}}>
-                  {[{id:"on",lb:"Em funcionamento"},{id:"off",lb:"Desligado"},{id:"inactive",lb:"Não ativo"}].map(s=>(
-                    <button key={s.id} onClick={()=>setStatusEq(p=>({...p,[eq]:s.id}))} style={{flex:1,padding:"5px 4px",borderRadius:6,border:"1.5px solid "+(st===s.id?"#0e7490":"#e0e0e0"),background:st===s.id?"#0e7490":"#fafafa",color:st===s.id?W:"#9ca3af",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{s.lb}</button>
-                  ))}
-                </div>
-              </Cd>
+              <button key={eq} onClick={()=>setPasso(i)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"12px 14px",marginBottom:6,borderRadius:12,cursor:"pointer",fontFamily:"inherit",border:"1.5px solid "+(st!=="on"?"#d1d5db":cf===false?R:feito?"#86d0df":BE),background:W}}>
+                <span style={{flex:1,fontSize:14,fontWeight:700,color:"#0c4a6e"}}>{eq}</span>
+                <span style={{fontSize:13,fontWeight:700,color:st!=="on"?"#6b7280":cf===false?R:feito?"#0e7490":"#94a3b8"}}>
+                  {st==="off"?"Desligado":st==="inactive"?"Não ativo":feito?temps[eq]+" °C "+(cf===false?"NC":cf===true?"OK":""):"Por registar ›"}
+                </span>
+              </button>
             );
           })}
-          <B lb={todosPreenchidos?"Guardar Temperaturas "+momento.toUpperCase():"Guardar ("+FRIOS.filter(eq=>temps[eq]!==undefined&&temps[eq]!=="").length+"/"+FRIOS.length+" preenchidos)"} onClick={save} cor={todosPreenchidos?"#0e7490":"#0369a1"}/>
-          {!todosPreenchidos&&<div style={{marginTop:8,fontSize:11,color:GR,textAlign:"center"}}>Podes guardar parcialmente e continuar depois.</div>}
+          {nPreenchidos>0&&<div style={{marginTop:10}}><B lb={todosPreenchidos?"Guardar temperaturas — "+(momento==="inicio"?"início":"final"):"Guardar o que já está ("+nPreenchidos+"/"+FRIOS.length+")"} onClick={save} cor={todosPreenchidos?"#16a34a":"#0369a1"}/></div>}
+          {passo!==null&&<Assistente titulo={"Temperaturas — "+(momento==="inicio"?"início":"final")+" da aula"} inicio={passo} onSair={()=>setPasso(null)}
+            textoConcluir={todosPreenchidos?"✓ Guardar temperaturas":"Guardar o que já está"}
+            onConcluir={()=>{save();setPasso(null);}}
+            passos={[...FRIOS.map(eq=>{
+              const cg=eq.toLowerCase().includes("congel"),st=statusEq[eq]||"on",cf=iC(eq,temps[eq]);
+              const neg=temps[eq]&&String(temps[eq])[0]==="-";
+              return {nome:"Equipamentos de frio",titulo:eq,pode:st!=="on"||preenchidoEq(eq),
+                ajuda:cg?"Congelação: tem de estar a -18 °C ou menos (ideal -18 a -22 °C).":"Refrigeração: entre 0 e 4 °C (ideal 1 a 3 °C).",
+                conteudo:<>
+                  <Escolha ativo={st==="on"} onClick={()=>setStatusEq(p=>({...p,[eq]:"on"}))}>Em funcionamento</Escolha>
+                  {st==="on"&&<div style={{background:W,borderRadius:14,padding:14,marginBottom:12,border:"1.5px solid #cbe4ea"}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#0e7490",marginBottom:8}}>Temperatura que o termómetro mostra (°C)</div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      {cg&&<button onClick={()=>{const abs=String(temps[eq]||"").replace("-","");setTemps(p=>({...p,[eq]:neg?abs:"-"+abs}));}} style={{minWidth:64,height:58,borderRadius:12,border:"2px solid "+(neg?R:"#9fd3de"),background:neg?"#fdecea":W,color:neg?R:"#0c4a6e",fontSize:22,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{neg?"−":"+"}</button>}
+                      <div style={{flex:1}}><CampoPasso type="number" val={temps[eq]?String(temps[eq]).replace("-",""):""} onChange={v=>setTemps(p=>({...p,[eq]:neg&&v?"-"+v:v}))} ph={cg?"18":"3"}/></div>
+                    </div>
+                    {cg&&<div style={{fontSize:12.5,color:GR,marginTop:6}}>Nos congeladores a temperatura é negativa: confirma o sinal «−».</div>}
+                    {cf!==null&&<div style={{marginTop:10,padding:"10px 12px",borderRadius:10,fontSize:15,fontWeight:800,background:cf?"#e8f5e9":"#fdecea",color:cf?"#166534":R}}>
+                      {cf?"✓ Conforme":"✗ Não conforme — fica registada uma não conformidade. Avisa o professor."}</div>}
+                  </div>}
+                  <Escolha ativo={st==="off"} onClick={()=>setStatusEq(p=>({...p,[eq]:"off"}))} cor="#6b7280">Desligado</Escolha>
+                  <Escolha ativo={st==="inactive"} onClick={()=>setStatusEq(p=>({...p,[eq]:"inactive"}))} cor="#6b7280">Não ativo</Escolha>
+                </>};
+            }),{nome:"Rever",titulo:"Confere antes de guardar",ajuda:todosPreenchidos?"Estão todos registados.":"Ainda faltam "+(FRIOS.length-nPreenchidos)+" equipamentos. Podes guardar o que já está e continuar depois.",
+              conteudo:<div>{FRIOS.map(eq=>{const st=statusEq[eq]||"on",cf=iC(eq,temps[eq]);return(
+                <div key={eq} style={{display:"flex",justifyContent:"space-between",padding:"9px 12px",marginBottom:4,borderRadius:10,background:W,fontSize:14}}>
+                  <span style={{fontWeight:700,color:"#0c4a6e"}}>{eq}</span>
+                  <span style={{fontWeight:700,color:st!=="on"?"#6b7280":cf===false?R:cf?"#166534":"#94a3b8"}}>{st==="off"?"Desligado":st==="inactive"?"Não ativo":preenchidoEq(eq)?temps[eq]+" °C "+(cf===false?"NC":"OK"):"falta"}</span>
+                </div>);})}</div>}]}/>}
         </div>
       )}
     </div>
@@ -1060,43 +1231,46 @@ function Recepcao({user,db,setDb,showToast}){
       </Cd>)}
     </div>
   );
-  if(step==="nova")return(
-    <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Nova Receção</div>
-      <Cd>
-        <Ip lb="Fornecedor" val={form.fornecedor} onChange={v=>setForm(p=>({...p,fornecedor:v}))}/>
-        <Ip lb="Fatura" val={form.fatura} onChange={v=>setForm(p=>({...p,fatura:v}))}/>
-        <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={PROFESSORES_ECL.map(x=>x.nome)}/>
-      </Cd>
-      <div style={{display:"flex",gap:8}}>
-        <B lb="Voltar" sm out cor={GR} onClick={()=>setStep("lista")} st={{flex:1}}/>
-        <B lb="Adicionar Produtos" sm onClick={()=>{if(form.fornecedor&&form.fatura)setStep("produtos");}} st={{flex:2}}/>
-      </div>
-    </div>
-  );
+  // Um passo de cada vez: fornecedor, fatura, professor, os produtos (cada
+  // produto abre os seus passos) e rever antes de guardar.
+  const passoProduto=(titulo,conteudo,pode=true,ajuda="")=>({nome:"Produto",titulo,conteudo,pode,ajuda});
+  const tempOk=!pedeTemp||String(np.temperatura).trim()!=="";
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Produtos — Ft {form.fatura}</div>
-      {prods.length>0&&<Cd st={{marginBottom:10}}>
-        {prods.map(p=><div key={p.id} style={{padding:"6px 0",borderBottom:"1px solid "+LC,display:"flex",justifyContent:"space-between"}}>
-          <div><div style={{fontWeight:600,fontSize:13}}>{p.nome}</div><div style={{fontSize:11,color:GR}}>{p.categoria} — {p.quantidade}{p.temperatura!==""&&p.temperatura!=null?" — "+p.temperatura+" °C":""}</div></div>
-          <span style={{fontSize:11,color:p.conforme==="conforme"?V:R,fontWeight:600}}>{p.conforme}</span>
-        </div>)}
-      </Cd>}
-      <Cd>
-        <Sl lb="Categoria" val={np.categoria} onChange={v=>setNp(p=>({...p,categoria:v}))} opts={CATS}/>
-        <Ip lb="Nome" val={np.nome} onChange={v=>setNp(p=>({...p,nome:v}))}/>
-        <Ip lb="Quantidade" val={np.quantidade} onChange={v=>setNp(p=>({...p,quantidade:v}))} ph="Ex: 5 kg"/>
-        <Ip lb="Lote" val={np.lote} onChange={v=>setNp(p=>({...p,lote:v}))}/>
-        <Ip lb="Validade" type="date" val={np.validade} onChange={v=>setNp(p=>({...p,validade:v}))}/>
-        {(pedeTemp||np.categoria==="Outros")&&<Ip lb={"Temperatura à chegada (°C)"+(pedeTemp?"":" — se for refrigerado ou congelado")} type="number" val={np.temperatura} onChange={v=>setNp(p=>({...p,temperatura:v}))} ph={np.categoria==="Congelados"?"Ex: -18":"Ex: 3"}/>}
-        <Sl lb="Conformidade" val={np.conforme} onChange={v=>setNp(p=>({...p,conforme:v}))} opts={["conforme","não conforme"]}/>
-        <B lb="+ Adicionar Produto" sm onClick={addP} cor={V2}/>
-      </Cd>
-      <div style={{display:"flex",gap:8,marginTop:6}}>
-        <B lb="Voltar" sm out cor={GR} onClick={()=>setStep("nova")} st={{flex:1}}/>
-        <B lb="Guardar Receção" sm onClick={save} cor={prods.length>0?V:"#ccc"} dis={prods.length===0} st={{flex:2}}/>
-      </div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Receção de Matérias-Primas</div>
+      {step==="produto"&&<Assistente titulo={"Produto — "+form.fatura} onSair={()=>setStep("nova")} textoConcluir="✓ Juntar este produto"
+        onConcluir={()=>{addP();setStep("nova");}}
+        passos={[
+          passoProduto("Que tipo de produto é?",<>{CATS.map(c=><Escolha key={c} ativo={np.categoria===c} onClick={()=>setNp(p=>({...p,categoria:c}))}>{c}</Escolha>)}</>,!!np.categoria),
+          passoProduto("Nome do produto",<CampoPasso val={np.nome} onChange={v=>setNp(p=>({...p,nome:v}))} ph="Ex: Peito de frango"/>,!!np.nome.trim()),
+          passoProduto("Quantidade",<CampoPasso val={np.quantidade} onChange={v=>setNp(p=>({...p,quantidade:v}))} ph="Ex: 5 kg"/>),
+          passoProduto("Lote",<CampoPasso val={np.lote} onChange={v=>setNp(p=>({...p,lote:v}))} ph="Está no rótulo"/>,true,"Se não tiver lote, avança."),
+          passoProduto("Data de validade",<CampoPasso type="date" val={np.validade} onChange={v=>setNp(p=>({...p,validade:v}))}/>),
+          ...(pedeTemp||np.categoria==="Outros"?[passoProduto("Temperatura à chegada (°C)",<CampoPasso type="number" val={np.temperatura} onChange={v=>setNp(p=>({...p,temperatura:v}))} ph={np.categoria==="Congelados"?"-18":"3"}/>,tempOk,
+            pedeTemp?"Mede com o termómetro antes de arrumar. É obrigatório nos refrigerados e congelados.":"Só se for refrigerado ou congelado. Se não, avança.")]:[]),
+          passoProduto("O produto está conforme?",<>
+            <Escolha ativo={np.conforme==="conforme"} onClick={()=>setNp(p=>({...p,conforme:"conforme"}))} sub="Embalagem, aspeto, validade e temperatura em ordem">Conforme</Escolha>
+            <Escolha ativo={np.conforme==="não conforme"} onClick={()=>setNp(p=>({...p,conforme:"não conforme"}))} cor={R} sub="Avisa o professor e regista uma não conformidade">Não conforme</Escolha>
+          </>),
+        ]}/>}
+      {step!=="produto"&&<Assistente titulo="Nova receção" inicio={prods.length?3:0} onSair={()=>setStep("lista")} textoConcluir="✓ Guardar receção"
+        onConcluir={save}
+        passos={[
+          {nome:"Fatura",titulo:"Fornecedor",conteudo:<CampoPasso val={form.fornecedor} onChange={v=>setForm(p=>({...p,fornecedor:v}))} ph="Ex: Makro"/>,pode:!!form.fornecedor.trim()},
+          {nome:"Fatura",titulo:"Número da fatura ou guia",conteudo:<CampoPasso val={form.fatura} onChange={v=>setForm(p=>({...p,fatura:v}))} ph="Ex: FT 2026/123"/>,pode:!!form.fatura.trim()},
+          {nome:"Fatura",titulo:"Professor",conteudo:<>{PROFESSORES_ECL.map(x=><Escolha key={x.nome} ativo={form.professor===x.nome} onClick={()=>setForm(p=>({...p,professor:x.nome}))}>{x.nome}</Escolha>)}</>},
+          {nome:"Produtos",titulo:"Produtos recebidos",ajuda:prods.length?"Junta os que faltam. Quando estiverem todos, avança.":"Junta cada produto da fatura, um de cada vez.",pode:prods.length>0,conteudo:<>
+            {prods.map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",gap:8,padding:"10px 12px",marginBottom:6,borderRadius:10,background:W}}>
+              <div><div style={{fontWeight:700,fontSize:15,color:"#0c4a6e"}}>{p.nome}</div><div style={{fontSize:12.5,color:GR}}>{p.categoria} · {p.quantidade}{p.temperatura!==""&&p.temperatura!=null?" · "+p.temperatura+" °C":""}</div></div>
+              <span style={{fontSize:12.5,fontWeight:700,color:p.conforme==="conforme"?V:R,alignSelf:"center"}}>{p.conforme}</span>
+            </div>)}
+            <button onClick={()=>setStep("produto")} style={{width:"100%",minHeight:56,borderRadius:14,border:"2px dashed #0e7490",background:W,color:"#0e7490",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:"inherit",marginTop:4}}>+ Juntar {prods.length?"outro ":""}produto</button>
+          </>},
+          {nome:"Rever",titulo:"Confere antes de guardar",conteudo:<div style={{background:W,borderRadius:12,padding:14,fontSize:15,color:"#0c4a6e",lineHeight:1.7}}>
+            <div><b>Fornecedor:</b> {form.fornecedor}</div><div><b>Fatura:</b> {form.fatura}</div><div><b>Professor:</b> {form.professor||"—"}</div>
+            <div><b>Produtos:</b> {prods.length}</div>{prods.map(p=><div key={p.id} style={{fontSize:13.5,color:GR}}>• {p.nome} — {p.quantidade}{p.temperatura?" — "+p.temperatura+" °C":""} — {p.conforme}</div>)}
+          </div>},
+        ]}/>}
     </div>
   );
 }
@@ -1326,7 +1500,7 @@ function Producao({user,db,setDb,showToast}){
   const [form,setForm]=useState({nome:"",dataProducao:today,dataLimite:"",conservacao:"refrigerado",local:"Frig. Vert. 1",professor:""});
   const lista=(db.producao||[]).filter(p=>p.turma===user.turma).slice(-6).reverse();
   const nL=String((db.producao||[]).length+1).padStart(3,"0");
-  const save=()=>{if(!form.nome||!form.dataLimite)return;const prod={...form,lote:nL,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,producao:[...(p.producao||[]),prod]}));setShow(false);enviar("Produção",[gD(),user.turma,user.id,form.nome,nL,form.conservacao,form.dataProducao,form.dataLimite,form.local,form.professor]);showToast("Produto registado! Lote: "+nL);};
+  const save=()=>{if(!form.nome||!form.dataLimite)return;const prod={...form,lote:nL,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,producao:[...(p.producao||[]),prod]}));setShow(false);enviar("Produção",[gD(),user.turma,user.id,form.nome,nL,form.conservacao,form.dataProducao,form.dataLimite,form.local,form.professor,gT(),(db.assinaturas&&db.assinaturas[user.id])||""]);showToast("Produto registado! Lote: "+nL);};
   return(
     <div style={{padding:15}}>
       <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Prod. Confeccionados e Conservação</div>
@@ -1353,6 +1527,7 @@ function Producao({user,db,setDb,showToast}){
 
 function Testemunho({user,db,setDb,showToast}){
   const [form,setForm]=useState({prato:"",dataRefeicao:new Date().toISOString().split("T")[0],horaRefeicao:gT(),tipoRefeicao:"almoço",pesoAmostra:"150",localArmazenamento:"Frig. Vert. 1"});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.testemunho||[]).filter(t=>t.turma===user.turma).slice(-5).reverse();
   const cD=d=>{if(!d)return"";const x=new Date(d);x.setDate(x.getDate()+3);return x.toISOString().split("T")[0];};
   const save=()=>{
@@ -1385,32 +1560,25 @@ function Testemunho({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Amostra de Testemunho</div><InfoBtn modId="testemunho"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Guardar 150g de cada refeição durante 72h a 0-3°C</div>
-      <Cd>
-        <Ip lb="Nome do Prato" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>
-        {form.prato&&(()=>{
-          const hoje=gD();
-          const existentes=(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===hoje&&t.prato.trim().toLowerCase()===form.prato.trim().toLowerCase());
-          if(existentes.length===0) return null;
-          return(
-            <div style={{background:'#fefce8',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#854d0e',border:'1px solid #fde047'}}>
-              <div style={{fontWeight:700,marginBottom:4}}>⚠️ Já {existentes.length===1?'existe uma amostra':'existem amostras'} de "{form.prato}" hoje:</div>
-              {existentes.map((t,i)=>(
-                <div key={i} style={{marginBottom:2}}>• <strong>{t.nomeAluno||t.responsavel}</strong> às {t.time}</div>
-              ))}
-              <div style={{marginTop:6,fontStyle:'italic',fontSize:11}}>
-                Se és do mesmo grupo, não precisas de repetir.<br/>
-                Se és de um grupo diferente que produziu o mesmo prato, podes registar a tua.
-              </div>
-            </div>
-          );
-        })()}
-        <div style={{display:"flex",gap:9}}><div style={{flex:1}}><Ip lb="Data" type="date" val={form.dataRefeicao} onChange={v=>setForm(p=>({...p,dataRefeicao:v}))}/></div><div style={{flex:1}}><Ip lb="Hora" type="time" val={form.horaRefeicao} onChange={v=>setForm(p=>({...p,horaRefeicao:v}))}/></div></div>
-        <Sl lb="Tipo" val={form.tipoRefeicao} onChange={v=>setForm(p=>({...p,tipoRefeicao:v}))} opts={["almoço","jantar","lanche","pequeno-almoço"]}/>
-        <Ip lb="Peso (g)" type="number" val={form.pesoAmostra} onChange={v=>setForm(p=>({...p,pesoAmostra:v}))}/>
-        <Sl lb="Local" val={form.localArmazenamento} onChange={v=>setForm(p=>({...p,localArmazenamento:v}))} opts={FRIOS}/>
-        {form.dataRefeicao&&<div style={{background:"#f0e8f8",borderRadius:8,padding:10,marginBottom:10,fontSize:12,color:"#6d3b8e"}}>Destruir em: {fD(cD(form.dataRefeicao))}</div>}
-        <B lb="Guardar Amostra" onClick={save} cor="#6d3b8e"/>
-      </Cd>
+      <B lb="+ Registar amostra" onClick={()=>setAberto(true)} cor="#6d3b8e"/>
+      {aberto&&<Assistente titulo="Amostra testemunho" onSair={()=>setAberto(false)} textoConcluir="✓ Guardar amostra" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Amostra",titulo:"Que prato é?",pode:!!form.prato.trim(),conteudo:<>
+            <CampoPasso val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>
+            {form.prato&&(()=>{const ex=(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===gD()&&t.prato.trim().toLowerCase()===form.prato.trim().toLowerCase());
+              return ex.length?<div style={{marginTop:10,background:"#fefce8",borderRadius:10,padding:"10px 12px",fontSize:14,color:"#854d0e",border:"1px solid #fde047"}}>
+                Já há amostra deste prato hoje: {ex.map(t=>(t.nomeAluno||t.responsavel)+" às "+t.time).join(", ")}. Se és do mesmo grupo, não precisas de repetir.</div>:null;})()}
+          </>},
+          {nome:"Amostra",titulo:"Que refeição?",conteudo:<>{["almoço","jantar","lanche","pequeno-almoço"].map(t=><Escolha key={t} ativo={form.tipoRefeicao===t} onClick={()=>setForm(p=>({...p,tipoRefeicao:t}))}>{t.charAt(0).toUpperCase()+t.slice(1)}</Escolha>)}</>},
+          {nome:"Amostra",titulo:"Dia e hora da refeição",conteudo:<>
+            <CampoPasso type="date" val={form.dataRefeicao} onChange={v=>setForm(p=>({...p,dataRefeicao:v}))} autoFocus={false}/>
+            <div style={{height:10}}/>
+            <CampoPasso type="time" val={form.horaRefeicao} onChange={v=>setForm(p=>({...p,horaRefeicao:v}))} autoFocus={false}/>
+          </>},
+          {nome:"Amostra",titulo:"Peso da amostra (gramas)",ajuda:"Guarda cerca de 150 g de cada prato.",conteudo:<CampoPasso type="number" val={form.pesoAmostra} onChange={v=>setForm(p=>({...p,pesoAmostra:v}))}/>},
+          {nome:"Amostra",titulo:"Onde fica guardada?",ajuda:"Entre 0 e 3 °C, durante 72 horas.",conteudo:<>{FRIOS.filter(f=>!f.startsWith("Congel")).map(f=><Escolha key={f} ativo={form.localArmazenamento===f} onClick={()=>setForm(p=>({...p,localArmazenamento:f}))}>{f}</Escolha>)}</>},
+          {nome:"Rever",titulo:"Confere antes de guardar",conteudo:<ReverPasso linhas={[["Prato",form.prato],["Refeição",form.tipoRefeicao],["Dia e hora",fD(form.dataRefeicao)+" "+form.horaRefeicao],["Peso",form.pesoAmostra+" g"],["Local",form.localArmazenamento],["Destruir em",fD(cD(form.dataRefeicao))]]}/>},
+        ]}/>}
     
     </div>
   );
@@ -1418,21 +1586,25 @@ function Testemunho({user,db,setDb,showToast}){
 
 function Desinfecao({user,db,setDb,showToast}){
   const [form,setForm]=useState({alimento:"",quantidade:"",produto:"",concentracao:"",tempoContacto:"5",temperatura:""});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.desinfecao||[]).filter(d=>d.turma===user.turma).slice(-5).reverse();
   const save=()=>{if(!form.alimento||!form.produto)return;const nomeD=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,desinfecao:[...(p.desinfecao||[]),{...form,responsavel:user.id,nomeAluno:nomeD,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Desinfeção",[gD(),gT(),user.turma,user.id,nomeD,form.alimento,form.quantidade,form.produto,form.concentracao,form.tempoContacto,form.temperatura]);showToast("Desinfeção registada!");};
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Desinfeção de Alimentos para Consumo em Cru</div><InfoBtn modId="desinfecao"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Vegetais e frutas servidos em cru</div>
-      <Cd>
-        <Ip lb="Alimento" val={form.alimento} onChange={v=>setForm(p=>({...p,alimento:v}))} ph="Ex: Alface, tomate"/>
-        <Ip lb="Quantidade" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 2 kg"/>
-        <Ip lb="Produto Desinfetante" val={form.produto} onChange={v=>setForm(p=>({...p,produto:v}))} ph="Ex: Hidrocloro"/>
-        <div style={{display:"flex",gap:9}}><div style={{flex:1}}><Ip lb="Conc. (ml/L)" val={form.concentracao} onChange={v=>setForm(p=>({...p,concentracao:v}))}/></div><div style={{flex:1}}><Ip lb="Tempo (min)" type="number" val={form.tempoContacto} onChange={v=>setForm(p=>({...p,tempoContacto:v}))}/></div></div>
-        <Ip lb="Temp. água (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))}/>
-        <div style={{background:"#e8f5f0",borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:"#1a6b4a"}}>1. Lavar em agua corrente  2. Imergir no desinfetante pelo tempo indicado  3. Passar em agua corrente</div>
-        <B lb="Guardar" onClick={save} cor="#1a6b4a"/>
-      </Cd>
+      <B lb="+ Registar desinfeção" onClick={()=>setAberto(true)} cor="#1a6b4a"/>
+      {aberto&&<Assistente titulo="Desinfeção de alimentos em cru" onSair={()=>setAberto(false)} textoConcluir="✓ Guardar" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Alimento",titulo:"Que alimento?",pode:!!form.alimento.trim(),conteudo:<CampoPasso val={form.alimento} onChange={v=>setForm(p=>({...p,alimento:v}))} ph="Ex: Alface, tomate"/>},
+          {nome:"Alimento",titulo:"Quantidade",conteudo:<CampoPasso val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 2 kg"/>},
+          {nome:"Desinfetante",titulo:"Produto desinfetante",pode:!!form.produto.trim(),conteudo:<CampoPasso val={form.produto} onChange={v=>setForm(p=>({...p,produto:v}))} ph="Ex: Hidrocloro"/>},
+          {nome:"Desinfetante",titulo:"Concentração (ml por litro)",conteudo:<CampoPasso val={form.concentracao} onChange={v=>setForm(p=>({...p,concentracao:v}))}/>},
+          {nome:"Desinfetante",titulo:"Tempo de contacto (minutos)",conteudo:<CampoPasso type="number" val={form.tempoContacto} onChange={v=>setForm(p=>({...p,tempoContacto:v}))}/>},
+          {nome:"Desinfetante",titulo:"Temperatura da água (°C)",conteudo:<CampoPasso type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))}/>},
+          {nome:"Rever",titulo:"Confere antes de guardar",ajuda:"1. Lavar em água corrente · 2. Imergir no desinfetante pelo tempo indicado · 3. Passar por água corrente.",
+            conteudo:<ReverPasso linhas={[["Alimento",form.alimento],["Quantidade",form.quantidade],["Desinfetante",form.produto],["Concentração",form.concentracao?form.concentracao+" ml/L":""],["Tempo",form.tempoContacto?form.tempoContacto+" min":""],["Água",form.temperatura?form.temperatura+" °C":""]]}/>},
+        ]}/>}
     
     </div>
   );
@@ -1440,6 +1612,7 @@ function Desinfecao({user,db,setDb,showToast}){
 
 function Manutencao({user,db,setDb,showToast}){
   const [form,setForm]=useState({equipamento:"",tipoOcorrencia:"avaria",descricao:"",acaoImediata:"",estado:"reportado"});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.manutencao||[]).filter(m=>m.turma===user.turma).slice(-6).reverse();
   const corE={reportado:"#2c5f8a","em reparação":"#d35400",resolvido:V,"aguarda técnico":R};
   const save=()=>{if(!form.equipamento||!form.descricao)return;const nomeM=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,manutencao:[...(p.manutencao||[]),{...form,responsavel:user.id,nomeAluno:nomeM,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Manutenção, Avarias e Prevenção",[gD(),gT(),user.turma,user.id,nomeM,form.equipamento,form.tipoOcorrencia,form.descricao,form.acaoImediata,form.estado]);showToast("Ocorrencia registada!");};
@@ -1448,14 +1621,16 @@ function Manutencao({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Manutenção Equipamentos</div><InfoBtn modId="manutencao"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Avarias e anomalias detetadas</div>
-      <Cd>
-        <Sl lb="Equipamento" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} opts={TODOS_EQ}/>
-        <Sl lb="Tipo" val={form.tipoOcorrencia} onChange={v=>setForm(p=>({...p,tipoOcorrencia:v}))} opts={["avaria","anomalia","manutenção preventiva","calibração"]}/>
-        <Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que foi observado..."/>
-        <Ta lb="Acao Imediata" val={form.acaoImediata} onChange={v=>setForm(p=>({...p,acaoImediata:v}))} ph="Ação corretiva tomada..."/>
-        <Sl lb="Estado" val={form.estado} onChange={v=>setForm(p=>({...p,estado:v}))} opts={["reportado","em reparação","aguarda técnico","resolvido"]}/>
-        <B lb="Guardar" onClick={save} cor="#2c5f8a"/>
-      </Cd>
+      <B lb="+ Registar avaria ou anomalia" onClick={()=>setAberto(true)} cor="#2c5f8a"/>
+      {aberto&&<Assistente titulo="Manutenção e avarias" onSair={()=>setAberto(false)} textoConcluir="✓ Guardar" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Equipamento",titulo:"Que equipamento?",pode:!!form.equipamento,conteudo:<>{TODOS_EQ.map(e=><Escolha key={e} ativo={form.equipamento===e} onClick={()=>setForm(p=>({...p,equipamento:e}))}>{e}</Escolha>)}</>},
+          {nome:"Ocorrência",titulo:"O que é?",conteudo:<>{["avaria","anomalia","manutenção preventiva","calibração"].map(t=><Escolha key={t} ativo={form.tipoOcorrencia===t} onClick={()=>setForm(p=>({...p,tipoOcorrencia:t}))}>{t.charAt(0).toUpperCase()+t.slice(1)}</Escolha>)}</>},
+          {nome:"Ocorrência",titulo:"O que observaste?",pode:!!form.descricao.trim(),conteudo:<TextoPasso val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Ex: não arrefece, faz barulho, fuga de água…"/>},
+          {nome:"Ocorrência",titulo:"O que se fez logo?",ajuda:"Ex: desliguei, avisei o professor, passei os produtos para outro frigorífico.",conteudo:<TextoPasso val={form.acaoImediata} onChange={v=>setForm(p=>({...p,acaoImediata:v}))}/>},
+          {nome:"Ocorrência",titulo:"Estado",conteudo:<>{["reportado","em reparação","aguarda técnico","resolvido"].map(t=><Escolha key={t} ativo={form.estado===t} onClick={()=>setForm(p=>({...p,estado:t}))}>{t.charAt(0).toUpperCase()+t.slice(1)}</Escolha>)}</>},
+          {nome:"Rever",titulo:"Confere antes de guardar",conteudo:<ReverPasso linhas={[["Equipamento",form.equipamento],["Tipo",form.tipoOcorrencia],["Observado",form.descricao],["Ação",form.acaoImediata],["Estado",form.estado]]}/>},
+        ]}/>}
     
     </div>
   );
@@ -1465,7 +1640,8 @@ function Higienizacao({user,db,setDb,showToast}){
   const h=gD(),k="hig-"+user.turma+"-"+h;
   const regs=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].registos)?db.higienizacao[k].registos:{};
   const panos=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].panos)?db.higienizacao[k].panos:{};
-  const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
+  // A zona aberta em ecrã cheio (uma de cada vez), ou null.
+  const [zonaAberta,setZonaAberta]=useState(null);
   const tI=Object.values(ZONAS).flat().length,tF=regs?Object.keys(regs).length:0;
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
 
@@ -1475,6 +1651,8 @@ function Higienizacao({user,db,setDb,showToast}){
       if(!window.confirm("Desmarcar?"))return;
       const n={...regs};delete n[item];
       setDb(p=>{const hg={...p.higienizacao};hg[k]={...hg[k],registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
+      // Também no Sheets: senão a tarefa voltava a aparecer feita nos outros telemóveis e na folha impressa.
+      enviar("Higienização",[h,gT(),user.turma,user.id,nomeAluno||user.id,item,"Desmarcado"]);
       showToast("Desmarcado");return;
     }
     const n={...regs,[item]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
@@ -1569,40 +1747,34 @@ function Higienizacao({user,db,setDb,showToast}){
           <span style={{fontSize:22,fontWeight:800,color:tF===tI?V:CA}}>{pct}%</span>
         </div>
         <Pg val={tF} max={tI}/>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
-          {Object.keys(ZONAS).map(z=>{
-            const f=ZONAS[z].filter(i=>regs[i]).length,ok=f===ZONAS[z].length,total=ZONAS[z].length;
-            return(
-              <button key={z} onClick={()=>setZona(z)} style={{padding:"8px 12px",borderRadius:9,fontSize:12,fontWeight:700,cursor:"pointer",border:"2px solid "+(zona===z?V:ok?"#0891b2":BE),background:zona===z?V:ok?"#e0f2fe":LC,color:zona===z?W:ok?"#0e7490":GR,fontFamily:"inherit",flex:1,minWidth:80}}>
-                <div>{z}</div>
-                <div style={{fontSize:10,marginTop:2,opacity:.8}}>{f}/{total}</div>
-              </button>
-            );
-          })}
-        </div>
       </Cd>
-
-      <div style={{fontWeight:700,fontSize:15,color:V,marginBottom:10,paddingLeft:2}}>{zona} <span style={{fontSize:12,color:GR,fontWeight:400}}>— {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length} verificados</span></div>
-
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {ZONAS[zona].map(item=>{
-          const reg=regs[item];
-          const meu=reg&&(reg.aluno===user.id||reg.aluno===nomeAluno);
-          return(
-            <div key={item} onClick={()=>mk(item)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:13,background:reg?V:W,border:"2px solid "+(reg?V:"#e2e8f0"),cursor:"pointer",boxShadow:"0 2px 8px rgba(14,116,144,"+(reg?.15:.05)+")"}}>
-              <div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:reg?"rgba(255,255,255,.25)":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:16,fontWeight:700,color:reg?W:"#bae6fd"}}>{reg?"✓":"○"}</span>
+      <div style={{fontSize:12,color:GR,margin:"0 2px 8px"}}>Toca numa zona para a verificar:</div>
+      {Object.keys(ZONAS).map((z,zi)=>{
+        const f=ZONAS[z].filter(i=>regs[i]).length,total=ZONAS[z].length,ok=f===total;
+        return(
+          <button key={z} onClick={()=>setZonaAberta(zi)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"14px 16px",marginBottom:8,borderRadius:13,cursor:"pointer",fontFamily:"inherit",border:"2px solid "+(ok?V:"#e2e8f0"),background:ok?V:W}}>
+            <span style={{flex:1,fontSize:15,fontWeight:700,color:ok?W:"#0c4a6e"}}>{z}</span>
+            <span style={{fontSize:13,fontWeight:800,color:ok?W:f?CA:"#94a3b8"}}>{ok?"✓ ":""}{f}/{total} ›</span>
+          </button>
+        );
+      })}
+      {zonaAberta!==null&&<Assistente titulo="Higienização" inicio={zonaAberta} onSair={()=>setZonaAberta(null)} textoConcluir="Fechar" onConcluir={()=>setZonaAberta(null)}
+        passos={Object.keys(ZONAS).map(z=>({nome:"Zonas",titulo:z,ajuda:"Toca em cada tarefa quando estiver feita. «Como?» explica o produto e os passos.",conteudo:<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {ZONAS[z].map(item=>{
+            const reg=regs[item];
+            return(
+              <div key={item} onClick={()=>mk(item)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:13,background:reg?V:W,border:"2px solid "+(reg?V:"#cbe4ea"),cursor:"pointer"}}>
+                <div style={{width:30,height:30,borderRadius:8,flexShrink:0,background:reg?"rgba(255,255,255,.25)":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:17,fontWeight:800,color:reg?W:"#9fd3de"}}>{reg?"✓":"○"}</span>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:15,fontWeight:700,color:reg?W:"#0c4a6e"}}>{item}</div>
+                  {reg&&<div style={{fontSize:12,color:"rgba(255,255,255,.8)",marginTop:2}}>{reg.aluno} — {reg.time}</div>}
+                </div>
+                <ProcedimentoBtn item={item}/>
               </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:reg?W:"#0c4a6e"}}>{item}</div>
-                {reg&&<div style={{fontSize:10,color:"rgba(255,255,255,.75)",marginTop:2}}>{reg.aluno} — {reg.time}</div>}
-              </div>
-              <ProcedimentoBtn item={item}/>
-              {reg&&!meu&&<span style={{fontSize:9,color:"rgba(255,255,255,.7)",background:"rgba(255,255,255,.15)",borderRadius:4,padding:"2px 6px"}}>{reg.aluno}</span>}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}</div>}))}/>}
     </div>
   );
 }
@@ -1667,20 +1839,20 @@ function NaoConf({user,db,setDb,showToast}){
       )}
 
       {!ncPendenteDecisao&&<B lb="+ Nova Não Conformidade" onClick={()=>setShow(!show)} cor={R}/>}
-      {show&&<Cd st={{marginTop:10}}>
-        <Ip lb="Zona / Equipamento" val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frigorifico 1"/>
-        <Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreva o problema..."/>
-        <Ta lb="Ação Corretiva" val={form.acaoCorretiva} onChange={v=>setForm(p=>({...p,acaoCorretiva:v}))} ph="Ação corretiva tomada (se aplicável)..."/>
-        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Gravidade</div>
-        <div style={{display:"flex",gap:6,marginBottom:12}}>
-          {[{id:"normal",lb:"Normal"},{id:"critica",lb:"⚠️ Crítica"}].map(g=>(
-            <button key={g.id} onClick={()=>setForm(p=>({...p,criticidade:g.id}))} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"2px solid "+(form.criticidade===g.id?(g.id==="critica"?R:"#0e7490"):"#e0e0e0"),background:form.criticidade===g.id?(g.id==="critica"?R:"#0e7490"):LC,color:form.criticidade===g.id?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{g.lb}</button>
-          ))}
-        </div>
-        {form.criticidade==="critica"&&<div style={{fontSize:11,color:R,marginBottom:10,lineHeight:1.5}}>Uma NC crítica notifica imediatamente o professor e, após análise, pode ser escalada à Coordenadora por email.</div>}
-        {podeDecidirNaHora&&<div style={{fontSize:11,color:"#0369a1",marginBottom:10,lineHeight:1.5}}>Depois de registar, vais decidir logo o que aconteceu — gera-se sempre um relatório para a Coordenação.</div>}
-        <B lb="Registar" onClick={save} cor={R}/>
-      </Cd>}
+      {show&&<Assistente titulo="Não conformidade" onSair={()=>setShow(false)} textoConcluir="✓ Registar" onConcluir={save}
+        passos={[
+          {nome:"Onde",titulo:"Onde é o problema?",ajuda:"Escolhe o equipamento ou escreve a zona.",pode:!!form.zona.trim(),conteudo:<>
+            <CampoPasso val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frig. Vert. 1, bancada 3, copa…" autoFocus={false}/>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>{[...FRIOS,"Fogões","Fornos","Copa","Economato","Bancadas","Chão"].map(z=>
+              <button key={z} onClick={()=>setForm(p=>({...p,zona:z}))} style={{padding:"8px 12px",borderRadius:20,border:"1.5px solid "+(form.zona===z?"#0e7490":"#cbe4ea"),background:form.zona===z?"#0e7490":W,color:form.zona===z?W:"#0c4a6e",fontSize:13.5,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{z}</button>)}</div></>},
+          {nome:"O problema",titulo:"O que aconteceu?",pode:!!form.descricao.trim(),conteudo:<TextoPasso val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreve o problema…"/>},
+          {nome:"O problema",titulo:"O que se fez para corrigir?",ajuda:"Se ainda não se fez nada, avança.",conteudo:<TextoPasso val={form.acaoCorretiva} onChange={v=>setForm(p=>({...p,acaoCorretiva:v}))} ph="Ex: produto separado, avisei o professor…"/>},
+          {nome:"Gravidade",titulo:"É grave?",conteudo:<>
+            <Escolha ativo={form.criticidade==="normal"} onClick={()=>setForm(p=>({...p,criticidade:"normal"}))}>Normal</Escolha>
+            <Escolha ativo={form.criticidade==="critica"} cor={R} sub="Avisa logo o professor; pode ir à coordenadora" onClick={()=>setForm(p=>({...p,criticidade:"critica"}))}>⚠️ Crítica</Escolha></>},
+          {nome:"Rever",titulo:"Confere antes de registar",ajuda:podeDecidirNaHora?"Depois de registar, decides logo o que aconteceu.":"O professor vai analisar.",
+            conteudo:<ReverPasso linhas={[["Onde",form.zona],["Problema",form.descricao],["Correção",form.acaoCorretiva],["Gravidade",form.criticidade==="critica"?"Crítica":"Normal"]]}/>},
+        ]}/>}
       {lista.slice(-5).reverse().map(nc=>(
         <Cd key={nc.id} st={{marginTop:10,borderLeft:"3px solid "+(corE[nc.estado]||R)}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1704,6 +1876,7 @@ function Encerramento({user,db,setDb,showToast}){
   const [pinConfirm,setPinConfirm]=useState("");
   const [errPin,setErrPin]=useState("");
   const [showHist,setShowHist]=useState(false);
+  const [aberto,setAberto]=useState(false);
   const done=!!(sv&&sv.emProgresso===false);
 
   // Auto-save progress as user checks items (even before final submit)
@@ -1740,8 +1913,6 @@ function Encerramento({user,db,setDb,showToast}){
     {id:"residuos",l:"Resíduos e Carrinhos",sub:["Lixos despejados e separados corretamente","Caixotes lavados e com saco novo","Carrinhos limpos e higienizados"]},
   ];
 
-  // Cálculo do Responsável rotativo + Suplentes (baseado em presenças de hoje e histórico dos últimos 15 dias)
-  const {responsavel:responsavelInfo,suplentes}=calcResponsavelEncerramento(db,user.turma,h);
 
   const naItens=(sv&&sv.na)||{};
   const [naLocal,setNaLocal]=useState(naItens);
@@ -1801,18 +1972,6 @@ function Encerramento({user,db,setDb,showToast}){
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Encerramento da Aula</div><InfoBtn modId="encerramento"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Todos os pontos têm de estar verificados para encerrar.</div>
 
-      {!done&&responsavelInfo&&(
-        <Cd st={{borderLeft:"3px solid "+V,marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:700,color:V,marginBottom:6,textTransform:"uppercase"}}>Responsável de hoje pelo Encerramento</div>
-          <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:8}}>{responsavelInfo.nome||("Aluno "+responsavelInfo.numero)}</div>
-          {suplentes.length>0&&<>
-            <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Ordem de Substituição</div>
-            {suplentes.map((s,i)=><div key={i} style={{fontSize:12,color:GR}}>Suplente {i+1}: {s.nome||("Aluno "+s.numero)}</div>)}
-          </>}
-          <div style={{fontSize:10,color:GR,marginTop:6,fontStyle:"italic"}}>Seleção rotativa baseada na presença de hoje e no histórico de encerramentos.</div>
-        </Cd>
-      )}
-
       <button onClick={()=>setShowHist(!showHist)} style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #bae6fd",background:LC,color:"#0369a1",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:12}}>
         {showHist?"Fechar histórico":"📋 Ver quem encerrou a cozinha (histórico)"}
       </button>
@@ -1835,39 +1994,33 @@ function Encerramento({user,db,setDb,showToast}){
           <span style={{background:todosOk?V:CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>{totalFeito}/{total}</span>
         </div>
         <Pg val={totalFeito} max={total}/>
-        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:8,textTransform:"uppercase"}}>Registos automáticos</div>
-        {ITEMS_OBG.map(item=>(
-          <div key={item.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid "+LC,alignItems:"center"}}>
-            <span style={{fontSize:13,color:item.auto?V:GR}}>{item.l}</span>
-            <span style={{fontWeight:700,fontSize:13,color:item.auto?V:R}}>{item.auto?"OK":"Em falta"}</span>
-          </div>
-        ))}
-        {ncsPendentes.length>0&&<Cd st={{borderLeft:"3px solid "+R,marginTop:8,marginBottom:8}}>
-          <div style={{fontSize:11,fontWeight:700,color:R,marginBottom:6}}>⚠️ NCs ainda não analisadas pelo professor</div>
-          {ncsPendentes.map(nc=><div key={nc.id} style={{fontSize:11,color:GR,marginBottom:2}}>• {nc.zona}: {nc.descricao}</div>)}
-        </Cd>}
-        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",margin:"12px 0 8px",textTransform:"uppercase"}}>Verificação manual</div>
-        {ITEMS_MANUAL.map(item=>{
-          const na=naLocal[item.id];
-          return(
-          <div key={item.id} style={{padding:"9px 0",borderBottom:"1px solid "+LC}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div onClick={()=>!na&&toggle(item.id)} style={{display:"flex",alignItems:"center",gap:11,flex:1,cursor:done||na?"default":"pointer",opacity:na?0.45:1}}>
-                <div style={{width:24,height:24,borderRadius:6,border:"2px solid "+(checks[item.id]?V:BE),background:checks[item.id]?V:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  {checks[item.id]&&<span style={{color:W,fontSize:12,fontWeight:700}}>✓</span>}
-                </div>
-                <span style={{fontSize:13,fontWeight:600,color:checks[item.id]?V:GR,textDecoration:na?"line-through":"none"}}>{item.l}</span>
-              </div>
-              {!done&&<button onClick={()=>toggleNA(item.id)} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,border:"1.5px solid "+(na?"#7c5c3a":"#e0e0e0"),background:na?"#7c5c3a":"transparent",color:na?W:"#9ca3af",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Não aplicável hoje</button>}
-              {done&&na&&<span style={{fontSize:10,fontWeight:600,color:"#7c5c3a",flexShrink:0}}>N/A</span>}
-            </div>
-            {item.sub&&<div style={{paddingLeft:35,marginTop:4}}>
-              {item.sub.map((s,i)=><div key={i} style={{fontSize:11,color:"#9ca3af",lineHeight:1.6}}>• {s}</div>)}
-            </div>}
-          </div>
-          );
-        })}
+        {!done&&<B lb={totalFeito?"▶ Continuar o encerramento":"▶ Fazer o encerramento"} onClick={()=>setAberto(true)} cor={V}/>}
       </Cd>
+      {aberto&&!done&&<Assistente titulo="Encerramento da aula" onSair={()=>setAberto(false)} textoConcluir="✓ Confirmo — encerrar"
+        onConcluir={confirmarFecho}
+        passos={[
+          {nome:"Registos do dia",titulo:"Os registos de hoje",ajuda:"Estes ficam feitos sozinhos quando os registos são feitos.",conteudo:<>
+            {ITEMS_OBG.map(item=><div key={item.id} style={{display:"flex",justifyContent:"space-between",gap:8,padding:"12px 14px",marginBottom:6,borderRadius:12,background:W}}>
+              <span style={{fontSize:15,color:"#0c4a6e",fontWeight:600}}>{item.l}</span>
+              <span style={{fontWeight:800,fontSize:14,color:item.auto?"#166534":R,whiteSpace:"nowrap"}}>{item.auto?"✓ OK":"Em falta"}</span></div>)}
+            {ncsPendentes.length>0&&<div style={{marginTop:8,padding:"12px 14px",borderRadius:12,background:"#fdecea",color:R,fontSize:14}}>
+              <b>Não conformidades à espera do professor:</b>{ncsPendentes.map(nc=><div key={nc.id}>• {nc.zona}: {nc.descricao}</div>)}</div>}
+          </>},
+          ...ITEMS_MANUAL.map(item=>({nome:"Verificar",titulo:item.l,pode:!!checks[item.id]||!!naLocal[item.id],conteudo:<>
+            {item.sub&&<div style={{background:W,borderRadius:12,padding:"10px 14px",marginBottom:12}}>{item.sub.map((x,i)=><div key={i} style={{fontSize:15,color:"#334155",lineHeight:1.7}}>• {x}</div>)}</div>}
+            <Escolha ativo={!!checks[item.id]} onClick={()=>{if(naLocal[item.id])toggleNA(item.id);if(!checks[item.id])toggle(item.id);}}>Está tudo feito</Escolha>
+            <Escolha ativo={!!naLocal[item.id]} cor="#7c5c3a" onClick={()=>{if(!naLocal[item.id])toggleNA(item.id);}}>Não se aplica hoje</Escolha>
+          </>})),
+          {nome:"Observações",titulo:"Alguma nota para o professor?",ajuda:"Ex: equipamento avariado, falta de material. Se não houver, avança.",conteudo:<TextoPasso val={obs} onChange={setObs}/>},
+          {nome:"Confirmar",titulo:todosOk?"Confirmar o encerramento":"Ainda não se pode encerrar",pode:todosOk&&(!(alunoAtual&&alunoAtual.pin)||pinConfirm.length>=4),conteudo:todosOk?<>
+            <div style={{background:"#fef3c7",borderRadius:12,padding:14,fontSize:15,color:"#78350f",lineHeight:1.6,marginBottom:12}}>
+              Estás a confirmar que <b>verificaste pessoalmente todos os pontos</b>. O teu nome fica registado como responsável pelo encerramento.</div>
+            {alunoAtual&&alunoAtual.pin&&<><div style={{fontSize:14,fontWeight:700,color:"#0e7490",marginBottom:6}}>O teu PIN, para confirmar</div>
+              <CampoPasso type="password" val={pinConfirm} onChange={setPinConfirm} ph="PIN"/></>}
+            {errPin&&<div style={{color:R,fontSize:14,fontWeight:700,marginTop:8}}>{errPin}</div>}
+          </>:<div style={{background:"#fdecea",borderRadius:12,padding:14,fontSize:15,color:R,lineHeight:1.6}}>
+            Faltam {total-totalFeito} pontos. Volta atrás e completa-os{(!ITEMS_OBG.find(i=>i.id==="val").auto||ncsPendentes.length>0)?"; e avisa o professor para validar a sessão e decidir as não conformidades":""}.</div>},
+        ]}/>}
       {!done&&(()=>{
         // Tudo feito pelo aluno (limpeza/checklist), mas falta validação do professor e/ou NCs por decidir
         const itemsAlunoOk=ITEMS_OBG.filter(i=>i.id!=="val"&&i.id!=="ncs").every(i=>i.auto)&&allManual;
@@ -1899,28 +2052,7 @@ function Encerramento({user,db,setDb,showToast}){
         }
         return null;
       })()}
-      {!done?(
-        <Cd>
-          <Ta lb="Observações finais" val={obs} onChange={setObs} ph="Notas para o professor... (ex: equipamento avariado, falta de material)"/>
-          {!showConfirm?(
-            <B lb={todosOk?"Encerrar Aula Prática":"Faltam "+(total-totalFeito)+" itens"} onClick={()=>setShowConfirm(true)} cor={todosOk?V:"#ccc"} dis={!todosOk}/>
-          ):(
-            <div style={{background:"#fef3c7",borderRadius:10,padding:14}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#92400e",marginBottom:8}}>⚠️ Confirmar Responsabilidade</div>
-              <div style={{fontSize:12,color:"#78350f",marginBottom:10,lineHeight:1.6}}>
-                Estás a confirmar que <strong>verificaste pessoalmente TODOS os pontos</strong> desta checklist. O teu nome ficará registado como responsável pelo encerramento.
-              </div>
-              {alunoAtual&&alunoAtual.pin&&<Ip lb="Introduz o teu PIN para confirmar" type="password" val={pinConfirm} onChange={setPinConfirm} ph="PIN pessoal"/>}
-              {errPin&&<div style={{color:"#dc2626",fontSize:12,marginBottom:8}}>{errPin}</div>}
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>{setShowConfirm(false);setPinConfirm("");setErrPin("");}} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #fbbf24",background:"transparent",color:"#92400e",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancelar</button>
-                <button onClick={confirmarFecho} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#16a34a",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Confirmo — Encerrar</button>
-              </div>
-            </div>
-          )}
-          {!todosOk&&!showConfirm&&<div style={{marginTop:8,fontSize:12,color:R,textAlign:"center"}}>Complete todos os pontos antes de encerrar.</div>}
-        </Cd>
-      ):(
+      {!done?null:(
         <div style={{textAlign:"center",padding:14,color:V,fontWeight:600,background:W,borderRadius:11}}>
           <div>Aula prática encerrada — Aguarda validação do professor</div>
           <div style={{fontSize:12,color:GR,marginTop:6,fontWeight:400}}>Responsável: {sv.nomeAluno} • {sv.time}</div>
@@ -2779,7 +2911,7 @@ function Coordenadora({user,db,setDb,showToast}){
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Mes</div>
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
-      {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao"].includes(folha)&&(
+      {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].includes(folha)&&(
         <div style={{marginBottom:11,background:W,border:"1.5px solid "+BE,borderRadius:10,padding:"10px 12px"}}>
           <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:6,textTransform:"uppercase"}}>Período para imprimir (todas as turmas)</div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:per.modo==="mes"?0:8}}>
@@ -2806,10 +2938,9 @@ function Coordenadora({user,db,setDb,showToast}){
         </div>
       )}
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["alunos","relatorios","copia","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["relatorios","copia","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
-      {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
       {folha==="relatorios"&&<RelatoriosPDF/>}
       {folha==="copia"&&<CopiaSeguranca/>}
       {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
@@ -3051,6 +3182,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
+          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("naoconf",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
     </div>
@@ -3346,6 +3478,7 @@ function Equipamentos({user,db,setDb,showToast}){
 
 function Faltas({user,db,setDb,showToast}){
   const [form,setForm]=useState({tipo:"equipamento",descricao:"",quantidade:"",urgencia:"normal"});
+  const [aberto,setAberto]=useState(false);
   const duasSemanas=new Date();
   duasSemanas.setDate(duasSemanas.getDate()-14);
   const lista=(db.faltas||[]).filter(f=>{try{const p=f.date.split("/");const d=new Date(p[2],p[1]-1,p[0]);return d>=duasSemanas;}catch{return true;}}).reverse();
@@ -3363,16 +3496,19 @@ function Faltas({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Faltas e Necessidades</div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Regista equipamentos em falta, materiais ou outras necessidades</div>
-      <Cd>
-        <Sl lb="Tipo" val={form.tipo} onChange={v=>setForm(p=>({...p,tipo:v}))} opts={["equipamento","material","produto limpeza","outro"]}/>
-        <Ta lb="Descrição" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que está em falta ou é necessário..."/>
-        <Ip lb="Quantidade necessária" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 3 unidades, 2 litros, 500g..."/>
-        <Sl lb="Urgência" val={form.urgencia} onChange={v=>setForm(p=>({...p,urgencia:v}))} opts={["normal","urgente","critico"]}/>
-        <div style={{background:"#fef3c7",borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:"#92400e"}}>
-          Após guardar, será enviada notificação por email à coordenação.
-        </div>
-        <B lb="Registar e Notificar" onClick={save} cor="#b45309"/>
-      </Cd>
+      <B lb="+ Registar falta ou necessidade" onClick={()=>setAberto(true)} cor="#b45309"/>
+      <div style={{height:12}}/>
+      {aberto&&<Assistente titulo="Faltas e necessidades" onSair={()=>setAberto(false)} textoConcluir="✓ Registar e avisar" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Falta",titulo:"O que falta?",conteudo:<>{[["equipamento","Equipamento"],["material","Material"],["produto limpeza","Produto de limpeza"],["outro","Outro"]].map(([v,t])=><Escolha key={v} ativo={form.tipo===v} onClick={()=>setForm(p=>({...p,tipo:v}))}>{t}</Escolha>)}</>},
+          {nome:"Falta",titulo:"Descreve",pode:!!form.descricao.trim(),conteudo:<TextoPasso val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que está em falta ou é preciso…"/>},
+          {nome:"Falta",titulo:"Quantidade necessária",conteudo:<CampoPasso val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 3 unidades, 2 litros"/>},
+          {nome:"Falta",titulo:"É urgente?",conteudo:<>
+            <Escolha ativo={form.urgencia==="normal"} onClick={()=>setForm(p=>({...p,urgencia:"normal"}))}>Normal</Escolha>
+            <Escolha ativo={form.urgencia==="urgente"} onClick={()=>setForm(p=>({...p,urgencia:"urgente"}))} cor="#d97706">Urgente</Escolha>
+            <Escolha ativo={form.urgencia==="critico"} onClick={()=>setForm(p=>({...p,urgencia:"critico"}))} cor={R} sub="Impede a aula de continuar">Crítico</Escolha></>},
+          {nome:"Rever",titulo:"Confere antes de registar",ajuda:"Ao registar, a coordenação recebe um aviso por email.",conteudo:<ReverPasso linhas={[["Tipo",form.tipo],["Descrição",form.descricao],["Quantidade",form.quantidade],["Urgência",form.urgencia]]}/>},
+        ]}/>}
       {lista.length>0&&<div>
         <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:8}}>Últimas 2 semanas</div>
         {lista.map(f=><Cd key={f.id} st={{marginBottom:8,borderLeft:"3px solid "+(corU[f.urgencia]||"#b45309")}}>
@@ -3669,6 +3805,7 @@ function HigienePessoal({user,db,setDb,showToast}){
   const feitos=CHECKLIST.filter(i=>checks[i.id]).length;
   const todosOk=feitos===total;
   const [aba,setAba]=useState("info");
+  const [aberto,setAberto]=useState(false);
 
   const guardar=()=>{
     const nomeHig=(db.assinaturas&&db.assinaturas[user.id])||user.id;
@@ -3695,22 +3832,16 @@ function HigienePessoal({user,db,setDb,showToast}){
       </div>}
       {aba==="checklist"&&<div>
         {sv&&<div style={{background:"#e0f2fe",borderRadius:9,padding:10,marginBottom:10,color:"#0e7490",fontSize:12,fontWeight:600}}>Confirmado hoje às {sv.time}</div>}
-        <Cd>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-            <span style={{fontSize:12,color:GR}}>Verificados</span>
-            <span style={{background:todosOk?"#0f766e":CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>{feitos}/{total}</span>
-          </div>
-          <Pg val={feitos} max={total}/>
-          {CHECKLIST.map(item=>(
-            <div key={item.id} onClick={()=>{if(!sv)setChecks(p=>({...p,[item.id]:!p[item.id]}));}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+LC,cursor:sv?"default":"pointer"}}>
-              <div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:checks[item.id]?"#0f766e":"transparent",border:"2px solid "+(checks[item.id]?"#0f766e":BE),display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {checks[item.id]&&<span style={{color:W,fontSize:14,fontWeight:700}}>✓</span>}
-              </div>
-              <span style={{fontSize:13,color:checks[item.id]?"#0f766e":GR,fontWeight:checks[item.id]?600:400}}>{item.l}</span>
-            </div>
-          ))}
-        </Cd>
-        {!sv&&<B lb={todosOk?"Confirmar Higiene Pessoal":"Faltam "+(total-feitos)+" itens"} onClick={guardar} cor={todosOk?"#0f766e":"#ccc"} dis={!todosOk}/>}
+        {sv?<Cd>{CHECKLIST.map(item=><div key={item.id} style={{padding:"8px 0",borderBottom:"1px solid "+LC,fontSize:13,color:"#0f766e",fontWeight:600}}>✓ {item.l}</div>)}</Cd>
+          :<B lb="▶ Verificar a minha higiene pessoal" onClick={()=>setAberto(true)} cor="#0f766e"/>}
+        {aberto&&<Assistente titulo="Higiene pessoal" onSair={()=>setAberto(false)} textoConcluir="✓ Confirmar higiene pessoal"
+          onConcluir={()=>{guardar();setAberto(false);}}
+          passos={[...CHECKLIST.map(item=>({nome:"Antes de entrar na cozinha",titulo:item.l,pode:!!checks[item.id],conteudo:<>
+            <Escolha ativo={!!checks[item.id]} onClick={()=>setChecks(p=>({...p,[item.id]:true}))}>Sim, está cumprido</Escolha>
+            <Escolha ativo={checks[item.id]===false} cor={R} onClick={()=>setChecks(p=>({...p,[item.id]:false}))}>Não</Escolha>
+            {checks[item.id]===false&&<div style={{marginTop:4,padding:"12px 14px",borderRadius:12,background:"#fdecea",color:R,fontSize:15,fontWeight:700,lineHeight:1.5}}>
+              Assim não podes entrar na cozinha. Resolve primeiro e, se precisares, avisa o professor.</div>}
+          </>})),{nome:"Confirmar",titulo:"Está tudo cumprido",ajuda:"Ao confirmar, fica registado com o teu nome e a hora.",conteudo:<ReverPasso linhas={CHECKLIST.map(i=>[i.l,checks[i.id]?"✓":"—"])}/>}]}/>}
       </div>}
     </div>
   );
@@ -3718,16 +3849,17 @@ function HigienePessoal({user,db,setDb,showToast}){
 
 function Oleos({user,db,setDb,showToast}){
   const [form,setForm]=useState({equipamento:"Fritadeira 1",temperatura:"",cor:"normal",espuma:"nao",cheiro:"normal",teste:"ok",acao:"continua"});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.oleos||[]).filter(o=>o.turma===user.turma).slice(-10).reverse();
   const save=()=>{
     if(!form.temperatura)return;
-    const alterado=form.cor!=="normal"||form.espuma==="sim"||form.cheiro!=="normal"||form.teste!=="ok";
+    const alterado=form.cor!=="normal"||String(form.espuma).startsWith("sim")||form.cheiro!=="normal"||form.teste!=="ok";
     const reg={...form,alterado,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,oleos:[...(p.oleos||[]),reg]}));
     const nomeOleos=(db.assinaturas&&db.assinaturas[user.id])||"";
     enviar("Controlo Óleos",[gD(),gT(),user.turma,user.id,nomeOleos,form.equipamento,form.temperatura,form.cor,form.espuma,form.cheiro,form.teste,form.acao,alterado?"ALTERADO":"OK"]);
     if(alterado){
-      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:form.equipamento,descricao:"Óleo alterado — "+[form.cor!=="normal"?"cor alterada":"",form.espuma==="sim"?"espuma":"",form.cheiro!=="normal"?"cheiro":""].filter(Boolean).join(", "),acaoCorretiva:form.acao,responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:form.equipamento,descricao:"Óleo alterado — "+[form.cor!=="normal"?"cor alterada":"",String(form.espuma).startsWith("sim")?"espuma":"",form.cheiro!=="normal"?"cheiro":""].filter(Boolean).join(", "),acaoCorretiva:form.acao,responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     }
     showToast(alterado?"Óleo ALTERADO — NC registada!":"Óleo OK registado!");
     setForm({equipamento:"Fritadeira 1",temperatura:"",cor:"normal",espuma:"nao",cheiro:"normal",teste:"ok",acao:"continua"});
@@ -3736,17 +3868,25 @@ function Oleos({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Controlo de Óleos</div><InfoBtn modId="oleos"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Registar o estado do óleo de fritura antes e durante a utilização</div>
-      <Cd>
-        <Sl lb="Equipamento" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} opts={["Fritadeira 1","Fritadeira 2","Wok","Outro"]}/>
-        <Ip lb="Temperatura do óleo (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph="Ex: 175"/>
-        <div style={{background:"#fef3c7",borderRadius:8,padding:8,marginBottom:10,fontSize:11,color:"#92400e"}}>Temperatura máxima recomendada: 180°C. Acima disso rejeitar o óleo.</div>
-        <Sl lb="Cor do óleo" val={form.cor} onChange={v=>setForm(p=>({...p,cor:v}))} opts={["normal","ligeiramente escura","escura (rejeitar)"]}/>
-        <Sl lb="Espuma" val={form.espuma} onChange={v=>setForm(p=>({...p,espuma:v}))} opts={["nao","sim (rejeitar)"]}/>
-        <Sl lb="Cheiro" val={form.cheiro} onChange={v=>setForm(p=>({...p,cheiro:v}))} opts={["normal","intenso (rejeitar)"]}/>
-        <Sl lb="Teste de oxidação" val={form.teste} onChange={v=>setForm(p=>({...p,teste:v}))} opts={["ok","alterado (rejeitar)"]}/>
-        <Sl lb="Ação tomada" val={form.acao} onChange={v=>setForm(p=>({...p,acao:v}))} opts={["continua","substituido","rejeitado"]}/>
-        <B lb="Registar Controlo" onClick={save} cor="#d97706"/>
-      </Cd>
+      <B lb="+ Registar controlo do óleo" onClick={()=>setAberto(true)} cor="#d97706"/>
+      <div style={{height:12}}/>
+      {aberto&&(()=>{
+        const op=(campo,titulo,opcoes,ajuda="")=>({nome:"Óleo",titulo,ajuda,conteudo:<>{opcoes.map(([v,t,mau])=><Escolha key={v} ativo={form[campo]===v} cor={mau?R:undefined} onClick={()=>setForm(p=>({...p,[campo]:v}))}>{t}</Escolha>)}</>});
+        const t=parseFloat(form.temperatura);
+        return <Assistente titulo="Controlo de óleos" onSair={()=>setAberto(false)} textoConcluir="✓ Registar controlo" onConcluir={()=>{save();setAberto(false);}}
+          passos={[
+            op("equipamento","Que equipamento?",[["Fritadeira 1","Fritadeira 1"],["Fritadeira 2","Fritadeira 2"],["Wok","Wok"],["Outro","Outro"]]),
+            {nome:"Óleo",titulo:"Temperatura do óleo (°C)",ajuda:"Máximo recomendado: 180 °C. Acima disso, rejeitar o óleo.",pode:!!String(form.temperatura).trim(),conteudo:<>
+              <CampoPasso type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph="Ex: 175"/>
+              {!isNaN(t)&&t>180&&<div style={{marginTop:10,padding:"10px 12px",borderRadius:10,background:"#fdecea",color:R,fontWeight:800}}>Acima de 180 °C: o óleo deve ser rejeitado.</div>}</>},
+            op("cor","Cor do óleo",[["normal","Normal"],["ligeiramente escura","Ligeiramente escura"],["escura (rejeitar)","Escura — rejeitar",true]]),
+            op("espuma","Tem espuma?",[["nao","Não"],["sim (rejeitar)","Sim — rejeitar",true]]),
+            op("cheiro","Cheiro",[["normal","Normal"],["intenso (rejeitar)","Intenso — rejeitar",true]]),
+            op("teste","Teste de oxidação",[["ok","OK"],["alterado (rejeitar)","Alterado — rejeitar",true]]),
+            op("acao","O que se fez?",[["continua","Continua a usar"],["substituido","Substituído"],["rejeitado","Rejeitado"]]),
+            {nome:"Rever",titulo:"Confere antes de registar",conteudo:<ReverPasso linhas={[["Equipamento",form.equipamento],["Temperatura",form.temperatura?form.temperatura+" °C":""],["Cor",form.cor],["Espuma",form.espuma],["Cheiro",form.cheiro],["Teste",form.teste],["Ação",form.acao]]}/>},
+          ]}/>;
+      })()}
       {lista.map(o=><Cd key={o.id} st={{marginBottom:8,borderLeft:"3px solid "+(o.alterado?"#dc2626":"#d97706")}}>
         <div style={{display:"flex",justifyContent:"space-between"}}>
           <span style={{fontWeight:600,fontSize:13}}>{o.equipamento}</span>
@@ -3760,10 +3900,13 @@ function Oleos({user,db,setDb,showToast}){
 
 function Servico({user,db,setDb,showToast}){
   const [form,setForm]=useState({prato:"",tipo:"quente",tempInicio:gT(),temperatura:"",equipamento:""});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.servico||[]).filter(s=>s.turma===user.turma&&s.date===gD()).slice(-8).reverse();
   const save=()=>{
     if(!form.prato||!form.temperatura)return;
-    const tempOk=form.tipo==="quente"?parseFloat(form.temperatura)>=65:parseFloat(form.temperatura)<=4;
+    // «Self-service quente» é quente (antes contava como frio). No buffet há quente e frio: conforme se estiver numa das duas zonas.
+    const tv=parseFloat(form.temperatura);
+    const tempOk=form.tipo.includes("quente")?tv>=65:form.tipo.includes("frio")?tv<=4:(tv>=65||tv<=4);
     const reg={...form,tempOk,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,servico:[...(p.servico||[]),reg]}));
     const nomeServ=(db.assinaturas&&db.assinaturas[user.id])||"";
@@ -3793,17 +3936,24 @@ function Servico({user,db,setDb,showToast}){
       <div style={{background:"#fdecea",borderRadius:9,padding:10,marginBottom:12,fontSize:11,color:"#dc2626",fontWeight:600}}>
         Alimentos em self-service/buffet: max 2 horas de exposição!
       </div>
-      <Cd>
-        <Ip lb="Prato / Alimento" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado, Salada..."/>
-        <Sl lb="Tipo de serviço" val={form.tipo} onChange={v=>setForm(p=>({...p,tipo:v}))} opts={["quente","frio","self-service quente","self-service frio","buffet"]}/>
-        <Ip lb="Hora de início do serviço" type="time" val={form.tempInicio} onChange={v=>setForm(p=>({...p,tempInicio:v}))}/>
-        <Ip lb="Temperatura (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph={form.tipo==="quente"||form.tipo.includes("quente")?"Min. 65°C":"Max. 4°C"}/>
-        <Ip lb="Equipamento (banho-maria, estufa, etc.)" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} ph="Ex: Banho-maria 1"/>
-        {form.temperatura&&<div style={{background:parseFloat(form.temperatura)>=(form.tipo==="quente"||form.tipo.includes("quente")?65:0)&&parseFloat(form.temperatura)<=(form.tipo==="frio"||form.tipo.includes("frio")?4:999)?"#e0f2fe":"#fdecea",borderRadius:8,padding:10,marginBottom:10,fontSize:13,fontWeight:700,textAlign:"center",color:parseFloat(form.temperatura)>=(form.tipo==="quente"||form.tipo.includes("quente")?65:0)&&parseFloat(form.temperatura)<=(form.tipo==="frio"||form.tipo.includes("frio")?4:999)?"#0369a1":"#dc2626"}}>
-          {form.tipo==="quente"||form.tipo.includes("quente")?parseFloat(form.temperatura)>=65?"OK — Temperatura adequada":"NC — Temperatura insuficiente! Aquecer mais.":parseFloat(form.temperatura)<=4?"OK — Temperatura adequada":"NC — Temperatura elevada! Verificar equipamento."}
-        </div>}
-        <B lb="Registar Temperatura" onClick={save} cor="#dc2626"/>
-      </Cd>
+      <B lb="+ Registar temperatura de serviço" onClick={()=>setAberto(true)} cor="#dc2626"/>
+      <div style={{height:12}}/>
+      {aberto&&(()=>{
+        const tv=parseFloat(form.temperatura),quente=form.tipo.includes("quente"),frio=form.tipo.includes("frio");
+        const ok=isNaN(tv)?null:quente?tv>=65:frio?tv<=4:(tv>=65||tv<=4);
+        return <Assistente titulo="Temperatura de serviço" onSair={()=>setAberto(false)} textoConcluir="✓ Registar" onConcluir={()=>{save();setAberto(false);}}
+          passos={[
+            {nome:"Serviço",titulo:"Que prato ou alimento?",pode:!!form.prato.trim(),conteudo:<CampoPasso val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>},
+            {nome:"Serviço",titulo:"Tipo de serviço",conteudo:<>{[["quente","Quente","≥ 65 °C"],["frio","Frio","≤ 4 °C"],["self-service quente","Self-service quente","≥ 65 °C · máx. 2 horas"],["self-service frio","Self-service frio","≤ 4 °C · máx. 2 horas"],["buffet","Buffet","quente ≥ 65 °C ou frio ≤ 4 °C · máx. 2 horas"]].map(([v,t,sub])=><Escolha key={v} ativo={form.tipo===v} sub={sub} onClick={()=>setForm(p=>({...p,tipo:v}))}>{t}</Escolha>)}</>},
+            {nome:"Serviço",titulo:"Hora de início do serviço",conteudo:<CampoPasso type="time" val={form.tempInicio} onChange={v=>setForm(p=>({...p,tempInicio:v}))}/>},
+            {nome:"Serviço",titulo:"Temperatura medida (°C)",pode:!!String(form.temperatura).trim(),conteudo:<>
+              <CampoPasso type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph={quente?"mín. 65":frio?"máx. 4":""}/>
+              {ok!==null&&<div style={{marginTop:10,padding:"10px 12px",borderRadius:10,fontSize:15,fontWeight:800,background:ok?"#e8f5e9":"#fdecea",color:ok?"#166534":R}}>
+                {ok?"✓ Temperatura adequada":quente?"✗ Temperatura insuficiente: aquecer mais.":"✗ Temperatura fora do seguro: verificar o equipamento."}</div>}</>},
+            {nome:"Serviço",titulo:"Equipamento",ajuda:"Banho-maria, estufa, vitrine… Se não houver, avança.",conteudo:<CampoPasso val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} ph="Ex: Banho-maria 1"/>},
+            {nome:"Rever",titulo:"Confere antes de registar",conteudo:<ReverPasso linhas={[["Prato",form.prato],["Tipo",form.tipo],["Início",form.tempInicio],["Temperatura",form.temperatura?form.temperatura+" °C "+(ok?"OK":"NC"):""],["Equipamento",form.equipamento]]}/>},
+          ]}/>;
+      })()}
       {lista.length>0&&<div>
         <div style={{fontSize:12,fontWeight:700,color:GR,marginBottom:8}}>Registos de hoje</div>
         {lista.map(s=><Cd key={s.id} st={{marginBottom:8,borderLeft:"3px solid "+(s.tempOk?"#16a34a":"#dc2626")}}>
@@ -4004,6 +4154,8 @@ function ConservacaoProd({user,db,setDb,showToast}){
           </div>}
         </Cd>}
 
+        {step>1&&<EcraSimples titulo="Conservação de produtos" onSair={()=>setStep(1)}>
+        {stepBar}
         {step===2&&<Cd>
           <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 2 — Temperatura de conservação</div>
           <div style={{fontSize:11,color:GR,marginBottom:14}}>Estado: <strong>{form.estado==="cru"?"Cru/Fresco":"Confeccionado"}</strong></div>
@@ -4087,6 +4239,7 @@ function ConservacaoProd({user,db,setDb,showToast}){
             <button onClick={save} disabled={form.produto==="__manual__"?(!form.produtoManual||!form.prazoManual):!form.produto} style={{flex:2,padding:12,borderRadius:10,border:"none",background:"#0891b2",color:W,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Registo</button>
           </div>
         </div>}
+        </EcraSimples>}
       </div>}
 
       {aba==="tabela"&&<div>
@@ -4506,7 +4659,7 @@ function InfoBtn({modId}){
     <div style={{display:"inline-block"}}>
       <button onClick={()=>setOpen(!open)} style={{padding:"5px 12px",borderRadius:20,background:"#0e7490",border:"none",color:W,fontSize:11,fontWeight:700,cursor:"pointer",letterSpacing:.3,textTransform:"uppercase"}}>Saber mais</button>
       {open&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setOpen(false)}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setOpen(false)}>
           <div style={{background:W,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             <div style={{width:40,height:4,background:"#bae6fd",borderRadius:2,margin:"0 auto 16px"}}></div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
@@ -4526,6 +4679,7 @@ function InfoBtn({modId}){
 
 function Regeneracao({user,db,setDb,showToast}){
   const [step,setStep]=useState(1);
+  const [aberto,setAberto]=useState(false);
   const [form,setForm]=useState({
     prato:"",tipoProd:"",
     horaInicio:gT(),horaFim:"",
@@ -4569,6 +4723,7 @@ function Regeneracao({user,db,setDb,showToast}){
     if(!tempOk)setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Temp. NC: "+form.tempFinal+"°C (mín. 75°C)",acaoCorretiva:"Continuar a aquecer até 75°C",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     if(tempoDecorrido&&tempoDecorrido>60)setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now()+1,date:gD(),time:gT(),zona:"Regeneração — "+form.prato,descricao:"Tempo NC: "+tempoDecorrido+"min (máx. 60min)",acaoCorretiva:"Reportar ao responsável",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     showToast(tempOk?"Regeneração registada!":"NC criada!");
+    setAberto(false);
     setForm({prato:"",tipoProd:"",horaInicio:gT(),horaFim:"",tempFinal:"",tempServico:"",equipamento:"",obs:"",conservacaoAnterior:"refrigerado",dataConfeacao:new Date().toISOString().split("T")[0],embalagem:"normal"});
     setStep(1);
   };
@@ -4595,6 +4750,8 @@ function Regeneracao({user,db,setDb,showToast}){
         <InfoBtn modId="regeneracao"/>
       </div>
 
+      <B lb="▶ Registar regeneração" onClick={()=>{setStep(1);setAberto(true);}} cor="#d97706"/>
+      {aberto&&<EcraSimples titulo="Regeneração / cook-chill" onSair={()=>setAberto(false)}>
       {stepBar}
 
       {/* PASSO 1 — Verificar validade */}
@@ -4725,6 +4882,7 @@ function Regeneracao({user,db,setDb,showToast}){
           <button onClick={save} style={{flex:2,padding:14,borderRadius:11,border:"none",background:"#d97706",color:W,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Guardar Registo</button>
         </div>
       </div>}
+      </EcraSimples>}
     </div>
   );
 }
@@ -4801,6 +4959,17 @@ export default function App(){
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
   useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
+  // Os registos dos outros telemóveis: ao entrar e depois de tempos a tempos,
+  // só com a aplicação à vista. Aluno: os de hoje, de 3 em 3 min; professor,
+  // coordenadora e auxiliar: tudo, de minuto a minuto.
+  useEffect(()=>{
+    if(!user)return;
+    const soDia=user.tipo==="aluno";
+    const ir=()=>{if(document.visibilityState!=="hidden")sincronizarKF(setDb,soDia).catch(()=>{});};
+    ir();
+    const t=setInterval(ir,soDia?180000:60000);
+    return()=>clearInterval(t);
+  },[user]);
   const logout=()=>{setUser(null);setMod(null);};
   const back=()=>setMod(null);
   if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}} db={db} showRanking={showRanking} setShowRanking={setShowRanking}/>;
