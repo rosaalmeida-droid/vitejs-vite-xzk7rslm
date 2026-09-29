@@ -1,5 +1,7 @@
 // KitchenFlow ECL v3.0 - Ranking Sheets + Regeneracao + Tabela Completa
 import { useState, useEffect, useCallback, useRef } from "react";
+import { TURMAS_ECL, PROFESSORES_ECL, ALUNOS_ECL, SHEETS_AVALIACAO_ECL_URL } from "./alunosECL";
+import { LOGO_ECL } from "./logo_ecl";
 
 // Load Barlow Condensed font
 const fontLink = document.createElement("link");
@@ -96,6 +98,23 @@ function calcResponsavelEncerramento(db,turma,h){
   });
 
   return {responsavel:candidatos[0]||null,suplentes:candidatos.slice(1)};
+}
+// ── Alunos: a lista da Avaliação ECL ─────────────────────────
+// Base: a cópia da lista oficial (alunosECL.ts). Com ligação, a lista do
+// Google Sheets da Avaliação ECL manda (PIN mudado, aluno novo ou retirado).
+function listaAlunosBase(){
+  return ALUNOS_ECL.map(a=>({id:a.turma+"-"+a.numero,numero:String(a.numero),nome:a.nome,turma:a.turma,pin:a.pin,estado:"ativo"}));
+}
+function juntarAlunosDaAvaliacao(lista,dados){
+  const m=new Map(lista.map(a=>[a.turma+"-"+a.numero,a]));
+  (dados||[]).forEach(a=>{
+    if(!a||!a.turmaId||!a.numero)return;
+    const k=a.turmaId+"-"+a.numero,velho=m.get(k);
+    if(a.removidoEm||a.ativo===false){if(velho)m.set(k,{...velho,estado:"inativo"});return;}
+    if(!a.nome&&!velho)return;
+    m.set(k,{id:k,numero:String(a.numero),nome:a.nome||(velho&&velho.nome)||"",turma:a.turmaId,pin:String(a.pin||(velho&&velho.pin)||""),estado:"ativo"});
+  });
+  return [...m.values()].sort((x,y)=>x.turma.localeCompare(y.turma)||Number(x.numero)-Number(y.numero));
 }
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
@@ -296,7 +315,7 @@ function abrirFolhaImpressao(titulo,sub,corpo,legenda="",janela=null){
     @media print{.bt{display:none}body{padding:0}}
   </style></head><body>
   <button class="bt" onclick="window.print()">Imprimir / Guardar PDF</button>
-  <div class="cab"><div><div class="esc">ESCOLA DE COMÉRCIO DE LISBOA · REGISTOS HACCP</div><h1>${escHTML(titulo)}</h1>${sub?`<div class="sub">${escHTML(sub)}</div>`:""}</div>
+  <div class="cab"><div style="display:flex;align-items:center;gap:14px"><img src="${LOGO_ECL}" alt="ECL" style="height:52px;width:auto"><div><div class="esc">ESCOLA DE COMÉRCIO DE LISBOA · REGISTOS HACCP</div><h1>${escHTML(titulo)}</h1>${sub?`<div class="sub">${escHTML(sub)}</div>`:""}</div></div>
   <div class="imp">KitchenFlow ECL<br>Impresso em ${agora}</div></div>
   ${corpo}
   ${legenda?`<div class="leg">${escHTML(legenda)}</div>`:""}
@@ -487,7 +506,7 @@ function Hd({user,onOut,onRanking}){return <div style={{background:"linear-gradi
 
 function Login({onLogin,db,setDb,showRanking,setShowRanking}){
   const [tipo,setTipo]=useState("aluno");
-  const [turma,setTurma]=useState("1º ACP");
+  const [turma,setTurma]=useState(TURMAS_ECL[0]);
   const [num,setNum]=useState("");
   const [pin,setPin]=useState("");
   const [pinNovo,setPinNovo]=useState("");
@@ -495,7 +514,8 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
   const [prof,setProf]=useState("");
   const [err,setErr]=useState("");
   const [criarPin,setCriarPin]=useState(false);
-  const TURMAS=["1º ACP","2º ACP","3º ACP"];
+  const TURMAS=TURMAS_ECL;
+  const alunosDaTurma=(db.alunosList||[]).filter(a=>a.turma===turma&&a.estado!=="inativo").sort((a,b)=>Number(a.numero)-Number(b.numero));
 
   const findAluno=()=>{
     const lista=db.alunosList||[];
@@ -505,19 +525,18 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
   const go=()=>{
     setErr("");
     if(tipo==="aluno"){
-      if(!num||!pin){setErr("Preenche todos os campos.");return;}
+      if(!num){setErr("Escolhe o teu nome.");return;}
+      if(!pin){setErr("Escreve o teu PIN.");return;}
       const aluno=findAluno();
-      if(!aluno){setErr("Número não encontrado nesta turma.");return;}
-      if(!aluno.pin){
-        setErr("Ainda não tens PIN. Cria o teu PIN pessoal.");
-        setCriarPin(true);
-        return;
-      }
+      if(!aluno){setErr("Não encontrei o teu nome nesta turma.");return;}
+      // O PIN é o da Avaliação ECL: não se cria aqui.
+      if(!aluno.pin){setErr("Ainda não tens PIN. Pede-o ao professor: é o mesmo da Avaliação ECL.");return;}
       if(pin!==aluno.pin){setErr("PIN incorreto.");return;}
       onLogin({tipo:"aluno",id:turma+"-"+num,turma,nomeAluno:aluno.nome});
     } else if(tipo==="professor"){
       if(!prof||!pin){setErr("Preenche todos os campos.");return;}
-      if(pin!=="1111"){setErr("PIN incorreto.");return;}
+      const pf=PROFESSORES_ECL.find(x=>x.nome===prof);
+      if(!pf||pin!==pf.pin){setErr("PIN incorreto.");return;}
       onLogin({tipo:"professor",id:prof});
     } else if(tipo==="coord"){
       if(pin!=="1006"){setErr("PIN incorreto.");return;}
@@ -548,7 +567,7 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0c4a6e,#0e7490,#0891b2)",display:"flex",alignItems:"center",justifyContent:"center",padding:22}}>
       <div style={{width:"100%",maxWidth:380}}>
         <div style={{textAlign:"center",marginBottom:24}}>
-          <div style={{fontFamily:"Georgia,serif",fontSize:36,fontWeight:700,color:W,marginBottom:6}}>ECL</div>
+          <div style={{display:"inline-block",background:W,borderRadius:14,padding:"10px 16px",marginBottom:10}}><img src={LOGO_ECL} alt="Escola de Comércio de Lisboa" style={{height:64,width:"auto",display:"block"}}/></div>
           <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:W}}>KitchenFlow ECL</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}}>ESCOLA DE COMÉRCIO DE LISBOA</div>
         </div>
@@ -563,12 +582,18 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
           {tipo==="aluno"&&!criarPin&&<>
             <div style={{display:"flex",gap:6,marginBottom:12}}>
               {TURMAS.map(t=>(
-                <button key={t} onClick={()=>setTurma(t)} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:LC,color:turma===t?W:GR,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
+                <button key={t} onClick={()=>{setTurma(t);setNum("");}} style={{flex:1,padding:"8px 2px",borderRadius:8,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:LC,color:turma===t?W:GR,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
               ))}
             </div>
-            <Ip lb="Número de aluno" type="number" val={num} onChange={setNum} ph="Ex: 5220"/>
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:10,fontWeight:700,color:CA,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>O teu nome</div>
+              <select value={num} onChange={e=>setNum(e.target.value)} style={{width:"100%",padding:"12px 14px",borderRadius:10,border:"1.5px solid #bae6fd",fontSize:14,background:"#f0f9ff",color:"#0c4a6e",outline:"none",fontFamily:"inherit"}}>
+                <option value="">-- Escolhe o teu nome --</option>
+                {alunosDaTurma.map(a=><option key={a.id} value={a.numero}>{a.numero}. {a.nome}</option>)}
+              </select>
+            </div>
             <Ip lb="PIN pessoal (4 dígitos)" type="password" val={pin} onChange={setPin} ph="O teu PIN"/>
-            <div style={{fontSize:11,color:GR,marginBottom:10,textAlign:"center"}}>Primeira vez? Introduz o número e clica Entrar para criar o teu PIN.</div>
+            <div style={{fontSize:11,color:GR,marginBottom:10,textAlign:"center"}}>O PIN é o mesmo da Avaliação ECL.</div>
           </>}
 
           {tipo==="aluno"&&criarPin&&<>
@@ -581,7 +606,7 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
             <button onClick={()=>{setCriarPin(false);setErr("");}} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>← Voltar</button>
           </>}
 
-          {tipo==="professor"&&<><Sl lb="Professor" val={prof} onChange={setProf} opts={["P01","P02","P03"]}/></>}
+          {tipo==="professor"&&<><Sl lb="Professor" val={prof} onChange={setProf} opts={PROFESSORES_ECL.map(x=>x.nome)}/></>}
           {tipo==="coord"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Coordenadora — PIN: 1006</div>}
           {tipo==="auxiliar"&&<div style={{textAlign:"center",padding:"6px 0",color:GR,fontSize:13}}>Auxiliar de Apoio — PIN: 2222</div>}
 
@@ -629,7 +654,7 @@ function DashAluno({user,db,setModule}){
   const avisos=[];
   if(!higPessoal)avisos.push({msg:"Verificar Higiene Pessoal antes de entrar!",mod:"higienePessoal",urgente:false});
   // Check if temps already registered by any turma today
-  const todasTurmas=["1º ACP","2º ACP","3º ACP"];
+  const todasTurmas=TURMAS_ECL;
   const tempIQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-inicio"]);
   const tempFQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-final"]);
   if(!tempI){
@@ -1005,7 +1030,7 @@ function Temperaturas({user,db,setDb,showToast}){
 
 function Recepcao({user,db,setDb,showToast}){
   const [step,setStep]=useState("lista");
-  const [form,setForm]=useState({fornecedor:"",fatura:"",professor:"P01"});
+  const [form,setForm]=useState({fornecedor:"",fatura:"",professor:""});
   const [prods,setProds]=useState([]);
   const [np,setNp]=useState({categoria:"",nome:"",quantidade:"",lote:"",validade:"",conforme:"conforme",temperatura:""});
   const lista=(db.recepcao||[]).filter(r=>r.turma===user.turma).slice(-10).reverse();
@@ -1021,7 +1046,7 @@ function Recepcao({user,db,setDb,showToast}){
     showToast("Receção registada!");
     // Clear form
     setStep("lista");
-    setForm({fornecedor:"",fatura:"",professor:"P01"});
+    setForm({fornecedor:"",fatura:"",professor:""});
     setProds([]);
   };
   if(step==="lista")return(
@@ -1041,7 +1066,7 @@ function Recepcao({user,db,setDb,showToast}){
       <Cd>
         <Ip lb="Fornecedor" val={form.fornecedor} onChange={v=>setForm(p=>({...p,fornecedor:v}))}/>
         <Ip lb="Fatura" val={form.fatura} onChange={v=>setForm(p=>({...p,fatura:v}))}/>
-        <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={["P01","P02","P03"]}/>
+        <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={PROFESSORES_ECL.map(x=>x.nome)}/>
       </Cd>
       <div style={{display:"flex",gap:8}}>
         <B lb="Voltar" sm out cor={GR} onClick={()=>setStep("lista")} st={{flex:1}}/>
@@ -1298,7 +1323,7 @@ function ConsTabela(){
 function Producao({user,db,setDb,showToast}){
   const [show,setShow]=useState(false);
   const today=new Date().toISOString().split("T")[0];
-  const [form,setForm]=useState({nome:"",dataProducao:today,dataLimite:"",conservacao:"refrigerado",local:"Frig. Vert. 1",professor:"P01"});
+  const [form,setForm]=useState({nome:"",dataProducao:today,dataLimite:"",conservacao:"refrigerado",local:"Frig. Vert. 1",professor:""});
   const lista=(db.producao||[]).filter(p=>p.turma===user.turma).slice(-6).reverse();
   const nL=String((db.producao||[]).length+1).padStart(3,"0");
   const save=()=>{if(!form.nome||!form.dataLimite)return;const prod={...form,lote:nL,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,producao:[...(p.producao||[]),prod]}));setShow(false);enviar("Produção",[gD(),user.turma,user.id,form.nome,nL,form.conservacao,form.dataProducao,form.dataLimite,form.local,form.professor]);showToast("Produto registado! Lote: "+nL);};
@@ -1317,7 +1342,7 @@ function Producao({user,db,setDb,showToast}){
           <strong>Regra HACCP — Sobras:</strong> Acondicionar em recipiente tapado, rotulado e consumir em max. 72h. Data limite calculada automaticamente.
         </div>
         <Sl lb="Local" val={form.local} onChange={v=>setForm(p=>({...p,local:v}))} opts={FRIOS}/>
-        <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={["P01","P02","P03"]}/>
+        <Sl lb="Professor" val={form.professor} onChange={v=>setForm(p=>({...p,professor:v}))} opts={PROFESSORES_ECL.map(x=>x.nome)}/>
         {form.nome&&form.dataLimite&&<div style={{background:LC,borderRadius:8,padding:10,marginBottom:10,fontSize:11,lineHeight:1.6}}>Produto: {form.nome} | Produzido em: {fD(form.dataProducao)} | Consumir até: {fD(form.dataLimite)} | {user.id} | Lote {nL}</div>}
         <B lb="Guardar" onClick={save}/>
       </Cd>}
@@ -1934,7 +1959,7 @@ function DecisaoNC({onDecidir}){
 }
 
 function Professor({user,db,setDb,showToast}){
-  const [turma,setT]=useState("1º ACP");
+  const [turma,setT]=useState(()=>{const pf=PROFESSORES_ECL.find(x=>x.nome===user.id);return (pf&&pf.turmas[0])||TURMAS_ECL[0];});
   const [obs,setObs]=useState("");
   const h=gD(),vK="profv-"+user.id+"-"+turma+"-"+h;
   const ver=(db.profVerif&&db.profVerif[vK])||{};
@@ -2004,7 +2029,7 @@ function Professor({user,db,setDb,showToast}){
         </Cd>
       )}
       <div>
-        <div style={{display:"flex",gap:7,marginBottom:13}}>{["1º ACP","2º ACP","3º ACP"].map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
+        <div style={{display:"flex",gap:7,marginBottom:13}}>{TURMAS_ECL.map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,fontWeight:600,color:V}}>Verificados</span><span style={{fontSize:12,fontWeight:700,color:ok?V:CA}}>{tot}/{PC.length}</span></div><Pg val={tot} max={PC.length}/></div>
         <Cd>{PC.map(item=>{const v=ver[item.id];return(<div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid "+LC}}><div style={{flex:1,fontSize:13,color:V}}>{item.lb}{v&&<span style={{fontSize:10,color:v.conf?V:"#d35400",marginLeft:6}}>{v.conf?"OK":"NC"} {v.time}</span>}</div><div style={{display:"flex",gap:4}}><button onClick={()=>mk(item.id,false)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&!v.conf?"#d35400":BE),background:v&&!v.conf?"#fff3e0":"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:"#d35400"}}>NC</button><button onClick={()=>mk(item.id,true)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&v.conf?V:BE),background:v&&v.conf?V:"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:v&&v.conf?W:V}}>OK</button></div></div>);})}</Cd>
         {ncs.length>0&&<Cd st={{borderLeft:"4px solid "+R}}>
@@ -2047,10 +2072,10 @@ function AssinaturaDigital({onSave}){
 }
 
 function GestaoAlunos({db,setDb}){
-  const [form,setForm]=useState({nome:"",turma:"1º ACP",numero:""});
+  const [form,setForm]=useState({nome:"",turma:TURMAS_ECL[0],numero:""});
   const [err,setErr]=useState("");
   const alunosList=db.alunosList||[];
-  const TURMAS=["1º ACP","2º ACP","3º ACP"];
+  const TURMAS=TURMAS_ECL;
 
   const addAluno=()=>{
     setErr("");
@@ -2135,7 +2160,7 @@ function RelatoriosPDF(){
   const [tipo,setTipo]=useState("temperaturas");
   const [loading,setLoading]=useState(false);
   const [erro,setErro]=useState("");
-  const TURMAS=["","1º ACP","2º ACP","3º ACP"];
+  const TURMAS=["",...TURMAS_ECL];
   const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const TIPOS=[
     {id:"presenca",lb:"✅ Presenças"},
@@ -2717,7 +2742,7 @@ function CopiaSeguranca(){
 }
 
 function Coordenadora({user,db,setDb,showToast}){
-  const [turma,setTurma]=useState("1º ACP");
+  const [turma,setTurma]=useState(TURMAS_ECL[0]);
   const [mes,setMes]=useState(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");});
   const [folha,setFolha]=useState("temperaturas");
   // Período das folhas impressas (o ecrã continua a mostrar o mês escolhido).
@@ -2748,7 +2773,7 @@ function Coordenadora({user,db,setDb,showToast}){
         <div style={{fontSize:12,opacity:.75,marginTop:2}}>Coordenadora - {new Date().toLocaleDateString("pt-PT")}</div>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:11}}>
-        {["1º ACP","2º ACP","3º ACP"].map(t=><button key={t} onClick={()=>setTurma(t)} style={{flex:1,padding:9,borderRadius:8,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}
+        {TURMAS_ECL.map(t=><button key={t} onClick={()=>setTurma(t)} style={{flex:1,padding:9,borderRadius:8,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}
       </div>
       <div style={{marginBottom:11}}>
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Mes</div>
@@ -4230,7 +4255,7 @@ function Ranking({db,user}){
   
   // LocalStorage fallback
   const assinaturas=db.assinaturas||{};
-  const turmas=["1º ACP","2º ACP","3º ACP"];
+  const turmas=TURMAS_ECL;
   const alunoRankingLocal=Object.entries(assinaturas).map(([id,nome])=>{
     const turma=id.split("-")[0];
     const pts=calcPontos(db,id,turma);
@@ -4709,7 +4734,7 @@ export default function App(){
   const [mod,setMod]=useState(null);
   const [showRanking,setShowRanking]=useState(false);
   const [contextoAula,setContextoAula]=useState<{uc:string;ucNome:string;pratos:string[]}>({uc:'',ucNome:'',pratos:[]});
-  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};if(!d.alunosList||d.alunosList.length===0){d.alunosList=[{id:1,nome:"Aluno Teste",turma:"1º CP",numero:"9999",pin:"1234"}];}return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º CP",numero:"9999",pin:"1234"}]}}});
+  const [db,setDb]=useState(()=>{try{const s=localStorage.getItem("kf_db");const d=s?JSON.parse(s):{};d.alunosList=juntarAlunosDaAvaliacao(listaAlunosBase(),[]);return d;}catch{return{alunosList:[{id:1,nome:"Aluno Teste",turma:"1º CP",numero:"9999",pin:"1234"}]}}});
 
   // ── Login automático via parâmetros URL ────────────────────
   // A Avaliação ECL passa ?turma=1º CP&num=1&pin=1001&tipo=aluno
@@ -4738,8 +4763,9 @@ export default function App(){
       };
     }
     // Login professor directo — não precisa de Sheet
-    if(tipoParam==='professor'&&pinParam==='1111'){
-      setUser({tipo:'professor',id:turmaParam||'Prof'});
+    const profURL=PROFESSORES_ECL.find(x=>x.pin===pinParam);
+    if(tipoParam==='professor'&&profURL){
+      setUser({tipo:'professor',id:profURL.nome});
       return;
     }
     // Login aluno — guardar parâmetros para usar depois do fetch da Sheet
@@ -4748,35 +4774,29 @@ export default function App(){
     }
   },[]);
 
-  // Load alunos from Sheets on startup
+  // Os alunos são os da Avaliação ECL (as mesmas turmas, nomes e PINs).
   useEffect(()=>{
-    fetch(SHEET_URL+"?tabela=Alunos")
+    const entrarPeloLink=(alunos)=>{
+      const lp=(window as any).__kf_login_params;
+      if(!(lp&&lp.turma&&lp.numero&&lp.pin))return false;
+      const aluno=alunos.find((a:any)=>String(a.numero)===String(lp.numero)&&a.turma===lp.turma&&a.estado!=="inativo");
+      if(aluno&&aluno.pin===lp.pin){
+        setUser({tipo:'aluno',id:lp.turma+'-'+lp.numero,turma:lp.turma,nomeAluno:aluno.nome});
+        delete (window as any).__kf_login_params;
+        return true;
+      }
+      return false;
+    };
+    const base=juntarAlunosDaAvaliacao(listaAlunosBase(),[]);
+    setDb((p:any)=>({...p,alunosList:base}));
+    fetch(SHEETS_AVALIACAO_ECL_URL+"?tipo=get_alunos")
       .then(r=>r.json())
       .then(data=>{
-        if(data.ok&&data.dados&&data.dados.length>4){
-          const alunos=data.dados.slice(4).filter((r:any[])=>r[0]&&String(r[0]).trim()).map((r:any[])=>({
-            id:String(r[0]),
-            numero:String(r[0]).trim(),
-            nome:String(r[1]).trim(),
-            turma:String(r[2]).trim(),
-            pin:String(r[3]).trim(),
-            estado:String(r[4]).trim()
-          }));
-          if(alunos.length>0){
-            setDb((p:any)=>({...p,alunosList:alunos}));
-            // Login automático após carregar alunos da Sheet
-            const lp=(window as any).__kf_login_params;
-            if(lp&&lp.turma&&lp.numero&&lp.pin){
-              const aluno=alunos.find((a:any)=>String(a.numero)===String(lp.numero)&&a.turma===lp.turma);
-              if(aluno&&aluno.pin===lp.pin){
-                setUser({tipo:'aluno',id:lp.turma+'-'+lp.numero,turma:lp.turma,nomeAluno:aluno.nome});
-              }
-              delete (window as any).__kf_login_params;
-            }
-          }
-        }
+        const lista=data&&data.ok&&Array.isArray(data.dados)?juntarAlunosDaAvaliacao(base,data.dados):base;
+        setDb((p:any)=>({...p,alunosList:lista}));
+        entrarPeloLink(lista);
       })
-      .catch(()=>{});
+      .catch(()=>{entrarPeloLink(base);});
   },[]);
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
