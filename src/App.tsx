@@ -71,34 +71,6 @@ function guardarRegistoPartilhado(tabela,turma,data,nomeAluno,hora,momento='') {
   } catch {}
 }
 
-// Calcula Responsável + Suplentes pelo Encerramento, rotativo, considerando os últimos 15 dias de histórico
-function calcResponsavelEncerramento(db,turma,h){
-  const presencasHoje=(db.presencas&&db.presencas["presenca-"+turma+"-"+h])||{};
-  const todosAlunos=(db.alunosList||[]).filter(a=>a.turma===turma);
-  const presentesHoje=todosAlunos.filter(a=>Object.keys(presencasHoje).some(id=>id.endsWith("-"+a.numero)));
-
-  const hoje=new Date(h.split("/").reverse().join("-"));
-  const limite=new Date(hoje);limite.setDate(limite.getDate()-15);
-
-  const historicoEnc=(Object.values(db.encerramento||{}) as any[]).filter((e:any)=>{
-    if(e.emProgresso||!e.nomeAluno||e.turma!==turma)return false;
-    const d=new Date(e.date.split("/").reverse().join("-"));
-    return d>=limite&&d<=hoje;
-  });
-  const contagemEnc:Record<string,number>={};
-  historicoEnc.forEach((e:any)=>{contagemEnc[e.aluno]=(contagemEnc[e.aluno]||0)+1;});
-  const ultimaVez:Record<string,string>={};
-  historicoEnc.forEach((e:any)=>{if(!ultimaVez[e.aluno]||e.date>ultimaVez[e.aluno])ultimaVez[e.aluno]=e.date;});
-
-  const candidatos=[...presentesHoje].sort((a,b)=>{
-    const ca=contagemEnc[a.turma+"-"+a.numero]||0,cb=contagemEnc[b.turma+"-"+b.numero]||0;
-    if(ca!==cb)return ca-cb;
-    const ua=ultimaVez[a.turma+"-"+a.numero]||"",ub=ultimaVez[b.turma+"-"+b.numero]||"";
-    return ua.localeCompare(ub);
-  });
-
-  return {responsavel:candidatos[0]||null,suplentes:candidatos.slice(1)};
-}
 // ── Alunos: a lista da Avaliação ECL ─────────────────────────
 // Base: a cópia da lista oficial (alunosECL.ts). Com ligação, a lista do
 // Google Sheets da Avaliação ECL manda (PIN mudado, aluno novo ou retirado).
@@ -376,6 +348,121 @@ async function linhasDoSheets(tabela){
     return j.dados.filter(l=>Array.isArray(l)&&dataDaLinhaSheets(l[0])).map(l=>[dataDaLinhaSheets(l[0]),...l.slice(1)]);
   }catch{return null;}
 }
+// ── Registos partilhados entre telemóveis ────────────────────
+// Cada registo vai para o Google Sheets. Aqui faz-se o caminho de volta:
+// lê-se o Sheets e junta-se ao que o aparelho já tem, para que o professor
+// veja as não conformidades dos alunos, a turma veja que as temperaturas já
+// foram registadas por um colega, e a coordenadora veja tudo. O que já está
+// no aparelho nunca é substituído — só se acrescenta o que falta.
+const SINC_DO_DIA=["Temperaturas","Higienização","Panos Solução","Encerramento","Presenças","Higiene Pessoal","NãoConformidades"];
+const SINC_TUDO=[...SINC_DO_DIA,"Receção Matérias-Primas","Amostra Testemunho","Desinfeção","Produção"];
+async function lerDoSheetsParaJuntar(tabelas){
+  const out={};
+  await Promise.all(tabelas.map(async t=>{const x=await linhasDoSheets(t);if(x)out[t]=x;}));
+  return out;
+}
+function juntarDoSheets(p,dados,soDia){
+  const hoje=gD();
+  const serve=l=>!soDia||l[0]===hoje;
+  const n={...p};
+  const T=(t)=>(dados[t]||[]).filter(serve);
+  const hr=v=>horaDaLinhaSheets(v);
+  // Temperaturas
+  if(dados["Temperaturas"]){
+    const te={...(n.temperaturas||{})};
+    T("Temperaturas").forEach(l=>{
+      const mom=l[5]==="final"?"final":"inicio",k="temp-"+l[2]+"-"+l[0]+"-"+mom;
+      if(te[k])return;
+      const records=FRIOS.map((eq,i)=>{const v=l[6+2*i],e=l[7+2*i];
+        if(e==="N/A")return {equipamento:eq,temperatura:"",conforme:null,status:v==="Desligado"?"off":"inactive"};
+        return {equipamento:eq,temperatura:v==null||v==="---"?"":String(v),conforme:e==="OK"?true:e==="NC"?false:null,status:"on"};});
+      te[k]={records,temps:{},statusEq:{},aluno:l[3],nomeAluno:l[4],turma:l[2],date:l[0],time:hr(l[1]),momento:mom,doSheets:true};
+    });
+    n.temperaturas=te;
+  }
+  // Higienização e panos (desmarcar também chega)
+  if(dados["Higienização"]||dados["Panos Solução"]){
+    const hg={...(n.higienizacao||{})};
+    T("Higienização").forEach(l=>{
+      const k="hig-"+l[2]+"-"+l[0];
+      const x={...(hg[k]||{registos:{},turma:l[2],date:l[0]})};x.registos={...(x.registos||{})};
+      if(String(l[6]||"")==="Desmarcado")delete x.registos[l[5]];
+      else if(!x.registos[l[5]])x.registos[l[5]]={aluno:l[4]||l[3],time:hr(l[1]),turma:l[2]};
+      hg[k]=x;
+    });
+    T("Panos Solução").forEach(l=>{
+      const k="hig-"+l[2]+"-"+l[0],mom=l[5]==="final"?"final":"inicio";
+      const x={...(hg[k]||{registos:{},turma:l[2],date:l[0]})};x.panos={...(x.panos||{})};
+      if(!x.panos[mom])x.panos[mom]={aluno:l[4]||l[3],time:hr(l[1]),turma:l[2]};
+      hg[k]=x;
+    });
+    n.higienizacao=hg;
+  }
+  // Encerramento
+  if(dados["Encerramento"]){
+    const en={...(n.encerramento||{})};
+    T("Encerramento").forEach(l=>{const k="enc-"+l[2]+"-"+l[0];
+      if(en[k]&&en[k].emProgresso===false)return;
+      en[k]={obs:"",checks:{},na:{},aluno:l[3],nomeAluno:l[4],turma:l[2],date:l[0],time:hr(l[1]),emProgresso:false,doSheets:true};});
+    n.encerramento=en;
+  }
+  // Presenças
+  if(dados["Presenças"]){
+    const ps={...(n.presencas||{})};
+    T("Presenças").forEach(l=>{const k="presenca-"+l[2]+"-"+l[0];
+      const x={...(ps[k]||{})};if(!x[l[3]])x[l[3]]={aluno:l[3],nomeAluno:l[4],time:hr(l[1]),date:l[0]};ps[k]=x;});
+    n.presencas=ps;
+  }
+  // Higiene pessoal
+  if(dados["Higiene Pessoal"]){
+    const hp={...(n.higPessoal||{})};
+    T("Higiene Pessoal").forEach(l=>{const k="hig-pessoal-"+l[3]+"-"+l[0];
+      if(!hp[k])hp[k]={checks:{},aluno:l[3],nomeAluno:l[4],date:l[0],time:hr(l[1]),doSheets:true};});
+    n.higPessoal=hp;
+  }
+  // Não conformidades
+  if(dados["NãoConformidades"]){
+    const ncs=[...(n.ncs||[])];
+    const igual=(a,l,desc)=>a.date===l[0]&&String(a.responsavel)===String(l[3])&&a.zona===l[5]&&a.descricao===desc;
+    T("NãoConformidades").forEach(l=>{
+      const desc=String(l[6]||"");
+      if(desc.startsWith("[ESCALADA AO COORDENADOR] ")){
+        const orig=desc.replace("[ESCALADA AO COORDENADOR] ","");
+        const i=ncs.findIndex(a=>String(a.responsavel)===String(l[3])&&a.zona===l[5]&&a.descricao===orig);
+        if(i>=0&&ncs[i].estado!=="validada")ncs[i]={...ncs[i],estado:"escalada",decisao:ncs[i].decisao||"escalar"};
+        return;
+      }
+      if(ncs.some(a=>igual(a,l,desc)&&(a.time===hr(l[1])||!a.time)))return;
+      ncs.push({id:"sh-"+l[0]+"-"+hr(l[1])+"-"+l[3]+"-"+l[5],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],zona:l[5],descricao:desc,acaoCorretiva:l[7]||"",estado:l[8]||"aberta",professor:"",decisao:"",doSheets:true});
+    });
+    n.ncs=ncs;
+  }
+  if(!soDia){
+    const junta=(chave,linhas,mapa,chaveDe)=>{
+      const arr=[...(n[chave]||[])];const tem=new Set(arr.map(chaveDe));
+      linhas.forEach(l=>{const x=mapa(l);if(!tem.has(chaveDe(x))){arr.push(x);tem.add(chaveDe(x));}});
+      n[chave]=arr;
+    };
+    if(dados["Receção Matérias-Primas"]){
+      const grupos=new Map();
+      T("Receção Matérias-Primas").forEach(l=>{const g=[l[0],hr(l[1]),l[3],l[5],l[6]].join("|");
+        const x=grupos.get(g)||{id:"sh-"+g,date:l[0],time:hr(l[1]),turma:l[2],aluno:l[3],fornecedor:l[5],fatura:l[6],produtos:[],doSheets:true};
+        x.produtos.push({id:x.produtos.length,nome:l[7],categoria:l[8],quantidade:l[9],lote:l[10],validade:dataDaLinhaSheets(l[11])?nD(dataDaLinhaSheets(l[11])):String(l[11]||""),conforme:l[12],temperatura:l[13]==null?"":String(l[13])});
+        grupos.set(g,x);});
+      junta("recepcao",[...grupos.values()],x=>x,x=>[x.date,x.time,x.aluno,x.fornecedor,x.fatura].join("|"));
+    }
+    if(dados["Amostra Testemunho"])junta("testemunho",T("Amostra Testemunho"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],prato:l[5],tipoRefeicao:l[6],horaRefeicao:hr(l[7]),pesoAmostra:l[8],localArmazenamento:l[9],dataDestruicao:dataDaLinhaSheets(l[10])?nD(dataDaLinhaSheets(l[10])):String(l[10]||""),doSheets:true}),x=>[x.date,x.time,x.responsavel,x.prato].join("|"));
+    if(dados["Desinfeção"])junta("desinfecao",T("Desinfeção"),l=>({id:"sh-"+l[0]+l[1]+l[3],date:l[0],time:hr(l[1]),turma:l[2],responsavel:l[3],nomeAluno:l[4],alimento:l[5],quantidade:l[6],produto:l[7],concentracao:l[8],tempoContacto:l[9],temperatura:l[10],doSheets:true}),x=>[x.date,x.time,x.responsavel,x.alimento].join("|"));
+    if(dados["Produção"])junta("producao",T("Produção"),l=>({id:"sh-"+l[0]+l[2]+l[4],date:l[0],time:l[10]?hr(l[10]):"",turma:l[1],aluno:l[2],nome:l[3],lote:l[4],conservacao:l[5],dataProducao:dataDaLinhaSheets(l[6])?nD(dataDaLinhaSheets(l[6])):String(l[6]||""),dataLimite:dataDaLinhaSheets(l[7])?nD(dataDaLinhaSheets(l[7])):String(l[7]||""),local:l[8],professor:l[9],doSheets:true}),x=>[x.date,x.aluno,x.nome,x.lote].join("|"));
+  }
+  return n;
+}
+/** Vai buscar ao Sheets e junta. soDia: só os registos de hoje (telemóveis dos alunos). */
+async function sincronizarKF(setDb,soDia){
+  const dados=await lerDoSheetsParaJuntar(soDia?SINC_DO_DIA:SINC_TUDO);
+  if(Object.keys(dados).length)setDb(p=>juntarDoSheets(p,dados,soDia));
+  return Object.keys(dados).length>0;
+}
 /** Folha oficial de um período, com os registos de TODAS as turmas juntos, por data e hora
  *  (para a ASAE interessa o registo e quem o fez, não a turma). Lê do Google Sheets, onde
  *  chegam os registos de todos os telemóveis; sem ligação, usa o que está neste aparelho. */
@@ -395,13 +482,20 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
     if(tipo==="temperaturas"){const x=await L("Temperaturas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5]==="final"?"Final":l[5]==="inicio"?"Início":String(l[5]||""),nomeDe(l[3],l[4]),...FRIOS.map((_,i)=>{const v=l[6+2*i],e=l[7+2*i];if(v===""||v==null)return "";return e==="N/A"?String(v):v+" °C "+(e==="---"?"":e);})]);}
     if(tipo==="recepcao"){const x=await L("Receção Matérias-Primas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10],l[11]?fD(dataDaLinhaSheets(l[11])||String(l[11])):"",l[13]!==""&&l[13]!=null?l[13]+" °C":"",l[12],nomeDe(l[3],l[4])]);}
     if(tipo==="testemunho"){const x=await L("Amostra Testemunho");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[7]||l[1]),l[5],l[6],l[8]?l[8]+" g":"",l[9],l[10],nomeDe(l[3],l[4])]);}
-    if(tipo==="producao"){const x=await L("Produção");return x&&x.map(l=>[l[0],"",l[3],l[4],l[5],fD(dataDaLinhaSheets(l[6])||String(l[6]||"")),fD(dataDaLinhaSheets(l[7])||String(l[7]||"")),l[8],nomeDe(l[2],""),l[9]||""]);}
+    if(tipo==="producao"){const x=await L("Produção");return x&&x.map(l=>[l[0],l[10]?horaDaLinhaSheets(l[10]):"",l[3],l[4],l[5],fD(dataDaLinhaSheets(l[6])||String(l[6]||"")),fD(dataDaLinhaSheets(l[7])||String(l[7]||"")),l[8],nomeDe(l[2],l[11]||""),l[9]||""]);}
+    if(tipo==="naoconf"){const x=await L("NãoConformidades");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7]||"",l[8]||"",nomeDe(l[3],l[4])]);}
     if(tipo==="desinfecao"){const x=await L("Desinfeção");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10]!==""&&l[10]!=null?l[10]+" °C":"",nomeDe(l[3],l[4])]);}
     if(tipo==="higienizacao"){
       const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||"";
       const a=await L("Higienização"),b=await L("Panos Solução");
       if(!a||!b)return null;
-      return [...a.map(l=>[l[0],horaDaLinhaSheets(l[1]),zonaDe(String(l[5])),l[5],nomeDe(l[3],l[4])]),
+      // «Desmarcado» anula a marcação anterior da mesma tarefa, no mesmo dia e turma.
+      const feitas=[];
+      a.forEach(l=>{
+        if(String(l[6]||"")==="Desmarcado"){for(let i=feitas.length-1;i>=0;i--){const f=feitas[i];if(f[0]===l[0]&&f[2]===l[2]&&f[5]===l[5]){feitas.splice(i,1);break;}}}
+        else feitas.push(l);
+      });
+      return [...feitas.map(l=>[l[0],horaDaLinhaSheets(l[1]),zonaDe(String(l[5])),l[5],nomeDe(l[3],l[4])]),
         ...b.map(l=>[l[0],horaDaLinhaSheets(l[1]),"Panos e esponjas","Solução desinfetante — "+(l[5]==="final"?"final":"início")+" da aula",nomeDe(l[3],l[4])])];
     }
     return null;
@@ -438,6 +532,10 @@ async function imprimirFolhaOficial(tipo,db,periodoEscolhido){
     titulo="Desinfeção de Alimentos em Cru";
     col=["Dia","Hora","Alimento","Quantidade","Produto","Conc. (ml/L)","Tempo (min)","Temp. água","Registado por"];
     (db.desinfecao||[]).filter(d=>noMes(d.date)).forEach(d=>lin.push([d.date,d.time,d.alimento,d.quantidade,d.produto,d.concentracao,d.tempoContacto,d.temperatura!==""&&d.temperatura!=null?d.temperatura+" °C":"",nomeCurto(db,d.responsavel,d.nomeAluno)]));
+  }else if(tipo==="naoconf"){
+    titulo="Não Conformidades";
+    col=["Dia","Hora","Zona / equipamento","Descrição","Ação corretiva","Estado","Registado por"];
+    (db.ncs||[]).filter(x=>noMes(x.date)).forEach(x=>lin.push([x.date,x.time||"",x.zona,x.descricao,x.acaoCorretiva||"",x.estado||"",nomeCurto(db,x.responsavel,x.nomeAluno)]));
   }else if(tipo==="higienizacao"){
     titulo="Higienização de Equipamentos e Utensílios";
     col=["Dia","Hora","Zona","Tarefa","Registado por"];
@@ -728,22 +826,6 @@ function DashAluno({user,db,setModule}){
           <div style={{background:pct===100?"#16a34a":"#bae6fd",height:6,borderRadius:6,width:pct+"%",transition:"width .3s"}}/>
         </div>
       </div>
-
-      {(()=>{
-        const {responsavel,suplentes}=calcResponsavelEncerramento(db,user.turma,h);
-        if(!responsavel)return null;
-        return(
-          <Cd st={{borderLeft:"3px solid #0e7490",marginBottom:12}}>
-            <div style={{fontSize:11,fontWeight:700,color:"#0e7490",marginBottom:4,textTransform:"uppercase"}}>Responsável de hoje pelo Encerramento</div>
-            <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e"}}>{responsavel.nome||("Aluno "+responsavel.numero)}</div>
-            {suplentes.length>0&&(
-              <div style={{fontSize:11,color:GR,marginTop:4}}>
-                {suplentes.slice(0,3).map((s,i)=>"Suplente "+(i+1)+": "+(s.nome||("Aluno "+s.numero))).join(" • ")}
-              </div>
-            )}
-          </Cd>
-        );
-      })()}
 
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["modulos","Módulos"],["historico","Histórico do Dia"]].map(([id,lb])=>(
@@ -1326,7 +1408,7 @@ function Producao({user,db,setDb,showToast}){
   const [form,setForm]=useState({nome:"",dataProducao:today,dataLimite:"",conservacao:"refrigerado",local:"Frig. Vert. 1",professor:""});
   const lista=(db.producao||[]).filter(p=>p.turma===user.turma).slice(-6).reverse();
   const nL=String((db.producao||[]).length+1).padStart(3,"0");
-  const save=()=>{if(!form.nome||!form.dataLimite)return;const prod={...form,lote:nL,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,producao:[...(p.producao||[]),prod]}));setShow(false);enviar("Produção",[gD(),user.turma,user.id,form.nome,nL,form.conservacao,form.dataProducao,form.dataLimite,form.local,form.professor]);showToast("Produto registado! Lote: "+nL);};
+  const save=()=>{if(!form.nome||!form.dataLimite)return;const prod={...form,lote:nL,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,producao:[...(p.producao||[]),prod]}));setShow(false);enviar("Produção",[gD(),user.turma,user.id,form.nome,nL,form.conservacao,form.dataProducao,form.dataLimite,form.local,form.professor,gT(),(db.assinaturas&&db.assinaturas[user.id])||""]);showToast("Produto registado! Lote: "+nL);};
   return(
     <div style={{padding:15}}>
       <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Prod. Confeccionados e Conservação</div>
@@ -1475,6 +1557,8 @@ function Higienizacao({user,db,setDb,showToast}){
       if(!window.confirm("Desmarcar?"))return;
       const n={...regs};delete n[item];
       setDb(p=>{const hg={...p.higienizacao};hg[k]={...hg[k],registos:n,turma:user.turma,date:h};return{...p,higienizacao:hg};});
+      // Também no Sheets: senão a tarefa voltava a aparecer feita nos outros telemóveis e na folha impressa.
+      enviar("Higienização",[h,gT(),user.turma,user.id,nomeAluno||user.id,item,"Desmarcado"]);
       showToast("Desmarcado");return;
     }
     const n={...regs,[item]:{aluno:nomeAluno||user.id,time:gT(),turma:user.turma}};
@@ -1740,8 +1824,6 @@ function Encerramento({user,db,setDb,showToast}){
     {id:"residuos",l:"Resíduos e Carrinhos",sub:["Lixos despejados e separados corretamente","Caixotes lavados e com saco novo","Carrinhos limpos e higienizados"]},
   ];
 
-  // Cálculo do Responsável rotativo + Suplentes (baseado em presenças de hoje e histórico dos últimos 15 dias)
-  const {responsavel:responsavelInfo,suplentes}=calcResponsavelEncerramento(db,user.turma,h);
 
   const naItens=(sv&&sv.na)||{};
   const [naLocal,setNaLocal]=useState(naItens);
@@ -1800,18 +1882,6 @@ function Encerramento({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Encerramento da Aula</div><InfoBtn modId="encerramento"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Todos os pontos têm de estar verificados para encerrar.</div>
-
-      {!done&&responsavelInfo&&(
-        <Cd st={{borderLeft:"3px solid "+V,marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:700,color:V,marginBottom:6,textTransform:"uppercase"}}>Responsável de hoje pelo Encerramento</div>
-          <div style={{fontSize:14,fontWeight:700,color:"#0c4a6e",marginBottom:8}}>{responsavelInfo.nome||("Aluno "+responsavelInfo.numero)}</div>
-          {suplentes.length>0&&<>
-            <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Ordem de Substituição</div>
-            {suplentes.map((s,i)=><div key={i} style={{fontSize:12,color:GR}}>Suplente {i+1}: {s.nome||("Aluno "+s.numero)}</div>)}
-          </>}
-          <div style={{fontSize:10,color:GR,marginTop:6,fontStyle:"italic"}}>Seleção rotativa baseada na presença de hoje e no histórico de encerramentos.</div>
-        </Cd>
-      )}
 
       <button onClick={()=>setShowHist(!showHist)} style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #bae6fd",background:LC,color:"#0369a1",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:12}}>
         {showHist?"Fechar histórico":"📋 Ver quem encerrou a cozinha (histórico)"}
@@ -2779,7 +2849,7 @@ function Coordenadora({user,db,setDb,showToast}){
         <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Mes</div>
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
-      {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao"].includes(folha)&&(
+      {["temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].includes(folha)&&(
         <div style={{marginBottom:11,background:W,border:"1.5px solid "+BE,borderRadius:10,padding:"10px 12px"}}>
           <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:6,textTransform:"uppercase"}}>Período para imprimir (todas as turmas)</div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:per.modo==="mes"?0:8}}>
@@ -2806,10 +2876,9 @@ function Coordenadora({user,db,setDb,showToast}){
         </div>
       )}
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["alunos","relatorios","copia","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["relatorios","copia","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
-      {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
       {folha==="relatorios"&&<RelatoriosPDF/>}
       {folha==="copia"&&<CopiaSeguranca/>}
       {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
@@ -3051,6 +3120,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
+          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("naoconf",db,periodoDeImpressao(per,mes))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
     </div>
@@ -4801,6 +4871,17 @@ export default function App(){
   const [toast,setToast]=useState(null);
   const showToast=useCallback(msg=>setToast(msg),[]);
   useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
+  // Os registos dos outros telemóveis: ao entrar e depois de tempos a tempos,
+  // só com a aplicação à vista. Aluno: os de hoje, de 3 em 3 min; professor,
+  // coordenadora e auxiliar: tudo, de minuto a minuto.
+  useEffect(()=>{
+    if(!user)return;
+    const soDia=user.tipo==="aluno";
+    const ir=()=>{if(document.visibilityState!=="hidden")sincronizarKF(setDb,soDia).catch(()=>{});};
+    ir();
+    const t=setInterval(ir,soDia?180000:60000);
+    return()=>clearInterval(t);
+  },[user]);
   const logout=()=>{setUser(null);setMod(null);};
   const back=()=>setMod(null);
   if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}} db={db} showRanking={showRanking} setShowRanking={setShowRanking}/>;

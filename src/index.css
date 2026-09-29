@@ -109,3 +109,14 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Telemóvel: nada mais largo do que o ecrã. As tabelas largas deslizam
+   dentro da sua caixa; a página não anda para o lado. */
+#root > * {
+  width: 100%;
+  min-width: 0;
+}
+input, select, textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+}
