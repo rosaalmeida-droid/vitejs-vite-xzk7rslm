@@ -304,18 +304,75 @@ function abrirFolhaImpressao(titulo,sub,corpo,legenda=""){
   w.document.close();
   setTimeout(()=>{try{w.focus();w.print();}catch{}},500);
 }
-/** Imprime a tabela que está no mesmo bloco do botão, tal e qual aparece no ecrã. */
-function imprimirTabelaDoBloco(ev,titulo,sub,legenda=""){
-  const bloco=ev.currentTarget.parentElement&&ev.currentTarget.parentElement.parentElement;
-  const tabela=bloco&&bloco.querySelector("table");
-  if(!tabela){alert("Não encontrei a tabela para imprimir.");return;}
-  abrirFolhaImpressao(titulo,sub,tabela.outerHTML,legenda);
-}
 /** Uma tabela simples a partir de colunas e linhas (texto). */
 function tabelaHTML(colunas,linhas){
   return `<table><thead><tr>${colunas.map(c=>`<th>${escHTML(c)}</th>`).join("")}</tr></thead><tbody>${
     linhas.length?linhas.map(l=>`<tr>${l.map(v=>`<td>${escHTML(v)}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${colunas.length}">Sem registos neste período.</td></tr>`
   }</tbody></table>`;
+}
+
+
+/** Nome para as folhas: primeiro e último nome de quem registou. */
+function nomeCurto(db,v,nome){
+  let n=nome||(db.assinaturas&&v&&db.assinaturas[v])||"";
+  if(!n&&v){const m=String(v).match(/^(.+)-(\d+)$/);if(m){const a=(db.alunosList||[]).find(x=>x.turma===m[1]&&String(x.numero)===m[2]);if(a)n=a.nome;}}
+  if(!n)n=String(v||"");
+  const p=n.trim().split(/\s+/).filter(Boolean);
+  return p.length>1?p[0]+" "+p[p.length-1]:(p[0]||"");
+}
+const MESES_PT=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+/** Folha oficial de um mês, com os registos de TODAS as turmas juntos, por data e hora
+ *  (para a ASAE interessa o registo e quem o fez, não a turma). */
+function imprimirFolhaOficial(tipo,db,mes){
+  const [ano,m]=mes.split("-").map(Number);
+  const noMes=d=>{const x=String(d||"").split("/");return x.length===3&&Number(x[1])===m&&Number(x[2])===ano;};
+  const ordem=(a,b)=>nD(a[0]).localeCompare(nD(b[0]))||String(a[1]).localeCompare(String(b[1]));
+  const periodo=MESES_PT[m-1].charAt(0).toUpperCase()+MESES_PT[m-1].slice(1)+" de "+ano;
+  const nc=v=>v===false?"NC":v===true?"OK":"";
+  let titulo="",col=[],lin=[],leg="";
+  if(tipo==="temperaturas"){
+    titulo="Registo de Temperaturas — Equipamentos de Frio";
+    col=["Dia","Hora","Momento","Registado por",...FRIOS];
+    Object.entries(db.temperaturas||{}).forEach(([k,r])=>{
+      const mm=k.match(/^temp-.+-(\d{2}\/\d{2}\/\d{4})-(inicio|final)$/);
+      if(!mm||!noMes(mm[1])||!r)return;
+      lin.push([mm[1],r.time||"",mm[2]==="inicio"?"Início":"Final",nomeCurto(db,r.aluno),...FRIOS.map(eq=>{
+        const x=(r.records||[]).find(y=>y.equipamento===eq);
+        if(!x)return "";
+        if(x.status&&x.status!=="on")return "N/A";
+        return x.temperatura!==""&&x.temperatura!=null?x.temperatura+" °C "+nc(x.conforme):"";
+      })]);
+    });
+    leg="OK = conforme · NC = não conforme · N/A = equipamento desligado ou inativo";
+  }else if(tipo==="recepcao"){
+    titulo="Receção de Matérias-Primas";
+    col=["Dia","Hora","Fornecedor","Fatura","Produto","Categoria","Quantidade","Lote","Validade","Conformidade","Registado por"];
+    (db.recepcao||[]).filter(r=>noMes(r.date)).forEach(r=>(r.produtos||[]).forEach(pr=>lin.push([r.date,r.time,r.fornecedor,r.fatura,pr.nome,pr.categoria,pr.quantidade,pr.lote||"",pr.validade?fD(pr.validade):"",pr.conforme,nomeCurto(db,r.aluno)])));
+  }else if(tipo==="testemunho"){
+    titulo="Amostras Testemunho";
+    col=["Dia","Hora","Prato","Refeição","Peso","Local","Destruir em","Registado por"];
+    (db.testemunho||[]).filter(t=>noMes(t.date)).forEach(t=>lin.push([t.date,t.horaRefeicao||t.time,t.prato,t.tipoRefeicao,t.pesoAmostra?t.pesoAmostra+" g":"",t.localArmazenamento,fD(t.dataDestruicao),nomeCurto(db,t.responsavel,t.nomeAluno)]));
+  }else if(tipo==="producao"){
+    titulo="Produtos Confecionados";
+    col=["Dia","Hora","Produto","Lote","Conservação","Produzido em","Consumir até","Local","Registado por","Prof."];
+    (db.producao||[]).filter(x=>noMes(x.date)).forEach(x=>lin.push([x.date,x.time||"",x.nome,x.lote,x.conservacao,fD(x.dataProducao),fD(x.dataLimite),x.local,nomeCurto(db,x.aluno),x.professor||""]));
+  }else if(tipo==="desinfecao"){
+    titulo="Desinfeção de Alimentos em Cru";
+    col=["Dia","Hora","Alimento","Quantidade","Produto","Conc. (ml/L)","Tempo (min)","Temp. água","Registado por"];
+    (db.desinfecao||[]).filter(d=>noMes(d.date)).forEach(d=>lin.push([d.date,d.time,d.alimento,d.quantidade,d.produto,d.concentracao,d.tempoContacto,d.temperatura!==""&&d.temperatura!=null?d.temperatura+" °C":"",nomeCurto(db,d.responsavel,d.nomeAluno)]));
+  }else if(tipo==="higienizacao"){
+    titulo="Higienização de Equipamentos e Utensílios";
+    col=["Dia","Hora","Zona","Tarefa","Registado por"];
+    const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||"";
+    Object.entries(db.higienizacao||{}).forEach(([k,hig])=>{
+      const mm=k.match(/(\d{2}\/\d{2}\/\d{4})$/);
+      if(!mm||!noMes(mm[1])||!hig)return;
+      Object.entries(hig.registos||{}).forEach(([it,r])=>lin.push([mm[1],r&&r.time||"",zonaDe(it),it,nomeCurto(db,"",r&&r.aluno)]));
+      ["inicio","final"].forEach(mo=>{const x=hig.panos&&hig.panos[mo];if(x)lin.push([mm[1],x.time||"","Panos e esponjas","Solução desinfetante — "+(mo==="inicio"?"início":"final")+" da aula",nomeCurto(db,"",x.aluno)]);});
+    });
+  }
+  lin.sort(ordem);
+  abrirFolhaImpressao(titulo,periodo,tabelaHTML(col,lin),leg);
 }
 
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
@@ -2520,6 +2577,80 @@ function PainelNCs({db,turma}){
   );
 }
 
+
+// ── Cópia de segurança ───────────────────────────────────────
+// Um ficheiro com tudo: o que está guardado neste aparelho e todas as folhas
+// do Google Sheets. Guarda-se no computador (ou numa pen/Drive). Repor só
+// devolve a este aparelho o que era dele: as folhas do Sheets não se mexem.
+const TABELAS_SHEETS=["Alunos","Presenças","Higiene Pessoal","Temperaturas","Higienização","Panos Solução","Encerramento",
+  "Receção Matérias-Primas","Conservação Produtos","Regeneração","Amostra Testemunho","Desinfeção","Controlo Óleos",
+  "Temperatura Serviço","NãoConformidades","Produção","Manutenção, Avarias e Prevenção","Faltas e Necessidades",
+  "VerificacaoFinalAuxiliares","Validações","Avisos","Ranking"];
+function CopiaSeguranca(){
+  const [aFazer,setAFazer]=useState("");
+  const [msg,setMsg]=useState("");
+  const descarregar=(obj,nome)=>{
+    const blob=new Blob([JSON.stringify(obj,null,1)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=nome;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  };
+  const deste=()=>{
+    const l={};
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("kf_"))l[k]=localStorage.getItem(k);}
+    return l;
+  };
+  const dataNome=()=>new Date().toISOString().slice(0,16).replace("T","_").replace(":","h");
+  const fazer=async()=>{
+    setAFazer("A copiar as folhas do Google Sheets…");setMsg("");
+    const folhas={},falhas=[];
+    for(const t of TABELAS_SHEETS){
+      setAFazer("A copiar: "+t+"…");
+      try{const r=await fetch(SHEET_URL+"?tabela="+encodeURIComponent(t));const j=await r.json();if(j&&j.ok)folhas[t]=j.dados||[];else falhas.push(t);}
+      catch{falhas.push(t);}
+    }
+    descarregar({app:"KitchenFlow ECL",copiaEm:new Date().toISOString(),aparelho:deste(),sheets:folhas,folhasQueFalharam:falhas},"KitchenFlow_copia_"+dataNome()+".json");
+    setAFazer("");
+    setMsg(falhas.length?("Cópia guardada. Não consegui copiar: "+falhas.join(", ")+"."):"Cópia guardada com todas as folhas.");
+  };
+  const repor=(f)=>{
+    if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      try{
+        const j=JSON.parse(String(rd.result));
+        if(!j||j.app!=="KitchenFlow ECL"||!j.aparelho){setMsg("Este ficheiro não é uma cópia do KitchenFlow.");return;}
+        if(!confirm("Repor a cópia de "+new Date(j.copiaEm).toLocaleString("pt-PT")+" neste aparelho? O que está agora neste aparelho é substituído. As folhas do Google Sheets não mudam."))return;
+        descarregar({app:"KitchenFlow ECL",copiaEm:new Date().toISOString(),aparelho:deste(),sheets:{},nota:"Guardado automaticamente antes de repor uma cópia"},"KitchenFlow_antes_de_repor_"+dataNome()+".json");
+        Object.entries(j.aparelho).forEach(([k,v])=>{if(k.startsWith("kf_"))localStorage.setItem(k,String(v));});
+        alert("Cópia reposta. A aplicação vai recarregar.");
+        location.reload();
+      }catch{setMsg("Não consegui ler o ficheiro.");}
+    };
+    rd.readAsText(f);
+  };
+  return(
+    <div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:"#7c5c3a",marginBottom:14}}>Cópia de segurança</div>
+      <Cd>
+        <div style={{fontSize:13,color:"#0c4a6e",lineHeight:1.6,marginBottom:12}}>
+          Guarda num ficheiro <b>todos os registos</b>: os deste aparelho e todas as folhas do Google Sheets.
+          Guarda o ficheiro no computador, numa pen ou no Drive. Faz uma cópia pelo menos uma vez por semana.
+        </div>
+        <B lb={aFazer||"💾 Fazer cópia de segurança agora"} onClick={fazer} cor="#0e7490" dis={!!aFazer}/>
+        {msg&&<div style={{fontSize:12,marginTop:10,color:msg.startsWith("Cópia guardada com")?"#16a34a":"#b45309",fontWeight:600}}>{msg}</div>}
+      </Cd>
+      <Cd>
+        <div style={{fontSize:13,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Repor uma cópia neste aparelho</div>
+        <div style={{fontSize:12,color:GR,lineHeight:1.6,marginBottom:10}}>
+          Só para quando este aparelho perdeu os dados. Antes de repor, a aplicação guarda sozinha uma cópia do que está agora no aparelho.
+          As folhas do Google Sheets nunca são alteradas.
+        </div>
+        <input type="file" accept="application/json,.json" onChange={e=>repor(e.target.files&&e.target.files[0])} style={{fontSize:13}}/>
+      </Cd>
+    </div>
+  );
+}
+
 function Coordenadora({user,db,setDb,showToast}){
   const [turma,setTurma]=useState("1º ACP");
   const [mes,setMes]=useState(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");});
@@ -2557,11 +2688,12 @@ function Coordenadora({user,db,setDb,showToast}){
         <input type="month" value={mes} onChange={e=>setMes(e.target.value)} style={{width:"100%",padding:"10px 13px",borderRadius:9,border:"1.5px solid "+BE,fontSize:15,background:LC,color:V,outline:"none",fontFamily:"inherit"}}/>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>
-        {["alunos","relatorios","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
+        {["alunos","relatorios","copia","mapa","tarefasPeriodicas","ncsPainel","registarNC","registarFalta","temperaturas","recepcao","testemunho","producao","desinfecao","higienizacao","naoconf"].map(f=><button key={f} onClick={()=>setFolha(f)} style={{padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(folha===f?"#7c5c3a":BE),background:folha===f?"#7c5c3a":LC,color:folha===f?W:"#7c5c3a",fontFamily:"inherit",marginBottom:4}}>{{alunos:"👥 Alunos",relatorios:"📄 Relatórios PDF",copia:"💾 Cópia de segurança",mapa:"🗺️ Mapa da Cozinha",tarefasPeriodicas:"🗓️ Tarefas Periódicas",ncsPainel:"⚠️ Painel de NCs",registarNC:"➕ Registar NC",registarFalta:"📦 Faltas e Necessidades",temperaturas:"Temperaturas",recepcao:"Receção Matérias-Primas",testemunho:"Amostra Testemunho",producao:"Produção",desinfecao:"Desinfeção",higienizacao:"Higienização Equip. e Utensilios",naoconf:"Não Conformidades"}[f]}</button>)}
       </div>
 
       {folha==="alunos"&&<GestaoAlunos db={db} setDb={setDb}/>}
       {folha==="relatorios"&&<RelatoriosPDF/>}
+      {folha==="copia"&&<CopiaSeguranca/>}
       {folha==="mapa"&&<MapaCozinha user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="tarefasPeriodicas"&&<TarefasPeriodicas user={user} db={db} setDb={setDb} showToast={showToast}/>}
       {folha==="ncsPainel"&&<PainelNCs db={db} turma={turma}/>}
@@ -2613,7 +2745,7 @@ function Coordenadora({user,db,setDb,showToast}){
           </table>
           <div style={{marginTop:10,fontSize:11,color:"#888"}}>Verde = conforme | Vermelho = não conforme | --- = sem registo</div>
           <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
-            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Registo de Temperaturas — Equipamentos de Frio",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`,"Verde = conforme | Vermelho = não conforme | --- = sem registo")} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("temperaturas",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <span style={{fontSize:11,color:"#888"}}>Orientação paisagem recomendada</span>
           </div>
         </div>
@@ -2632,7 +2764,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
-          <div style={{marginTop:12}}><button onClick={()=>abrirFolhaImpressao("Receção de Matérias-Primas",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`,tabelaHTML(["Dia","Hora","Fornecedor","Fatura","Produto","Categoria","Quantidade","Lote","Validade","Conformidade","Aluno"],dias.filter(Boolean).flatMap(dia=>(db.recepcao||[]).filter(r=>r.turma===turma&&r.date===dia).flatMap(r=>(r.produtos||[]).map(pr=>[dia,r.time,r.fornecedor,r.fatura,pr.nome,pr.categoria,pr.quantidade,pr.lote||"",pr.validade?fD(pr.validade):"",pr.conforme,r.aluno])))))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
+          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("recepcao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
 
@@ -2673,7 +2805,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Amostras Testemunho",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("testemunho",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2718,7 +2850,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Produtos Confecionados",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("producao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2763,7 +2895,7 @@ function Coordenadora({user,db,setDb,showToast}){
             </tbody>
           </table>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <button onClick={(ev)=>imprimirTabelaDoBloco(ev,"Desinfeção de Alimentos em Cru",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
+            <button onClick={()=>imprimirFolhaOficial("desinfecao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button>
             <div style={{fontSize:11,color:"#888",alignSelf:"center"}}>Orientação paisagem recomendada</div>
           </div>
         </div>
@@ -2784,7 +2916,7 @@ function Coordenadora({user,db,setDb,showToast}){
               </div>
             );
           })}
-          <div style={{marginTop:12}}><button onClick={()=>abrirFolhaImpressao("Higienização de Equipamentos e Utensílios",`Turma ${turma} · ${mes.split("-")[1]}/${mes.split("-")[0]}`,tabelaHTML(["Dia","Zona","Tarefa","Hora","Aluno"],dias.filter(Boolean).flatMap(dia=>{const hig=db.higienizacao&&db.higienizacao["hig-"+turma+"-"+dia];if(!hig)return [];const regs=hig.registos||{};const zonaDe=it=>Object.keys(ZONAS).find(z=>ZONAS[z].includes(it))||"";const panos=hig.panos||{};return [...Object.entries(regs).map(([it,r])=>[dia,zonaDe(it),it,r&&r.time||"",r&&r.aluno||""]),...["inicio","final"].filter(m=>panos[m]).map(m=>[dia,"Panos e esponjas","Solução desinfetante — "+(m==="inicio"?"início":"final")+" da aula",panos[m].time||"",panos[m].aluno||""])];})))} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
+          <div style={{marginTop:12}}><button onClick={()=>imprimirFolhaOficial("higienizacao",db,mes)} style={{padding:"10px 20px",background:"#1a3d2b",color:"#fff",border:"none",borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Imprimir / Guardar PDF</button></div>
         </div>
       )}
 
