@@ -188,7 +188,7 @@ function ProcedimentoBtn({item}){
     <>
       <button onClick={e=>{e.stopPropagation();setOpen(true);}} style={{flexShrink:0,padding:"4px 8px",borderRadius:6,background:"rgba(124,58,237,.12)",border:"1px solid rgba(124,58,237,.3)",color:"#7c3aed",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>📋 Como?</button>
       {open&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{e.stopPropagation();setOpen(false);}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{e.stopPropagation();setOpen(false);}}>
           <div style={{background:W,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             <div style={{width:40,height:4,background:"#e9d5ff",borderRadius:2,margin:"0 auto 16px"}}></div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
@@ -630,6 +630,12 @@ function Assistente({titulo,passos,onSair,onConcluir,textoConcluir="Guardar",ini
       </div>
     </div>
   );
+}
+/** O último passo: o que foi escrito, para conferir antes de guardar. */
+function ReverPasso({linhas}){
+  return <div style={{background:W,borderRadius:14,padding:"6px 14px"}}>{linhas.filter(Boolean).map(([k,v],i)=>
+    <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderTop:i?"1px solid #e2eef1":"none",fontSize:15}}>
+      <span style={{width:120,flexShrink:0,color:GR}}>{k}</span><span style={{flex:1,fontWeight:700,color:"#0c4a6e"}}>{v===""||v==null?"—":v}</span></div>)}</div>;
 }
 /** Botão grande de escolha, para os passos. */
 function Escolha({ativo,onClick,children,sub,cor}){
@@ -1508,6 +1514,7 @@ function Producao({user,db,setDb,showToast}){
 
 function Testemunho({user,db,setDb,showToast}){
   const [form,setForm]=useState({prato:"",dataRefeicao:new Date().toISOString().split("T")[0],horaRefeicao:gT(),tipoRefeicao:"almoço",pesoAmostra:"150",localArmazenamento:"Frig. Vert. 1"});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.testemunho||[]).filter(t=>t.turma===user.turma).slice(-5).reverse();
   const cD=d=>{if(!d)return"";const x=new Date(d);x.setDate(x.getDate()+3);return x.toISOString().split("T")[0];};
   const save=()=>{
@@ -1540,32 +1547,25 @@ function Testemunho({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Amostra de Testemunho</div><InfoBtn modId="testemunho"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Guardar 150g de cada refeição durante 72h a 0-3°C</div>
-      <Cd>
-        <Ip lb="Nome do Prato" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>
-        {form.prato&&(()=>{
-          const hoje=gD();
-          const existentes=(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===hoje&&t.prato.trim().toLowerCase()===form.prato.trim().toLowerCase());
-          if(existentes.length===0) return null;
-          return(
-            <div style={{background:'#fefce8',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#854d0e',border:'1px solid #fde047'}}>
-              <div style={{fontWeight:700,marginBottom:4}}>⚠️ Já {existentes.length===1?'existe uma amostra':'existem amostras'} de "{form.prato}" hoje:</div>
-              {existentes.map((t,i)=>(
-                <div key={i} style={{marginBottom:2}}>• <strong>{t.nomeAluno||t.responsavel}</strong> às {t.time}</div>
-              ))}
-              <div style={{marginTop:6,fontStyle:'italic',fontSize:11}}>
-                Se és do mesmo grupo, não precisas de repetir.<br/>
-                Se és de um grupo diferente que produziu o mesmo prato, podes registar a tua.
-              </div>
-            </div>
-          );
-        })()}
-        <div style={{display:"flex",gap:9}}><div style={{flex:1}}><Ip lb="Data" type="date" val={form.dataRefeicao} onChange={v=>setForm(p=>({...p,dataRefeicao:v}))}/></div><div style={{flex:1}}><Ip lb="Hora" type="time" val={form.horaRefeicao} onChange={v=>setForm(p=>({...p,horaRefeicao:v}))}/></div></div>
-        <Sl lb="Tipo" val={form.tipoRefeicao} onChange={v=>setForm(p=>({...p,tipoRefeicao:v}))} opts={["almoço","jantar","lanche","pequeno-almoço"]}/>
-        <Ip lb="Peso (g)" type="number" val={form.pesoAmostra} onChange={v=>setForm(p=>({...p,pesoAmostra:v}))}/>
-        <Sl lb="Local" val={form.localArmazenamento} onChange={v=>setForm(p=>({...p,localArmazenamento:v}))} opts={FRIOS}/>
-        {form.dataRefeicao&&<div style={{background:"#f0e8f8",borderRadius:8,padding:10,marginBottom:10,fontSize:12,color:"#6d3b8e"}}>Destruir em: {fD(cD(form.dataRefeicao))}</div>}
-        <B lb="Guardar Amostra" onClick={save} cor="#6d3b8e"/>
-      </Cd>
+      <B lb="+ Registar amostra" onClick={()=>setAberto(true)} cor="#6d3b8e"/>
+      {aberto&&<Assistente titulo="Amostra testemunho" onSair={()=>setAberto(false)} textoConcluir="✓ Guardar amostra" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Amostra",titulo:"Que prato é?",pode:!!form.prato.trim(),conteudo:<>
+            <CampoPasso val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>
+            {form.prato&&(()=>{const ex=(db.testemunho||[]).filter(t=>t.turma===user.turma&&t.date===gD()&&t.prato.trim().toLowerCase()===form.prato.trim().toLowerCase());
+              return ex.length?<div style={{marginTop:10,background:"#fefce8",borderRadius:10,padding:"10px 12px",fontSize:14,color:"#854d0e",border:"1px solid #fde047"}}>
+                Já há amostra deste prato hoje: {ex.map(t=>(t.nomeAluno||t.responsavel)+" às "+t.time).join(", ")}. Se és do mesmo grupo, não precisas de repetir.</div>:null;})()}
+          </>},
+          {nome:"Amostra",titulo:"Que refeição?",conteudo:<>{["almoço","jantar","lanche","pequeno-almoço"].map(t=><Escolha key={t} ativo={form.tipoRefeicao===t} onClick={()=>setForm(p=>({...p,tipoRefeicao:t}))}>{t.charAt(0).toUpperCase()+t.slice(1)}</Escolha>)}</>},
+          {nome:"Amostra",titulo:"Dia e hora da refeição",conteudo:<>
+            <CampoPasso type="date" val={form.dataRefeicao} onChange={v=>setForm(p=>({...p,dataRefeicao:v}))} autoFocus={false}/>
+            <div style={{height:10}}/>
+            <CampoPasso type="time" val={form.horaRefeicao} onChange={v=>setForm(p=>({...p,horaRefeicao:v}))} autoFocus={false}/>
+          </>},
+          {nome:"Amostra",titulo:"Peso da amostra (gramas)",ajuda:"Guarda cerca de 150 g de cada prato.",conteudo:<CampoPasso type="number" val={form.pesoAmostra} onChange={v=>setForm(p=>({...p,pesoAmostra:v}))}/>},
+          {nome:"Amostra",titulo:"Onde fica guardada?",ajuda:"Entre 0 e 3 °C, durante 72 horas.",conteudo:<>{FRIOS.filter(f=>!f.startsWith("Congel")).map(f=><Escolha key={f} ativo={form.localArmazenamento===f} onClick={()=>setForm(p=>({...p,localArmazenamento:f}))}>{f}</Escolha>)}</>},
+          {nome:"Rever",titulo:"Confere antes de guardar",conteudo:<ReverPasso linhas={[["Prato",form.prato],["Refeição",form.tipoRefeicao],["Dia e hora",fD(form.dataRefeicao)+" "+form.horaRefeicao],["Peso",form.pesoAmostra+" g"],["Local",form.localArmazenamento],["Destruir em",fD(cD(form.dataRefeicao))]]}/>},
+        ]}/>}
     
     </div>
   );
@@ -1573,21 +1573,25 @@ function Testemunho({user,db,setDb,showToast}){
 
 function Desinfecao({user,db,setDb,showToast}){
   const [form,setForm]=useState({alimento:"",quantidade:"",produto:"",concentracao:"",tempoContacto:"5",temperatura:""});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.desinfecao||[]).filter(d=>d.turma===user.turma).slice(-5).reverse();
   const save=()=>{if(!form.alimento||!form.produto)return;const nomeD=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,desinfecao:[...(p.desinfecao||[]),{...form,responsavel:user.id,nomeAluno:nomeD,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Desinfeção",[gD(),gT(),user.turma,user.id,nomeD,form.alimento,form.quantidade,form.produto,form.concentracao,form.tempoContacto,form.temperatura]);showToast("Desinfeção registada!");};
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Desinfeção de Alimentos para Consumo em Cru</div><InfoBtn modId="desinfecao"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Vegetais e frutas servidos em cru</div>
-      <Cd>
-        <Ip lb="Alimento" val={form.alimento} onChange={v=>setForm(p=>({...p,alimento:v}))} ph="Ex: Alface, tomate"/>
-        <Ip lb="Quantidade" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 2 kg"/>
-        <Ip lb="Produto Desinfetante" val={form.produto} onChange={v=>setForm(p=>({...p,produto:v}))} ph="Ex: Hidrocloro"/>
-        <div style={{display:"flex",gap:9}}><div style={{flex:1}}><Ip lb="Conc. (ml/L)" val={form.concentracao} onChange={v=>setForm(p=>({...p,concentracao:v}))}/></div><div style={{flex:1}}><Ip lb="Tempo (min)" type="number" val={form.tempoContacto} onChange={v=>setForm(p=>({...p,tempoContacto:v}))}/></div></div>
-        <Ip lb="Temp. água (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))}/>
-        <div style={{background:"#e8f5f0",borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:"#1a6b4a"}}>1. Lavar em agua corrente  2. Imergir no desinfetante pelo tempo indicado  3. Passar em agua corrente</div>
-        <B lb="Guardar" onClick={save} cor="#1a6b4a"/>
-      </Cd>
+      <B lb="+ Registar desinfeção" onClick={()=>setAberto(true)} cor="#1a6b4a"/>
+      {aberto&&<Assistente titulo="Desinfeção de alimentos em cru" onSair={()=>setAberto(false)} textoConcluir="✓ Guardar" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Alimento",titulo:"Que alimento?",pode:!!form.alimento.trim(),conteudo:<CampoPasso val={form.alimento} onChange={v=>setForm(p=>({...p,alimento:v}))} ph="Ex: Alface, tomate"/>},
+          {nome:"Alimento",titulo:"Quantidade",conteudo:<CampoPasso val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 2 kg"/>},
+          {nome:"Desinfetante",titulo:"Produto desinfetante",pode:!!form.produto.trim(),conteudo:<CampoPasso val={form.produto} onChange={v=>setForm(p=>({...p,produto:v}))} ph="Ex: Hidrocloro"/>},
+          {nome:"Desinfetante",titulo:"Concentração (ml por litro)",conteudo:<CampoPasso val={form.concentracao} onChange={v=>setForm(p=>({...p,concentracao:v}))}/>},
+          {nome:"Desinfetante",titulo:"Tempo de contacto (minutos)",conteudo:<CampoPasso type="number" val={form.tempoContacto} onChange={v=>setForm(p=>({...p,tempoContacto:v}))}/>},
+          {nome:"Desinfetante",titulo:"Temperatura da água (°C)",conteudo:<CampoPasso type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))}/>},
+          {nome:"Rever",titulo:"Confere antes de guardar",ajuda:"1. Lavar em água corrente · 2. Imergir no desinfetante pelo tempo indicado · 3. Passar por água corrente.",
+            conteudo:<ReverPasso linhas={[["Alimento",form.alimento],["Quantidade",form.quantidade],["Desinfetante",form.produto],["Concentração",form.concentracao?form.concentracao+" ml/L":""],["Tempo",form.tempoContacto?form.tempoContacto+" min":""],["Água",form.temperatura?form.temperatura+" °C":""]]}/>},
+        ]}/>}
     
     </div>
   );
@@ -1595,6 +1599,7 @@ function Desinfecao({user,db,setDb,showToast}){
 
 function Manutencao({user,db,setDb,showToast}){
   const [form,setForm]=useState({equipamento:"",tipoOcorrencia:"avaria",descricao:"",acaoImediata:"",estado:"reportado"});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.manutencao||[]).filter(m=>m.turma===user.turma).slice(-6).reverse();
   const corE={reportado:"#2c5f8a","em reparação":"#d35400",resolvido:V,"aguarda técnico":R};
   const save=()=>{if(!form.equipamento||!form.descricao)return;const nomeM=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,manutencao:[...(p.manutencao||[]),{...form,responsavel:user.id,nomeAluno:nomeM,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Manutenção, Avarias e Prevenção",[gD(),gT(),user.turma,user.id,nomeM,form.equipamento,form.tipoOcorrencia,form.descricao,form.acaoImediata,form.estado]);showToast("Ocorrencia registada!");};
@@ -1603,14 +1608,16 @@ function Manutencao({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Manutenção Equipamentos</div><InfoBtn modId="manutencao"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Avarias e anomalias detetadas</div>
-      <Cd>
-        <Sl lb="Equipamento" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} opts={TODOS_EQ}/>
-        <Sl lb="Tipo" val={form.tipoOcorrencia} onChange={v=>setForm(p=>({...p,tipoOcorrencia:v}))} opts={["avaria","anomalia","manutenção preventiva","calibração"]}/>
-        <Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que foi observado..."/>
-        <Ta lb="Acao Imediata" val={form.acaoImediata} onChange={v=>setForm(p=>({...p,acaoImediata:v}))} ph="Ação corretiva tomada..."/>
-        <Sl lb="Estado" val={form.estado} onChange={v=>setForm(p=>({...p,estado:v}))} opts={["reportado","em reparação","aguarda técnico","resolvido"]}/>
-        <B lb="Guardar" onClick={save} cor="#2c5f8a"/>
-      </Cd>
+      <B lb="+ Registar avaria ou anomalia" onClick={()=>setAberto(true)} cor="#2c5f8a"/>
+      {aberto&&<Assistente titulo="Manutenção e avarias" onSair={()=>setAberto(false)} textoConcluir="✓ Guardar" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Equipamento",titulo:"Que equipamento?",pode:!!form.equipamento,conteudo:<>{TODOS_EQ.map(e=><Escolha key={e} ativo={form.equipamento===e} onClick={()=>setForm(p=>({...p,equipamento:e}))}>{e}</Escolha>)}</>},
+          {nome:"Ocorrência",titulo:"O que é?",conteudo:<>{["avaria","anomalia","manutenção preventiva","calibração"].map(t=><Escolha key={t} ativo={form.tipoOcorrencia===t} onClick={()=>setForm(p=>({...p,tipoOcorrencia:t}))}>{t.charAt(0).toUpperCase()+t.slice(1)}</Escolha>)}</>},
+          {nome:"Ocorrência",titulo:"O que observaste?",pode:!!form.descricao.trim(),conteudo:<TextoPasso val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Ex: não arrefece, faz barulho, fuga de água…"/>},
+          {nome:"Ocorrência",titulo:"O que se fez logo?",ajuda:"Ex: desliguei, avisei o professor, passei os produtos para outro frigorífico.",conteudo:<TextoPasso val={form.acaoImediata} onChange={v=>setForm(p=>({...p,acaoImediata:v}))}/>},
+          {nome:"Ocorrência",titulo:"Estado",conteudo:<>{["reportado","em reparação","aguarda técnico","resolvido"].map(t=><Escolha key={t} ativo={form.estado===t} onClick={()=>setForm(p=>({...p,estado:t}))}>{t.charAt(0).toUpperCase()+t.slice(1)}</Escolha>)}</>},
+          {nome:"Rever",titulo:"Confere antes de guardar",conteudo:<ReverPasso linhas={[["Equipamento",form.equipamento],["Tipo",form.tipoOcorrencia],["Observado",form.descricao],["Ação",form.acaoImediata],["Estado",form.estado]]}/>},
+        ]}/>}
     
     </div>
   );
@@ -1620,7 +1627,8 @@ function Higienizacao({user,db,setDb,showToast}){
   const h=gD(),k="hig-"+user.turma+"-"+h;
   const regs=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].registos)?db.higienizacao[k].registos:{};
   const panos=(db.higienizacao&&db.higienizacao[k]&&db.higienizacao[k].panos)?db.higienizacao[k].panos:{};
-  const [zona,setZona]=useState(Object.keys(ZONAS)[0]);
+  // A zona aberta em ecrã cheio (uma de cada vez), ou null.
+  const [zonaAberta,setZonaAberta]=useState(null);
   const tI=Object.values(ZONAS).flat().length,tF=regs?Object.keys(regs).length:0;
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
 
@@ -1726,40 +1734,34 @@ function Higienizacao({user,db,setDb,showToast}){
           <span style={{fontSize:22,fontWeight:800,color:tF===tI?V:CA}}>{pct}%</span>
         </div>
         <Pg val={tF} max={tI}/>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
-          {Object.keys(ZONAS).map(z=>{
-            const f=ZONAS[z].filter(i=>regs[i]).length,ok=f===ZONAS[z].length,total=ZONAS[z].length;
-            return(
-              <button key={z} onClick={()=>setZona(z)} style={{padding:"8px 12px",borderRadius:9,fontSize:12,fontWeight:700,cursor:"pointer",border:"2px solid "+(zona===z?V:ok?"#0891b2":BE),background:zona===z?V:ok?"#e0f2fe":LC,color:zona===z?W:ok?"#0e7490":GR,fontFamily:"inherit",flex:1,minWidth:80}}>
-                <div>{z}</div>
-                <div style={{fontSize:10,marginTop:2,opacity:.8}}>{f}/{total}</div>
-              </button>
-            );
-          })}
-        </div>
       </Cd>
-
-      <div style={{fontWeight:700,fontSize:15,color:V,marginBottom:10,paddingLeft:2}}>{zona} <span style={{fontSize:12,color:GR,fontWeight:400}}>— {ZONAS[zona].filter(i=>regs[i]).length}/{ZONAS[zona].length} verificados</span></div>
-
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {ZONAS[zona].map(item=>{
-          const reg=regs[item];
-          const meu=reg&&(reg.aluno===user.id||reg.aluno===nomeAluno);
-          return(
-            <div key={item} onClick={()=>mk(item)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:13,background:reg?V:W,border:"2px solid "+(reg?V:"#e2e8f0"),cursor:"pointer",boxShadow:"0 2px 8px rgba(14,116,144,"+(reg?.15:.05)+")"}}>
-              <div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:reg?"rgba(255,255,255,.25)":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:16,fontWeight:700,color:reg?W:"#bae6fd"}}>{reg?"✓":"○"}</span>
+      <div style={{fontSize:12,color:GR,margin:"0 2px 8px"}}>Toca numa zona para a verificar:</div>
+      {Object.keys(ZONAS).map((z,zi)=>{
+        const f=ZONAS[z].filter(i=>regs[i]).length,total=ZONAS[z].length,ok=f===total;
+        return(
+          <button key={z} onClick={()=>setZonaAberta(zi)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"14px 16px",marginBottom:8,borderRadius:13,cursor:"pointer",fontFamily:"inherit",border:"2px solid "+(ok?V:"#e2e8f0"),background:ok?V:W}}>
+            <span style={{flex:1,fontSize:15,fontWeight:700,color:ok?W:"#0c4a6e"}}>{z}</span>
+            <span style={{fontSize:13,fontWeight:800,color:ok?W:f?CA:"#94a3b8"}}>{ok?"✓ ":""}{f}/{total} ›</span>
+          </button>
+        );
+      })}
+      {zonaAberta!==null&&<Assistente titulo="Higienização" inicio={zonaAberta} onSair={()=>setZonaAberta(null)} textoConcluir="Fechar" onConcluir={()=>setZonaAberta(null)}
+        passos={Object.keys(ZONAS).map(z=>({nome:"Zonas",titulo:z,ajuda:"Toca em cada tarefa quando estiver feita. «Como?» explica o produto e os passos.",conteudo:<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {ZONAS[z].map(item=>{
+            const reg=regs[item];
+            return(
+              <div key={item} onClick={()=>mk(item)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:13,background:reg?V:W,border:"2px solid "+(reg?V:"#cbe4ea"),cursor:"pointer"}}>
+                <div style={{width:30,height:30,borderRadius:8,flexShrink:0,background:reg?"rgba(255,255,255,.25)":"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:17,fontWeight:800,color:reg?W:"#9fd3de"}}>{reg?"✓":"○"}</span>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:15,fontWeight:700,color:reg?W:"#0c4a6e"}}>{item}</div>
+                  {reg&&<div style={{fontSize:12,color:"rgba(255,255,255,.8)",marginTop:2}}>{reg.aluno} — {reg.time}</div>}
+                </div>
+                <ProcedimentoBtn item={item}/>
               </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:reg?W:"#0c4a6e"}}>{item}</div>
-                {reg&&<div style={{fontSize:10,color:"rgba(255,255,255,.75)",marginTop:2}}>{reg.aluno} — {reg.time}</div>}
-              </div>
-              <ProcedimentoBtn item={item}/>
-              {reg&&!meu&&<span style={{fontSize:9,color:"rgba(255,255,255,.7)",background:"rgba(255,255,255,.15)",borderRadius:4,padding:"2px 6px"}}>{reg.aluno}</span>}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}</div>}))}/>}
     </div>
   );
 }
@@ -1824,20 +1826,20 @@ function NaoConf({user,db,setDb,showToast}){
       )}
 
       {!ncPendenteDecisao&&<B lb="+ Nova Não Conformidade" onClick={()=>setShow(!show)} cor={R}/>}
-      {show&&<Cd st={{marginTop:10}}>
-        <Ip lb="Zona / Equipamento" val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frigorifico 1"/>
-        <Ta lb="Descricao" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreva o problema..."/>
-        <Ta lb="Ação Corretiva" val={form.acaoCorretiva} onChange={v=>setForm(p=>({...p,acaoCorretiva:v}))} ph="Ação corretiva tomada (se aplicável)..."/>
-        <div style={{fontSize:11,fontWeight:600,color:"#7c5c3a",marginBottom:4,textTransform:"uppercase"}}>Gravidade</div>
-        <div style={{display:"flex",gap:6,marginBottom:12}}>
-          {[{id:"normal",lb:"Normal"},{id:"critica",lb:"⚠️ Crítica"}].map(g=>(
-            <button key={g.id} onClick={()=>setForm(p=>({...p,criticidade:g.id}))} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"2px solid "+(form.criticidade===g.id?(g.id==="critica"?R:"#0e7490"):"#e0e0e0"),background:form.criticidade===g.id?(g.id==="critica"?R:"#0e7490"):LC,color:form.criticidade===g.id?W:GR,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{g.lb}</button>
-          ))}
-        </div>
-        {form.criticidade==="critica"&&<div style={{fontSize:11,color:R,marginBottom:10,lineHeight:1.5}}>Uma NC crítica notifica imediatamente o professor e, após análise, pode ser escalada à Coordenadora por email.</div>}
-        {podeDecidirNaHora&&<div style={{fontSize:11,color:"#0369a1",marginBottom:10,lineHeight:1.5}}>Depois de registar, vais decidir logo o que aconteceu — gera-se sempre um relatório para a Coordenação.</div>}
-        <B lb="Registar" onClick={save} cor={R}/>
-      </Cd>}
+      {show&&<Assistente titulo="Não conformidade" onSair={()=>setShow(false)} textoConcluir="✓ Registar" onConcluir={save}
+        passos={[
+          {nome:"Onde",titulo:"Onde é o problema?",ajuda:"Escolhe o equipamento ou escreve a zona.",pode:!!form.zona.trim(),conteudo:<>
+            <CampoPasso val={form.zona} onChange={v=>setForm(p=>({...p,zona:v}))} ph="Ex: Frig. Vert. 1, bancada 3, copa…" autoFocus={false}/>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>{[...FRIOS,"Fogões","Fornos","Copa","Economato","Bancadas","Chão"].map(z=>
+              <button key={z} onClick={()=>setForm(p=>({...p,zona:z}))} style={{padding:"8px 12px",borderRadius:20,border:"1.5px solid "+(form.zona===z?"#0e7490":"#cbe4ea"),background:form.zona===z?"#0e7490":W,color:form.zona===z?W:"#0c4a6e",fontSize:13.5,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{z}</button>)}</div></>},
+          {nome:"O problema",titulo:"O que aconteceu?",pode:!!form.descricao.trim(),conteudo:<TextoPasso val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="Descreve o problema…"/>},
+          {nome:"O problema",titulo:"O que se fez para corrigir?",ajuda:"Se ainda não se fez nada, avança.",conteudo:<TextoPasso val={form.acaoCorretiva} onChange={v=>setForm(p=>({...p,acaoCorretiva:v}))} ph="Ex: produto separado, avisei o professor…"/>},
+          {nome:"Gravidade",titulo:"É grave?",conteudo:<>
+            <Escolha ativo={form.criticidade==="normal"} onClick={()=>setForm(p=>({...p,criticidade:"normal"}))}>Normal</Escolha>
+            <Escolha ativo={form.criticidade==="critica"} cor={R} sub="Avisa logo o professor; pode ir à coordenadora" onClick={()=>setForm(p=>({...p,criticidade:"critica"}))}>⚠️ Crítica</Escolha></>},
+          {nome:"Rever",titulo:"Confere antes de registar",ajuda:podeDecidirNaHora?"Depois de registar, decides logo o que aconteceu.":"O professor vai analisar.",
+            conteudo:<ReverPasso linhas={[["Onde",form.zona],["Problema",form.descricao],["Correção",form.acaoCorretiva],["Gravidade",form.criticidade==="critica"?"Crítica":"Normal"]]}/>},
+        ]}/>}
       {lista.slice(-5).reverse().map(nc=>(
         <Cd key={nc.id} st={{marginTop:10,borderLeft:"3px solid "+(corE[nc.estado]||R)}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -3489,6 +3491,7 @@ function Equipamentos({user,db,setDb,showToast}){
 
 function Faltas({user,db,setDb,showToast}){
   const [form,setForm]=useState({tipo:"equipamento",descricao:"",quantidade:"",urgencia:"normal"});
+  const [aberto,setAberto]=useState(false);
   const duasSemanas=new Date();
   duasSemanas.setDate(duasSemanas.getDate()-14);
   const lista=(db.faltas||[]).filter(f=>{try{const p=f.date.split("/");const d=new Date(p[2],p[1]-1,p[0]);return d>=duasSemanas;}catch{return true;}}).reverse();
@@ -3506,16 +3509,19 @@ function Faltas({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:4}}>Faltas e Necessidades</div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Regista equipamentos em falta, materiais ou outras necessidades</div>
-      <Cd>
-        <Sl lb="Tipo" val={form.tipo} onChange={v=>setForm(p=>({...p,tipo:v}))} opts={["equipamento","material","produto limpeza","outro"]}/>
-        <Ta lb="Descrição" val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que está em falta ou é necessário..."/>
-        <Ip lb="Quantidade necessária" val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 3 unidades, 2 litros, 500g..."/>
-        <Sl lb="Urgência" val={form.urgencia} onChange={v=>setForm(p=>({...p,urgencia:v}))} opts={["normal","urgente","critico"]}/>
-        <div style={{background:"#fef3c7",borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:"#92400e"}}>
-          Após guardar, será enviada notificação por email à coordenação.
-        </div>
-        <B lb="Registar e Notificar" onClick={save} cor="#b45309"/>
-      </Cd>
+      <B lb="+ Registar falta ou necessidade" onClick={()=>setAberto(true)} cor="#b45309"/>
+      <div style={{height:12}}/>
+      {aberto&&<Assistente titulo="Faltas e necessidades" onSair={()=>setAberto(false)} textoConcluir="✓ Registar e avisar" onConcluir={()=>{save();setAberto(false);}}
+        passos={[
+          {nome:"Falta",titulo:"O que falta?",conteudo:<>{[["equipamento","Equipamento"],["material","Material"],["produto limpeza","Produto de limpeza"],["outro","Outro"]].map(([v,t])=><Escolha key={v} ativo={form.tipo===v} onClick={()=>setForm(p=>({...p,tipo:v}))}>{t}</Escolha>)}</>},
+          {nome:"Falta",titulo:"Descreve",pode:!!form.descricao.trim(),conteudo:<TextoPasso val={form.descricao} onChange={v=>setForm(p=>({...p,descricao:v}))} ph="O que está em falta ou é preciso…"/>},
+          {nome:"Falta",titulo:"Quantidade necessária",conteudo:<CampoPasso val={form.quantidade} onChange={v=>setForm(p=>({...p,quantidade:v}))} ph="Ex: 3 unidades, 2 litros"/>},
+          {nome:"Falta",titulo:"É urgente?",conteudo:<>
+            <Escolha ativo={form.urgencia==="normal"} onClick={()=>setForm(p=>({...p,urgencia:"normal"}))}>Normal</Escolha>
+            <Escolha ativo={form.urgencia==="urgente"} onClick={()=>setForm(p=>({...p,urgencia:"urgente"}))} cor="#d97706">Urgente</Escolha>
+            <Escolha ativo={form.urgencia==="critico"} onClick={()=>setForm(p=>({...p,urgencia:"critico"}))} cor={R} sub="Impede a aula de continuar">Crítico</Escolha></>},
+          {nome:"Rever",titulo:"Confere antes de registar",ajuda:"Ao registar, a coordenação recebe um aviso por email.",conteudo:<ReverPasso linhas={[["Tipo",form.tipo],["Descrição",form.descricao],["Quantidade",form.quantidade],["Urgência",form.urgencia]]}/>},
+        ]}/>}
       {lista.length>0&&<div>
         <div style={{fontSize:12,fontWeight:700,color:"#b45309",marginBottom:8}}>Últimas 2 semanas</div>
         {lista.map(f=><Cd key={f.id} st={{marginBottom:8,borderLeft:"3px solid "+(corU[f.urgencia]||"#b45309")}}>
@@ -3812,6 +3818,7 @@ function HigienePessoal({user,db,setDb,showToast}){
   const feitos=CHECKLIST.filter(i=>checks[i.id]).length;
   const todosOk=feitos===total;
   const [aba,setAba]=useState("info");
+  const [aberto,setAberto]=useState(false);
 
   const guardar=()=>{
     const nomeHig=(db.assinaturas&&db.assinaturas[user.id])||user.id;
@@ -3838,22 +3845,16 @@ function HigienePessoal({user,db,setDb,showToast}){
       </div>}
       {aba==="checklist"&&<div>
         {sv&&<div style={{background:"#e0f2fe",borderRadius:9,padding:10,marginBottom:10,color:"#0e7490",fontSize:12,fontWeight:600}}>Confirmado hoje às {sv.time}</div>}
-        <Cd>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-            <span style={{fontSize:12,color:GR}}>Verificados</span>
-            <span style={{background:todosOk?"#0f766e":CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>{feitos}/{total}</span>
-          </div>
-          <Pg val={feitos} max={total}/>
-          {CHECKLIST.map(item=>(
-            <div key={item.id} onClick={()=>{if(!sv)setChecks(p=>({...p,[item.id]:!p[item.id]}));}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid "+LC,cursor:sv?"default":"pointer"}}>
-              <div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:checks[item.id]?"#0f766e":"transparent",border:"2px solid "+(checks[item.id]?"#0f766e":BE),display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {checks[item.id]&&<span style={{color:W,fontSize:14,fontWeight:700}}>✓</span>}
-              </div>
-              <span style={{fontSize:13,color:checks[item.id]?"#0f766e":GR,fontWeight:checks[item.id]?600:400}}>{item.l}</span>
-            </div>
-          ))}
-        </Cd>
-        {!sv&&<B lb={todosOk?"Confirmar Higiene Pessoal":"Faltam "+(total-feitos)+" itens"} onClick={guardar} cor={todosOk?"#0f766e":"#ccc"} dis={!todosOk}/>}
+        {sv?<Cd>{CHECKLIST.map(item=><div key={item.id} style={{padding:"8px 0",borderBottom:"1px solid "+LC,fontSize:13,color:"#0f766e",fontWeight:600}}>✓ {item.l}</div>)}</Cd>
+          :<B lb="▶ Verificar a minha higiene pessoal" onClick={()=>setAberto(true)} cor="#0f766e"/>}
+        {aberto&&<Assistente titulo="Higiene pessoal" onSair={()=>setAberto(false)} textoConcluir="✓ Confirmar higiene pessoal"
+          onConcluir={()=>{guardar();setAberto(false);}}
+          passos={[...CHECKLIST.map(item=>({nome:"Antes de entrar na cozinha",titulo:item.l,pode:!!checks[item.id],conteudo:<>
+            <Escolha ativo={!!checks[item.id]} onClick={()=>setChecks(p=>({...p,[item.id]:true}))}>Sim, está cumprido</Escolha>
+            <Escolha ativo={checks[item.id]===false} cor={R} onClick={()=>setChecks(p=>({...p,[item.id]:false}))}>Não</Escolha>
+            {checks[item.id]===false&&<div style={{marginTop:4,padding:"12px 14px",borderRadius:12,background:"#fdecea",color:R,fontSize:15,fontWeight:700,lineHeight:1.5}}>
+              Assim não podes entrar na cozinha. Resolve primeiro e, se precisares, avisa o professor.</div>}
+          </>})),{nome:"Confirmar",titulo:"Está tudo cumprido",ajuda:"Ao confirmar, fica registado com o teu nome e a hora.",conteudo:<ReverPasso linhas={CHECKLIST.map(i=>[i.l,checks[i.id]?"✓":"—"])}/>}]}/>}
       </div>}
     </div>
   );
@@ -3861,16 +3862,17 @@ function HigienePessoal({user,db,setDb,showToast}){
 
 function Oleos({user,db,setDb,showToast}){
   const [form,setForm]=useState({equipamento:"Fritadeira 1",temperatura:"",cor:"normal",espuma:"nao",cheiro:"normal",teste:"ok",acao:"continua"});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.oleos||[]).filter(o=>o.turma===user.turma).slice(-10).reverse();
   const save=()=>{
     if(!form.temperatura)return;
-    const alterado=form.cor!=="normal"||form.espuma==="sim"||form.cheiro!=="normal"||form.teste!=="ok";
+    const alterado=form.cor!=="normal"||String(form.espuma).startsWith("sim")||form.cheiro!=="normal"||form.teste!=="ok";
     const reg={...form,alterado,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,oleos:[...(p.oleos||[]),reg]}));
     const nomeOleos=(db.assinaturas&&db.assinaturas[user.id])||"";
     enviar("Controlo Óleos",[gD(),gT(),user.turma,user.id,nomeOleos,form.equipamento,form.temperatura,form.cor,form.espuma,form.cheiro,form.teste,form.acao,alterado?"ALTERADO":"OK"]);
     if(alterado){
-      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:form.equipamento,descricao:"Óleo alterado — "+[form.cor!=="normal"?"cor alterada":"",form.espuma==="sim"?"espuma":"",form.cheiro!=="normal"?"cheiro":""].filter(Boolean).join(", "),acaoCorretiva:form.acao,responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+      setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now(),date:gD(),time:gT(),zona:form.equipamento,descricao:"Óleo alterado — "+[form.cor!=="normal"?"cor alterada":"",String(form.espuma).startsWith("sim")?"espuma":"",form.cheiro!=="normal"?"cheiro":""].filter(Boolean).join(", "),acaoCorretiva:form.acao,responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
     }
     showToast(alterado?"Óleo ALTERADO — NC registada!":"Óleo OK registado!");
     setForm({equipamento:"Fritadeira 1",temperatura:"",cor:"normal",espuma:"nao",cheiro:"normal",teste:"ok",acao:"continua"});
@@ -3879,17 +3881,25 @@ function Oleos({user,db,setDb,showToast}){
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Controlo de Óleos</div><InfoBtn modId="oleos"/></div>
       <div style={{fontSize:12,color:GR,marginBottom:14}}>Registar o estado do óleo de fritura antes e durante a utilização</div>
-      <Cd>
-        <Sl lb="Equipamento" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} opts={["Fritadeira 1","Fritadeira 2","Wok","Outro"]}/>
-        <Ip lb="Temperatura do óleo (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph="Ex: 175"/>
-        <div style={{background:"#fef3c7",borderRadius:8,padding:8,marginBottom:10,fontSize:11,color:"#92400e"}}>Temperatura máxima recomendada: 180°C. Acima disso rejeitar o óleo.</div>
-        <Sl lb="Cor do óleo" val={form.cor} onChange={v=>setForm(p=>({...p,cor:v}))} opts={["normal","ligeiramente escura","escura (rejeitar)"]}/>
-        <Sl lb="Espuma" val={form.espuma} onChange={v=>setForm(p=>({...p,espuma:v}))} opts={["nao","sim (rejeitar)"]}/>
-        <Sl lb="Cheiro" val={form.cheiro} onChange={v=>setForm(p=>({...p,cheiro:v}))} opts={["normal","intenso (rejeitar)"]}/>
-        <Sl lb="Teste de oxidação" val={form.teste} onChange={v=>setForm(p=>({...p,teste:v}))} opts={["ok","alterado (rejeitar)"]}/>
-        <Sl lb="Ação tomada" val={form.acao} onChange={v=>setForm(p=>({...p,acao:v}))} opts={["continua","substituido","rejeitado"]}/>
-        <B lb="Registar Controlo" onClick={save} cor="#d97706"/>
-      </Cd>
+      <B lb="+ Registar controlo do óleo" onClick={()=>setAberto(true)} cor="#d97706"/>
+      <div style={{height:12}}/>
+      {aberto&&(()=>{
+        const op=(campo,titulo,opcoes,ajuda="")=>({nome:"Óleo",titulo,ajuda,conteudo:<>{opcoes.map(([v,t,mau])=><Escolha key={v} ativo={form[campo]===v} cor={mau?R:undefined} onClick={()=>setForm(p=>({...p,[campo]:v}))}>{t}</Escolha>)}</>});
+        const t=parseFloat(form.temperatura);
+        return <Assistente titulo="Controlo de óleos" onSair={()=>setAberto(false)} textoConcluir="✓ Registar controlo" onConcluir={()=>{save();setAberto(false);}}
+          passos={[
+            op("equipamento","Que equipamento?",[["Fritadeira 1","Fritadeira 1"],["Fritadeira 2","Fritadeira 2"],["Wok","Wok"],["Outro","Outro"]]),
+            {nome:"Óleo",titulo:"Temperatura do óleo (°C)",ajuda:"Máximo recomendado: 180 °C. Acima disso, rejeitar o óleo.",pode:!!String(form.temperatura).trim(),conteudo:<>
+              <CampoPasso type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph="Ex: 175"/>
+              {!isNaN(t)&&t>180&&<div style={{marginTop:10,padding:"10px 12px",borderRadius:10,background:"#fdecea",color:R,fontWeight:800}}>Acima de 180 °C: o óleo deve ser rejeitado.</div>}</>},
+            op("cor","Cor do óleo",[["normal","Normal"],["ligeiramente escura","Ligeiramente escura"],["escura (rejeitar)","Escura — rejeitar",true]]),
+            op("espuma","Tem espuma?",[["nao","Não"],["sim (rejeitar)","Sim — rejeitar",true]]),
+            op("cheiro","Cheiro",[["normal","Normal"],["intenso (rejeitar)","Intenso — rejeitar",true]]),
+            op("teste","Teste de oxidação",[["ok","OK"],["alterado (rejeitar)","Alterado — rejeitar",true]]),
+            op("acao","O que se fez?",[["continua","Continua a usar"],["substituido","Substituído"],["rejeitado","Rejeitado"]]),
+            {nome:"Rever",titulo:"Confere antes de registar",conteudo:<ReverPasso linhas={[["Equipamento",form.equipamento],["Temperatura",form.temperatura?form.temperatura+" °C":""],["Cor",form.cor],["Espuma",form.espuma],["Cheiro",form.cheiro],["Teste",form.teste],["Ação",form.acao]]}/>},
+          ]}/>;
+      })()}
       {lista.map(o=><Cd key={o.id} st={{marginBottom:8,borderLeft:"3px solid "+(o.alterado?"#dc2626":"#d97706")}}>
         <div style={{display:"flex",justifyContent:"space-between"}}>
           <span style={{fontWeight:600,fontSize:13}}>{o.equipamento}</span>
@@ -3903,10 +3913,13 @@ function Oleos({user,db,setDb,showToast}){
 
 function Servico({user,db,setDb,showToast}){
   const [form,setForm]=useState({prato:"",tipo:"quente",tempInicio:gT(),temperatura:"",equipamento:""});
+  const [aberto,setAberto]=useState(false);
   const lista=(db.servico||[]).filter(s=>s.turma===user.turma&&s.date===gD()).slice(-8).reverse();
   const save=()=>{
     if(!form.prato||!form.temperatura)return;
-    const tempOk=form.tipo==="quente"?parseFloat(form.temperatura)>=65:parseFloat(form.temperatura)<=4;
+    // «Self-service quente» é quente (antes contava como frio). No buffet há quente e frio: conforme se estiver numa das duas zonas.
+    const tv=parseFloat(form.temperatura);
+    const tempOk=form.tipo.includes("quente")?tv>=65:form.tipo.includes("frio")?tv<=4:(tv>=65||tv<=4);
     const reg={...form,tempOk,responsavel:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};
     setDb(p=>({...p,servico:[...(p.servico||[]),reg]}));
     const nomeServ=(db.assinaturas&&db.assinaturas[user.id])||"";
@@ -3936,17 +3949,24 @@ function Servico({user,db,setDb,showToast}){
       <div style={{background:"#fdecea",borderRadius:9,padding:10,marginBottom:12,fontSize:11,color:"#dc2626",fontWeight:600}}>
         Alimentos em self-service/buffet: max 2 horas de exposição!
       </div>
-      <Cd>
-        <Ip lb="Prato / Alimento" val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado, Salada..."/>
-        <Sl lb="Tipo de serviço" val={form.tipo} onChange={v=>setForm(p=>({...p,tipo:v}))} opts={["quente","frio","self-service quente","self-service frio","buffet"]}/>
-        <Ip lb="Hora de início do serviço" type="time" val={form.tempInicio} onChange={v=>setForm(p=>({...p,tempInicio:v}))}/>
-        <Ip lb="Temperatura (°C)" type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph={form.tipo==="quente"||form.tipo.includes("quente")?"Min. 65°C":"Max. 4°C"}/>
-        <Ip lb="Equipamento (banho-maria, estufa, etc.)" val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} ph="Ex: Banho-maria 1"/>
-        {form.temperatura&&<div style={{background:parseFloat(form.temperatura)>=(form.tipo==="quente"||form.tipo.includes("quente")?65:0)&&parseFloat(form.temperatura)<=(form.tipo==="frio"||form.tipo.includes("frio")?4:999)?"#e0f2fe":"#fdecea",borderRadius:8,padding:10,marginBottom:10,fontSize:13,fontWeight:700,textAlign:"center",color:parseFloat(form.temperatura)>=(form.tipo==="quente"||form.tipo.includes("quente")?65:0)&&parseFloat(form.temperatura)<=(form.tipo==="frio"||form.tipo.includes("frio")?4:999)?"#0369a1":"#dc2626"}}>
-          {form.tipo==="quente"||form.tipo.includes("quente")?parseFloat(form.temperatura)>=65?"OK — Temperatura adequada":"NC — Temperatura insuficiente! Aquecer mais.":parseFloat(form.temperatura)<=4?"OK — Temperatura adequada":"NC — Temperatura elevada! Verificar equipamento."}
-        </div>}
-        <B lb="Registar Temperatura" onClick={save} cor="#dc2626"/>
-      </Cd>
+      <B lb="+ Registar temperatura de serviço" onClick={()=>setAberto(true)} cor="#dc2626"/>
+      <div style={{height:12}}/>
+      {aberto&&(()=>{
+        const tv=parseFloat(form.temperatura),quente=form.tipo.includes("quente"),frio=form.tipo.includes("frio");
+        const ok=isNaN(tv)?null:quente?tv>=65:frio?tv<=4:(tv>=65||tv<=4);
+        return <Assistente titulo="Temperatura de serviço" onSair={()=>setAberto(false)} textoConcluir="✓ Registar" onConcluir={()=>{save();setAberto(false);}}
+          passos={[
+            {nome:"Serviço",titulo:"Que prato ou alimento?",pode:!!form.prato.trim(),conteudo:<CampoPasso val={form.prato} onChange={v=>setForm(p=>({...p,prato:v}))} ph="Ex: Frango assado"/>},
+            {nome:"Serviço",titulo:"Tipo de serviço",conteudo:<>{[["quente","Quente","≥ 65 °C"],["frio","Frio","≤ 4 °C"],["self-service quente","Self-service quente","≥ 65 °C · máx. 2 horas"],["self-service frio","Self-service frio","≤ 4 °C · máx. 2 horas"],["buffet","Buffet","quente ≥ 65 °C ou frio ≤ 4 °C · máx. 2 horas"]].map(([v,t,sub])=><Escolha key={v} ativo={form.tipo===v} sub={sub} onClick={()=>setForm(p=>({...p,tipo:v}))}>{t}</Escolha>)}</>},
+            {nome:"Serviço",titulo:"Hora de início do serviço",conteudo:<CampoPasso type="time" val={form.tempInicio} onChange={v=>setForm(p=>({...p,tempInicio:v}))}/>},
+            {nome:"Serviço",titulo:"Temperatura medida (°C)",pode:!!String(form.temperatura).trim(),conteudo:<>
+              <CampoPasso type="number" val={form.temperatura} onChange={v=>setForm(p=>({...p,temperatura:v}))} ph={quente?"mín. 65":frio?"máx. 4":""}/>
+              {ok!==null&&<div style={{marginTop:10,padding:"10px 12px",borderRadius:10,fontSize:15,fontWeight:800,background:ok?"#e8f5e9":"#fdecea",color:ok?"#166534":R}}>
+                {ok?"✓ Temperatura adequada":quente?"✗ Temperatura insuficiente: aquecer mais.":"✗ Temperatura fora do seguro: verificar o equipamento."}</div>}</>},
+            {nome:"Serviço",titulo:"Equipamento",ajuda:"Banho-maria, estufa, vitrine… Se não houver, avança.",conteudo:<CampoPasso val={form.equipamento} onChange={v=>setForm(p=>({...p,equipamento:v}))} ph="Ex: Banho-maria 1"/>},
+            {nome:"Rever",titulo:"Confere antes de registar",conteudo:<ReverPasso linhas={[["Prato",form.prato],["Tipo",form.tipo],["Início",form.tempInicio],["Temperatura",form.temperatura?form.temperatura+" °C "+(ok?"OK":"NC"):""],["Equipamento",form.equipamento]]}/>},
+          ]}/>;
+      })()}
       {lista.length>0&&<div>
         <div style={{fontSize:12,fontWeight:700,color:GR,marginBottom:8}}>Registos de hoje</div>
         {lista.map(s=><Cd key={s.id} st={{marginBottom:8,borderLeft:"3px solid "+(s.tempOk?"#16a34a":"#dc2626")}}>
@@ -4649,7 +4669,7 @@ function InfoBtn({modId}){
     <div style={{display:"inline-block"}}>
       <button onClick={()=>setOpen(!open)} style={{padding:"5px 12px",borderRadius:20,background:"#0e7490",border:"none",color:W,fontSize:11,fontWeight:700,cursor:"pointer",letterSpacing:.3,textTransform:"uppercase"}}>Saber mais</button>
       {open&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setOpen(false)}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setOpen(false)}>
           <div style={{background:W,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:600,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             <div style={{width:40,height:4,background:"#bae6fd",borderRadius:2,margin:"0 auto 16px"}}></div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
