@@ -303,7 +303,7 @@ function abrirFolhaImpressao(titulo,sub,corpo,legenda="",janela=null){
   <div class="imp">KitchenFlow ECL<br>Impresso em ${agora}</div></div>
   ${corpo}
   ${legenda?`<div class="leg">${escHTML(legenda)}</div>`:""}
-  <div class="orig"><b>Origem dos registos.</b> Registos feitos no momento, durante a aula, na aplicação KitchenFlow da Escola de Comércio de Lisboa, por quem está indicado em cada linha, com o dia e a hora em que foram feitos. Ficam guardados no ficheiro Google Sheets do KitchenFlow, que guarda o histórico de versões. Esta folha é uma cópia em papel desses registos, impressa em ${agora}, e é validada pelas assinaturas abaixo.</div>
+  <div class="orig"><b>Origem dos registos.</b> Registos feitos no momento, durante a aula, na aplicação KitchenFlow da Escola de Comércio de Lisboa, por quem está indicado em cada linha, com o dia e a hora em que foram feitos. A aplicação só acrescenta registos e nunca os apaga: uma correção fica numa linha nova, com quem a fez e quando. Os registos ficam no Google Sheets do KitchenFlow, que só a coordenação pode alterar e que guarda o histórico de versões, e todas as noites é feita uma cópia de segurança a que só a coordenação tem acesso. Esta folha é uma cópia em papel desses registos, impressa em ${agora}, e é validada pelas assinaturas abaixo.</div>
   <div class="ass"><div>Verificado por (Professor/a)</div><div>Coordenação</div><div>Data</div></div>
   </body></html>`);
   w.document.close();
