@@ -32,7 +32,9 @@ const gravarLS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}if(
 const idEnvio=()=>Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
 let filaAEnviar=false,filaTimer=null;
 function postarKF(corpo){
-  const f=lerLS(FILA_KEY);f.push({id:idEnvio(),corpo,tent:0,criado:Date.now()});gravarLS(FILA_KEY,f);
+  // O número de envio vai com o registo: o script (v6) reconhece um reenvio e não grava a linha duas vezes.
+  const id=idEnvio();
+  const f=lerLS(FILA_KEY);f.push({id,corpo:{...corpo,idEnvio:id},tent:0,criado:Date.now()});gravarLS(FILA_KEY,f);
   despacharFila();
 }
 const enviar=(t,d)=>postarKF(typeof d==="object"&&d&&!Array.isArray(d)&&d.linha?{tabela:t,...d}:{tabela:t,linha:d});
@@ -53,7 +55,7 @@ async function despacharFila(){
       const t=ctl?setTimeout(()=>ctl.abort(),90000):null;
       try{
         const r=await fetch(SHEET_URL,{method:"POST",body:texto,keepalive:texto.length<60000,signal:ctl?ctl.signal:undefined});
-        if(r.ok){let j=null;try{j=await r.json();}catch{}res=j&&j.ok===false?"recusado":"ok";}
+        if(r.ok){let j=null;try{j=await r.json();}catch{}res=!(j&&j.ok===false)?"ok":(j.tentarDeNovo||j.erro==="ocupado")?"falhou":"recusado";}
       }catch{}finally{if(t)clearTimeout(t);}
       if(res==="falhou"){
         const g=lerLS(FILA_KEY);const x=g.find(y=>y.id===it.id);if(x){x.tent=(x.tent||0)+1;gravarLS(FILA_KEY,g);}
@@ -61,8 +63,11 @@ async function despacharFila(){
         break;
       }
       gravarLS(FILA_KEY,lerLS(FILA_KEY).filter(y=>y.id!==it.id));
-      if(res==="recusado"){const r=lerLS("kf_fila_recusados");r.push({...it,quando:Date.now()});gravarLS("kf_fila_recusados",r.slice(-50));}
-      else if(it.corpo&&it.corpo.tabela&&Array.isArray(it.corpo.linha)&&dataDaLinhaSheets(it.corpo.linha[0])){
+      const eRegisto=it.corpo&&it.corpo.tabela&&Array.isArray(it.corpo.linha)&&dataDaLinhaSheets(it.corpo.linha[0]);
+      // Recusado e não é uma linha de registo (ou não se consegue confirmar): fica guardado à parte.
+      if(res==="recusado"&&!eRegisto){const r=lerLS("kf_fila_recusados");r.push({...it,quando:Date.now()});gravarLS("kf_fila_recusados",r.slice(-50));}
+      // Um registo recusado pode até ter sido gravado: vai para a confirmação, que lê a folha e só reenvia se faltar.
+      else if(eRegisto){
         const c=lerLS(CONF_KEY);c.push({id:it.id,corpo:it.corpo,enviado:Date.now(),reenvios:it.reenvios||0});gravarLS(CONF_KEY,c.slice(-300));
       }
     }
@@ -2475,7 +2480,7 @@ function Professor({user,db,setDb,showToast}){
       showToast("NC marcada para correção!");
     }
   };
-  const val=()=>{if(!ok){showToast("Verifica todos os pontos!");return;}setDb(p=>{const v={...p.validacoes};v[vK2]={professor:user.id,turma,date:h,time:gT(),obs};return{...p,validacoes:v};});enviar("Validações",[h,turma,user.id,obs,tot+"/"+PC.length]);showToast("Sessão validada!");setObs("");};
+  const val=()=>{if(!ok){showToast("Verifica todos os pontos!");return;}setDb(p=>{const v={...p.validacoes};v[vK2]={professor:user.id,turma,date:h,time:gT(),obs};return{...p,validacoes:v};});enviar("Validações",[h,gT(),turma,user.id,obs,tot+"/"+PC.length]);showToast("Sessão validada!");setObs("");};
   // As que estão por decidir ou em correção, de qualquer dia (não desaparecem no dia seguinte).
   const ncs=(db.ncs||[]).filter(n=>n.turma===turma&&(n.estado==="aberta"||n.estado==="em resolução"));
   const [vista,setVista]=useState("painel");
