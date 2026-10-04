@@ -16,7 +16,8 @@ document.head.appendChild(fontStyle);
 
 
 // Apps Script trigger deve estar configurado para "Head" para não precisar atualizar após cada deploy
-const SHEET_URL="https://script.google.com/macros/s/AKfycbzmt7yGx09nFF_8HUbdD0p29q9iS1ttKku-vbnoGxm-w7eq2cp8WlzZRm_jJyVIcKwF/exec";
+// Google Sheets novo «HACCP KitchenFlow 2026-2027», com o script v6 (out/2026).
+const SHEET_URL="https://script.google.com/macros/s/AKfycbwa5WBEQy6fhYXP_mJO9RJy-23H1EtEkny2ObGwowrxc8T7EkoEwVuum0CJTr-HXrePkQ/exec";
 // ── Envio para o Sheets: fila guardada no aparelho (Rosa, out/2026) ──────────
 // Antes, cada registo era enviado uma vez e, se a rede falhasse, perdia-se sem
 // aviso (o mesmo problema que houve na Avaliação ECL). Agora cada registo entra
