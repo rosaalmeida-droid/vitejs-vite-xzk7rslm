@@ -206,7 +206,7 @@ const ZONAS={
 "Equipamentos":["Abatedor 1 desligado e higienizado","Abatedor 2 desligado e higienizado","Máq. vácuo 1 limpa e desligada","Máq. vácuo 2 limpa e desligada","Amassadeira 1 desligada e protegida com película","Amassadeira 2 desligada e protegida com película","Batedeira desligada e protegida com película","Picadora limpa e protegida com película","Processadores limpos e protegidos","Fogões todos desligados","Ar condicionado desligado"],
 "Frio":["Frigorífico vertical 1 verificado","Frigorífico vertical 2 verificado","Frigorífico vertical 3 verificado","Frigorífico vertical 4 verificado","Frigorífico bancada 1 verificado","Frigorífico bancada 2 verificado","Frigorífico bancada 3 verificado","Frigorífico bancada 4 verificado","Frigorífico bancada 5 verificado","Congelador 1 verificado","Congelador 2 verificado","Congelador 3 verificado","Temperaturas registadas"],
 "Copa":["Loiça lavada e arrumada","Sem utensílios por lavar","Cuba higienizada","Máq. de lavar 1 drenada, porta aberta e higienizada","Máq. de lavar 2 drenada, porta aberta e higienizada","Inoxes em condições","Panos colocados em solução desinfetante","Esponjas colocadas em solução desinfetante","Solução desinfetante renovada"],
-"Economatos":["Economato matérias-primas organizado","Matérias-primas devidamente armazenadas","Sem matérias-primas no chão","Economato material organizado","Material arrumado (nao no chão)","Chão do economato em condições"],
+"Economatos":["Economato matérias-primas organizado","Matérias-primas devidamente armazenadas","Sem matérias-primas no chão","Economato material organizado","Material arrumado (não no chão)","Chão do economato em condições"],
 "Resíduos":["Lixo orgânico despejado no local correto","Lixo reciclável separado corretamente","Caixotes lavados e higienizados","Sacos novos colocados"],
 "Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"],
 "Equipamento de limpeza":["Rodos lavados e desinfetados","Esfregonas lavadas e desinfetadas","Vassouras em condições (limpeza húmida, nunca a seco)"]
@@ -1326,11 +1326,11 @@ function Temperaturas({user,db,setDb,showToast}){
       const te={...p.temperaturas};
       te[k]={temps,records,statusEq,aluno:user.id,turma:user.turma,date:h,time:gT(),momento};
       const ncs=[...(p.ncs||[])];
-      records.filter(r=>r.status==="on"&&r.conforme===false&&r.temperatura!=="").forEach(r=>ncs.push({id:Date.now()+Math.random(),date:h,time:gT(),zona:r.equipamento,descricao:"Temp NC "+momento+": "+r.temperatura+"C",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}));
+      records.filter(r=>r.status==="on"&&r.conforme===false&&r.temperatura!=="").forEach(r=>ncs.push({id:Date.now()+Math.random(),date:h,time:gT(),zona:r.equipamento,descricao:"Temperatura fora do limite ("+(momento==="final"?"fim":"início")+" da aula): "+r.temperatura+" °C",acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}));
       return{...p,temperaturas:te,ncs};
     });
     enviar("Temperaturas",{cabecalho:cab,linha});
-    showToast("Temperaturas "+momento+" guardadas!");
+    showToast("Temperaturas do "+(momento==="final"?"fim":"início")+" da aula guardadas!");
     guardarRegistoPartilhado('Temperaturas',user.turma,h,nomeTemp||user.id,gT(),momento);
     // Fica no início, já feito. O final abre-se quando for altura (os valores não passam do início para o final).
   };
@@ -1972,7 +1972,7 @@ function Higienizacao({user,db,setDb,showToast}){
     setDb(p=>{const hg={...(p.higienizacao||{})};const existing=hg[k]||{registos:{},turma:user.turma,date:h};hg[k]={...existing,panos:np,turma:user.turma,date:h};return{...p,higienizacao:hg};});
     enviar("Panos Solução",[h,gT(),user.turma,user.id,nomeAluno||user.id,momento]);
     guardarRegistoPartilhado('Panos Solução',user.turma,h,nomeAluno||user.id,gT(),momento);
-    showToast("Panos e esponjas — "+momento+" registado!");
+    showToast("Panos e esponjas: "+(momento==="final"?"fim":"início")+" da aula registado!");
   };
 
   const pct=Math.round(tF/Math.max(tI,1)*100);
