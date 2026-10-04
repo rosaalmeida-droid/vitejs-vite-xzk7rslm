@@ -17,7 +17,115 @@ document.head.appendChild(fontStyle);
 
 // Apps Script trigger deve estar configurado para "Head" para não precisar atualizar após cada deploy
 const SHEET_URL="https://script.google.com/macros/s/AKfycbzmt7yGx09nFF_8HUbdD0p29q9iS1ttKku-vbnoGxm-w7eq2cp8WlzZRm_jJyVIcKwF/exec";
-const enviar=(t,d)=>fetch(SHEET_URL,{method:"POST",body:JSON.stringify(typeof d==="object"&&d.linha?{tabela:t,...d}:{tabela:t,linha:d})}).catch(()=>{});
+// ── Envio para o Sheets: fila guardada no aparelho (Rosa, out/2026) ──────────
+// Antes, cada registo era enviado uma vez e, se a rede falhasse, perdia-se sem
+// aviso (o mesmo problema que houve na Avaliação ECL). Agora cada registo entra
+// numa fila guardada no telemóvel e só sai dela quando o Sheets confirma.
+// Vai um de cada vez e pela ordem em que foi feito; sem rede, fica à espera e
+// volta a tentar (também quando a aplicação volta a abrir).
+// Depois, a aplicação confirma que a linha está mesmo no Sheets; se não estiver
+// ao fim de alguns minutos, volta a enviá-la (no máximo 3 vezes).
+const FILA_KEY="kf_fila_envio",CONF_KEY="kf_por_confirmar",LOCK_KEY="kf_fila_lock";
+const lerLS=(k)=>{try{const v=JSON.parse(localStorage.getItem(k)||"[]");return Array.isArray(v)?v:[];}catch{return[];}};
+const ouvintesFila=new Set<(n:number)=>void>();
+const gravarLS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}if(k===FILA_KEY)ouvintesFila.forEach(fn=>{try{fn(v.length);}catch{}});};
+const idEnvio=()=>Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
+let filaAEnviar=false,filaTimer=null;
+function postarKF(corpo){
+  const f=lerLS(FILA_KEY);f.push({id:idEnvio(),corpo,tent:0,criado:Date.now()});gravarLS(FILA_KEY,f);
+  despacharFila();
+}
+const enviar=(t,d)=>postarKF(typeof d==="object"&&d&&!Array.isArray(d)&&d.linha?{tabela:t,...d}:{tabela:t,linha:d});
+function agendarFila(ms){if(filaTimer)clearTimeout(filaTimer);filaTimer=setTimeout(()=>{filaTimer=null;despacharFila();},ms);}
+async function despacharFila(){
+  if(filaAEnviar)return;
+  // Duas janelas abertas no mesmo aparelho não enviam o mesmo registo duas vezes.
+  try{const l=Number(localStorage.getItem(LOCK_KEY)||0);if(l&&Date.now()-l<45000)return agendarFila(15000);localStorage.setItem(LOCK_KEY,String(Date.now()));}catch{}
+  filaAEnviar=true;
+  try{
+    for(;;){
+      const f=lerLS(FILA_KEY);if(!f.length)break;
+      const it=f[0];
+      try{localStorage.setItem(LOCK_KEY,String(Date.now()));}catch{}
+      let res="falhou";
+      const texto=JSON.stringify(it.corpo);
+      const ctl=typeof AbortController!=="undefined"?new AbortController():null;
+      const t=ctl?setTimeout(()=>ctl.abort(),90000):null;
+      try{
+        const r=await fetch(SHEET_URL,{method:"POST",body:texto,keepalive:texto.length<60000,signal:ctl?ctl.signal:undefined});
+        if(r.ok){let j=null;try{j=await r.json();}catch{}res=j&&j.ok===false?"recusado":"ok";}
+      }catch{}finally{if(t)clearTimeout(t);}
+      if(res==="falhou"){
+        const g=lerLS(FILA_KEY);const x=g.find(y=>y.id===it.id);if(x){x.tent=(x.tent||0)+1;gravarLS(FILA_KEY,g);}
+        agendarFila(Math.min(120000,5000*Math.pow(2,Math.min(5,(x&&x.tent)||1))));
+        break;
+      }
+      gravarLS(FILA_KEY,lerLS(FILA_KEY).filter(y=>y.id!==it.id));
+      if(res==="recusado"){const r=lerLS("kf_fila_recusados");r.push({...it,quando:Date.now()});gravarLS("kf_fila_recusados",r.slice(-50));}
+      else if(it.corpo&&it.corpo.tabela&&Array.isArray(it.corpo.linha)&&dataDaLinhaSheets(it.corpo.linha[0])){
+        const c=lerLS(CONF_KEY);c.push({id:it.id,corpo:it.corpo,enviado:Date.now(),reenvios:it.reenvios||0});gravarLS(CONF_KEY,c.slice(-300));
+      }
+    }
+  }finally{filaAEnviar=false;try{localStorage.removeItem(LOCK_KEY);}catch{}}
+}
+/** Quantos registos deste aparelho ainda não chegaram ao Sheets. */
+function porEnviar(){return lerLS(FILA_KEY).length;}
+/** Duas células iguais, mesmo que o Sheets tenha mudado o formato (números, datas, horas). */
+function celulaIgual(a,b){
+  const x=String(a??"").trim(),y=String(b??"").trim();
+  if(x===y)return true;
+  if(x!==""&&y!==""&&!isNaN(Number(x))&&!isNaN(Number(y))&&Number(x)===Number(y))return true;
+  // Uma hora que o Sheets converteu (1899-12-30T…) depende do fuso horário de quem lê:
+  // basta que do nosso lado também seja uma hora (o dia, a turma e quem registou já têm de bater certo).
+  if(/^1899-12-3\dT/.test(y)&&/^\d{1,2}:\d{2}/.test(x))return true;
+  if(/^\d{4}-\d{2}-\d{2}T/.test(y)){if(horaDaLinhaSheets(y)===x)return true;const d=dataDaLinhaSheets(y);if(d&&(d===x||d===fDiso(x)))return true;}
+  if(/^\d{4}-\d{2}-\d{2}$/.test(x)&&fDiso(x)===dataDaLinhaSheets(y))return true;
+  return false;
+}
+function fDiso(v){const m=String(v||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+"/"+m[2]+"/"+m[1]:"";}
+function linhaChegou(enviada,linhas){
+  const d=dataDaLinhaSheets(enviada[0]);
+  const cheias=enviada.map((v,i)=>[v,i]).filter(([v,i])=>i>0&&String(v??"").trim()!=="");
+  return linhas.some(l=>l[0]===d&&cheias.filter(([v,i])=>celulaIgual(v,l[i])).length>=Math.ceil(cheias.length*0.85));
+}
+function formatoBate(tabela,marcar=false){
+  try{const o=JSON.parse(localStorage.getItem("kf_formato_ok")||"{}");if(marcar&&!o[tabela]){o[tabela]=true;localStorage.setItem("kf_formato_ok",JSON.stringify(o));}return !!o[tabela];}catch{return false;}
+}
+/** Confirma no Sheets os registos enviados há mais de 2 minutos; os que faltam voltam à fila. */
+let aConfirmar=false;
+async function confirmarEnvios(){
+  if(aConfirmar)return;aConfirmar=true;
+  try{
+    const c=lerLS(CONF_KEY);const agora=Date.now();
+    const velhos=c.filter(x=>agora-x.enviado>120000);if(!velhos.length)return;
+    const tabelas=[...new Set(velhos.map(x=>x.corpo.tabela))];
+    const lidas={};
+    for(const t of tabelas){const x=await linhasDoSheets(t);if(x)lidas[t]=x;}
+    const tratados=new Set();
+    velhos.forEach(x=>{
+      const linhas=lidas[x.corpo.tabela];if(!linhas)return; // sem leitura: tenta mais tarde
+      tratados.add(x.id);
+      if(linhaChegou(x.corpo.linha,linhas)){formatoBate(x.corpo.tabela,true);return;}
+      // Só volta a enviar quando há a certeza de que falta: ou esta folha já mostrou que
+      // as linhas se reconhecem, ou não há nenhuma linha desse dia com quem registou.
+      // Assim, se o Sheets guardar as colunas de outra maneira, não se criam linhas repetidas.
+      const quem=String(x.corpo.linha[3]??"").trim(),d=dataDaLinhaSheets(x.corpo.linha[0]);
+      const temAlguma=!!quem&&linhas.some(l=>l[0]===d&&l.some(v=>String(v??"").trim()===quem));
+      if(!formatoBate(x.corpo.tabela)&&temAlguma)return;
+      if((x.reenvios||0)>=3){const r=lerLS("kf_fila_recusados");r.push({id:x.id,corpo:x.corpo,quando:Date.now(),motivo:"não aparece no Sheets"});gravarLS("kf_fila_recusados",r.slice(-50));return;}
+      const f=lerLS(FILA_KEY);f.push({id:idEnvio(),corpo:x.corpo,tent:0,criado:Date.now(),reenvios:(x.reenvios||0)+1});gravarLS(FILA_KEY,f);
+    });
+    // Ao fim de 2 dias deixa de confirmar (o Sheets pode ter sido arrumado).
+    gravarLS(CONF_KEY,lerLS(CONF_KEY).filter(x=>!tratados.has(x.id)&&agora-x.enviado<2*86400000));
+    despacharFila();
+  }finally{aConfirmar=false;}
+}
+if(typeof window!=="undefined"){
+  window.addEventListener("online",()=>despacharFila());
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")despacharFila();});
+  setTimeout(()=>despacharFila(),1500);
+  setInterval(()=>{despacharFila();confirmarEnvios().catch(()=>{});},60000);
+}
 
 // ── Zona temporal da aula ────────────────────────────────────
 // Verifica se o registo está dentro da janela permitida:
@@ -577,7 +685,10 @@ async function dadosDaFolha(tipo,db,periodoEscolhido){
   const ordem=(a,b)=>nD(a[0]).localeCompare(nD(b[0]))||String(a[1]).localeCompare(String(b[1]));
   const nomeDe=(id,nome)=>nomeCurto(db,id,nome);
   const doSheets=async()=>{
-    const L=async t=>{const x=await linhasDoSheets(t);return x&&x.filter(l=>noMes(l[0]));};
+    // Linhas exatamente iguais (um reenvio depois de uma falha de rede) aparecem uma só vez.
+    // Na Higienização não, porque marcar, desmarcar e voltar a marcar tem de ficar pela ordem.
+    const L=async t=>{const x=await linhasDoSheets(t);if(!x)return x;const vistas=new Set();
+      return x.filter(l=>noMes(l[0])).filter(l=>{if(t==="Higienização")return true;const k=JSON.stringify(l);if(vistas.has(k))return false;vistas.add(k);return true;});};
     if(FOLHAS_DO_SHEETS[tipo]){const f=FOLHAS_DO_SHEETS[tipo];const x=await L(f.tabela);return x&&x.map(l=>f.map(l,nomeDe));}
     if(tipo==="temperaturas"){const x=await L("Temperaturas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5]==="final"?"Final":l[5]==="inicio"?"Início":String(l[5]||""),nomeDe(l[3],l[4]),...FRIOS.map((_,i)=>{const v=l[6+2*i],e=l[7+2*i];if(v===""||v==null)return "";return e==="N/A"?String(v):v+" °C "+(e==="---"?"":e);})]);}
     if(tipo==="recepcao"){const x=await L("Receção Matérias-Primas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5],l[6],l[7],l[8],l[9],l[10],l[11]?fD(dataDaLinhaSheets(l[11])||String(l[11])):"",l[13]!==""&&l[13]!=null?l[13]+" °C":"",l[12],nomeDe(l[3],l[4])]);}
@@ -1951,7 +2062,7 @@ function NaoConf({user,db,setDb,showToast}){
   const nomeReg=(db.assinaturas&&db.assinaturas[user.id])||user.id;
 
   const gerarRelatorioNC=(nc)=>{
-    fetch(SHEET_URL,{method:"POST",body:JSON.stringify({action:"gerarRelatorioNC",nc})}).catch(()=>{});
+    postarKF({action:"gerarRelatorioNC",nc});
   };
 
   const save=()=>{
@@ -2120,11 +2231,11 @@ function Encerramento({user,db,setDb,showToast}){
     const ncsHoje=(db.ncs||[]).filter(n=>n.turma===user.turma&&n.date===h);
     const naItens=ITEMS_MANUAL.filter(i=>naLocal[i.id]).map(i=>i.l);
 
-    fetch(SHEET_URL,{method:"POST",body:JSON.stringify({
+    postarKF({
       action:"resumoEncerramento",
       turma:user.turma,date:h,time:horaFinal,aluno:user.id,nomeAluno:nomeEnc,
       presentes,faltas,ncs:ncsHoje,naItens,obs
-    })}).catch(()=>{});
+    });
   };
 
   // Histórico - últimos encerramentos de qualquer turma
@@ -2332,7 +2443,7 @@ function Professor({user,db,setDb,showToast}){
   const tot=PC.filter(c=>ver[c.id]).length,ok=tot===PC.length;
   const mk=(id,cf)=>{setDb(p=>{const pv={...p.profVerif};pv[vK]={...ver,[id]:{professor:user.id,time:gT(),conf:cf}};return{...p,profVerif:pv};});};
   const gerarRelatorioNC=(nc)=>{
-    fetch(SHEET_URL,{method:"POST",body:JSON.stringify({action:"gerarRelatorioNC",nc})}).catch(()=>{});
+    postarKF({action:"gerarRelatorioNC",nc});
   };
   const uNC=(id,es)=>{
     setDb(p=>{
@@ -2454,7 +2565,7 @@ function GestaoAlunos({db,setDb}){
     }
     const novoAluno={id:Date.now(),nome:form.nome,turma:form.turma,numero:form.numero,pin:""};
     setDb(p=>({...p,alunosList:[...(p.alunosList||[]),novoAluno]}));
-    enviar("Alunos",[form.numero,form.nome,form.turma,"Sem PIN",new Date().toLocaleDateString("pt-PT")]);
+    enviar("Alunos",[form.numero,form.nome,form.turma,"Sem PIN","ativo",new Date().toLocaleDateString("pt-PT")]);
     setForm({nome:"",turma:form.turma,numero:""});
   };
 
@@ -5185,6 +5296,15 @@ function Regeneracao({user,db,setDb,showToast}){
   );
 }
 
+/** Aviso discreto: registos deste aparelho que ainda não chegaram ao Sheets. */
+function AvisoFila(){
+  const [n,setN]=useState(()=>porEnviar());
+  useEffect(()=>{const fn=x=>setN(x);ouvintesFila.add(fn);const t=setInterval(()=>setN(porEnviar()),5000);return()=>{ouvintesFila.delete(fn);clearInterval(t);};},[]);
+  if(!n)return null;
+  return(<div role="status" style={{background:"#fff7e6",borderBottom:"1px solid #f3d19e",color:"#7a4a00",fontSize:13,padding:"8px 15px",lineHeight:1.4}}>
+    ⏳ {n===1?"1 registo ainda não chegou":n+" registos ainda não chegaram"} ao Google Sheets. Fica guardado neste aparelho e é enviado automaticamente quando houver rede; não é preciso repetir.
+  </div>);
+}
 export default function App(){
   const [user,setUser]=useState(null);
   const [mod,setMod]=useState(null);
@@ -5349,6 +5469,7 @@ export default function App(){
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#f0f9ff,#e0f2fe)",maxWidth:600,margin:"0 auto"}}>
       <Hd user={user} onOut={logout} onRanking={()=>setMod("ranking")}/>
       <BannerContexto/>
+      <AvisoFila/>
       <div style={{paddingBottom:36}}>
         {mod&&<div style={{padding:"11px 15px 3px"}}><button onClick={back} style={{background:"none",border:"1.5px solid "+BE,color:V,fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:7,padding:"5px 13px",fontFamily:"inherit"}}>Voltar</button></div>}
         {page}
