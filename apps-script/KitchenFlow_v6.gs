@@ -13,17 +13,19 @@
 //  4. «Criar PIN» corrige a linha do aluno certo (número E turma).
 //  5. Os relatórios de NC em PDF deixam de ficar abertos a quem tiver o link.
 //  6. A cópia para o ficheiro de registos PDF já não leva os PINs dos alunos.
-//  7. Tudo num só script: preparar as folhas, trazer os registos deste ano
-//     letivo do ficheiro antigo, cópia de segurança diária e proteção das folhas.
+//  7. Tudo num só script: preparar as folhas, cópia de segurança diária e
+//     proteção das folhas. Começa vazio: o ficheiro antigo só tinha testes
+//     com alunos fictícios, e não se traz nada de lá (Rosa, out/2026).
 //
 // Como instalar: ver «prepararTudo» mais abaixo.
 // ═══════════════════════════════════════════════════════════════
 
 var VERSAO = "6.0";
 var EMAIL_COORDENACAO = "rosa.almeida@eclisboa.net";
-var SHEET_ID_PDF_REGISTOS = "1LxuNicQriP5Jg6RJFEAiFXcEk7CE4UOJsa6gOeFrRSY";
+// A cópia linha a linha para o ficheiro antigo de registos PDF fica desligada:
+// esse ficheiro tem os testes. A segurança passa a ser a cópia diária.
+var SHEET_ID_PDF_REGISTOS = "";
 var PASTA_COPIAS = "KitchenFlow — Cópias de segurança";
-var INICIO_ANO_LETIVO = "01/09/2026"; // os registos a partir deste dia passam do ficheiro antigo para o novo
 
 // As colunas são as que as aplicações enviam, pela mesma ordem.
 var SHEET_CONFIG = {
@@ -69,21 +71,13 @@ function folha_(){return SpreadsheetApp.getActiveSpreadsheet();}
 // INSTALAR (uma só vez, no Google Sheets novo)
 // ═══════════════════════════════════════════════════════════════
 /**
- * 1. Cria todas as folhas com os cabeçalhos certos.
- * 2. Pede o endereço do ficheiro antigo e traz os registos deste ano letivo
- *    (desde INICIO_ANO_LETIVO), a lista de alunos e o Ranking.
- * 3. Liga a cópia de segurança diária, a proteção das folhas e os avisos por email.
+ * Executar uma vez: cria todas as folhas (vazias) com os cabeçalhos certos e liga
+ * a cópia de segurança diária, a proteção das folhas e os avisos por email.
  */
 function prepararTudo(){
-  var ui=SpreadsheetApp.getUi();
   prepararFolhas();
-  var r=ui.prompt("Ficheiro antigo","Cole aqui o endereço (link) do Google Sheets antigo do KitchenFlow,\n«HACCP - Escola de Comércio de Lisboa».\nSe não quiser trazer nada, deixe vazio e carregue em OK.",ui.ButtonSet.OK_CANCEL);
-  var resumo="";
-  if(r.getSelectedButton()===ui.Button.OK&&r.getResponseText().trim()){
-    resumo=importarDoFicheiroAntigo(r.getResponseText().trim());
-  }
   instalarAutomatismos();
-  ui.alert("KitchenFlow v"+VERSAO+" preparado.\n\n"+(resumo||"Não foram trazidos registos.")+"\n\nFalta só: Implementar > Nova implementação > Aplicação Web.");
+  SpreadsheetApp.getUi().alert("KitchenFlow v"+VERSAO+" preparado: as folhas estão criadas e vazias.\n\nFalta só: Implementar > Nova implementação > Aplicação Web.");
 }
 
 /** Cria as folhas que faltam, com título e cabeçalho; apaga a «Folha1» vazia. */
@@ -99,46 +93,6 @@ function prepararFolhas(){
     if(t&&t.getLastRow()===0&&ss.getSheets().length>1)ss.deleteSheet(t);
   });
   SpreadsheetApp.flush();
-}
-
-function idDoLink_(link){var m=String(link).match(/\/d\/([a-zA-Z0-9_-]+)/);return m?m[1]:String(link).trim();}
-function textoData_(v){
-  if(v instanceof Date)return Utilities.formatDate(v,Session.getScriptTimeZone(),"dd/MM/yyyy");
-  var m=String(v||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  return m?("0"+m[1]).slice(-2)+"/"+("0"+m[2]).slice(-2)+"/"+m[3]:"";
-}
-function chaveData_(dd){var p=dd.split("/");return p.length===3?p[2]+p[1]+p[0]:"";}
-
-/** Traz do ficheiro antigo os registos desde INICIO_ANO_LETIVO, os alunos e o Ranking. */
-function importarDoFicheiroAntigo(link){
-  var antigo=SpreadsheetApp.openById(idDoLink_(link));
-  var novo=folha_();
-  var desde=chaveData_(INICIO_ANO_LETIVO);
-  var linhasResumo=[];
-  Object.keys(SHEET_CONFIG).forEach(function(nome){
-    var origem=antigo.getSheetByName(nome),destino=novo.getSheetByName(nome);
-    if(!origem||!destino||origem.getLastRow()<5)return;
-    var dados=origem.getRange(5,1,origem.getLastRow()-4,origem.getLastColumn()).getValues();
-    var escolhidas;
-    if(nome==="Alunos"){
-      // Uma linha por aluno (número + turma); fica a mais recente (o PIN mais novo).
-      var porAluno={},ordem=[];
-      dados.forEach(function(l){if(!l[0])return;var k=String(l[0]).trim()+"|"+String(l[2]).trim();if(!(k in porAluno))ordem.push(k);porAluno[k]=l;});
-      escolhidas=ordem.map(function(k){return porAluno[k];});
-    }else if(nome==="Ranking"){
-      escolhidas=dados.filter(function(l){return l[0];});
-    }else{
-      escolhidas=dados.filter(function(l){var d=textoData_(l[0]);return d&&chaveData_(d)>=desde;});
-    }
-    if(!escolhidas.length)return;
-    var largura=Math.max(SHEET_CONFIG[nome].colunas.length,escolhidas.reduce(function(m,l){return Math.max(m,l.length);},0));
-    escolhidas=escolhidas.map(function(l){var x=l.slice(0,largura);while(x.length<largura)x.push("");return x;});
-    var inicio=Math.max(destino.getLastRow(),4)+1;
-    destino.getRange(inicio,1,escolhidas.length,largura).setValues(escolhidas);
-    linhasResumo.push(nome+": "+escolhidas.length);
-  });
-  SpreadsheetApp.flush();
-  return "Registos trazidos do ficheiro antigo:\n"+(linhasResumo.join("\n")||"nenhum");
 }
 
 /** Cópia de segurança diária, proteção das folhas e avisos por email (faltas e NC escaladas). */
