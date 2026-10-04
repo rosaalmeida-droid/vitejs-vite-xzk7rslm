@@ -91,17 +91,17 @@ function juntarAlunosDaAvaliacao(lista,dados){
 const V="#0e7490",V2="#0891b2",CR="#f0f9ff",BE="#bae6fd",CA="#0369a1",W="#ffffff",R="#dc2626",GR="#64748b",LC="#e0f2fe";
 
 const FRIOS=["Congelador 1","Congelador 2","Congelador 3","Frig. Vert. 1","Frig. Vert. 2","Frig. Vert. 3","Frig. Vert. 4","Frig. Banc. 1","Frig. Banc. 2","Frig. Banc. 3","Frig. Banc. 4","Frig. Banc. 5"];
-const CATS=["Legumes frescos","Carne","Peixe","Mercearia seca","Laticinios","Congelados","Outros"];
-const TODOS_EQ=[...FRIOS,"Abatedor 1","Abatedor 2","Forno 1","Forno 2","Maq.vacuo 1","Maq.vacuo 2","Picadora","Batedeira","Amassadeira 1","Amassadeira 2","Desidratador","Bimby","Pacojet","Processador 1","Processador 2"];
+const CATS=["Legumes frescos","Carne","Peixe","Mercearia seca","Laticínios","Congelados","Outros"];
+const TODOS_EQ=[...FRIOS,"Abatedor 1","Abatedor 2","Forno 1","Forno 2","Máq. vácuo 1","Máq. vácuo 2","Picadora","Batedeira","Amassadeira 1","Amassadeira 2","Desidratador","Bimby","Pacojet","Processador 1","Processador 2"];
 const ZONAS={
 "Bancadas":["Bancada 1 limpa e higienizada (cima e baixo)","Bancada 2 limpa e higienizada (cima e baixo)","Bancada 3 limpa e higienizada (cima e baixo)","Bancada 4 limpa e higienizada (cima e baixo)","Bancada 5 limpa e higienizada (cima e baixo)","Ralo cuba bancada 1 limpo","Ralo cuba bancada 2 limpo","Ralo cuba bancada 3 limpo","Ralo cuba bancada 4 limpo","Ralo cuba bancada 5 limpo","Bancadas laterais limpas e higienizadas"],
-"Equipamentos":["Abatedor 1 desligado e higienizado","Abatedor 2 desligado e higienizado","Maq. vacuo 1 limpa e desligada","Maq. vacuo 2 limpa e desligada","Amassadeira 1 desligada e protegida c/pelicula","Amassadeira 2 desligada e protegida c/pelicula","Batedeira desligada e protegida c/pelicula","Picadora limpa e protegida c/pelicula","Processadores limpos e protegidos","Fogoes todos desligados","Ar condicionado desligado"],
-"Frio":["Frigorifico vertical 1 verificado","Frigorifico vertical 2 verificado","Frigorifico vertical 3 verificado","Frigorifico vertical 4 verificado","Frigorifico bancada 1 verificado","Frigorifico bancada 2 verificado","Frigorifico bancada 3 verificado","Frigorifico bancada 4 verificado","Frigorifico bancada 5 verificado","Congelador 1 verificado","Congelador 2 verificado","Congelador 3 verificado","Temperaturas registadas"],
-"Copa":["Loica lavada e arrumada","Sem utensilios por lavar","Cuba higienizada","Maq. lavagem 1 drenada, porta aberta e higienizada","Maq. lavagem 2 drenada, porta aberta e higienizada","Inoxes em condicoes","Panos colocados em solucao desinfetante","Esponjas colocadas em solucao desinfetante","Solucao desinfetante renovada"],
-"Economatos":["Economato mat.-primas organizado","Mat.-primas devidamente armazenadas","Sem mat.-primas no chao","Economato material organizado","Material arrumado (nao no chao)","Chao economato em condicoes"],
-"Residuos":["Lixo organico despejado no local correto","Lixo reciclavel separado corretamente","Caixotes lavados e higienizados","Sacos novos colocados"],
+"Equipamentos":["Abatedor 1 desligado e higienizado","Abatedor 2 desligado e higienizado","Máq. vácuo 1 limpa e desligada","Máq. vácuo 2 limpa e desligada","Amassadeira 1 desligada e protegida com película","Amassadeira 2 desligada e protegida com película","Batedeira desligada e protegida com película","Picadora limpa e protegida com película","Processadores limpos e protegidos","Fogões todos desligados","Ar condicionado desligado"],
+"Frio":["Frigorífico vertical 1 verificado","Frigorífico vertical 2 verificado","Frigorífico vertical 3 verificado","Frigorífico vertical 4 verificado","Frigorífico bancada 1 verificado","Frigorífico bancada 2 verificado","Frigorífico bancada 3 verificado","Frigorífico bancada 4 verificado","Frigorífico bancada 5 verificado","Congelador 1 verificado","Congelador 2 verificado","Congelador 3 verificado","Temperaturas registadas"],
+"Copa":["Loiça lavada e arrumada","Sem utensílios por lavar","Cuba higienizada","Máq. de lavar 1 drenada, porta aberta e higienizada","Máq. de lavar 2 drenada, porta aberta e higienizada","Inoxes em condições","Panos colocados em solução desinfetante","Esponjas colocadas em solução desinfetante","Solução desinfetante renovada"],
+"Economatos":["Economato matérias-primas organizado","Matérias-primas devidamente armazenadas","Sem matérias-primas no chão","Economato material organizado","Material arrumado (nao no chão)","Chão do economato em condições"],
+"Resíduos":["Lixo orgânico despejado no local correto","Lixo reciclável separado corretamente","Caixotes lavados e higienizados","Sacos novos colocados"],
 "Carrinhos":["Carrinho 1 limpo e higienizado","Carrinho 2 limpo e higienizado","Carrinhos arrumados no local correto"],
-"Equip. Limpeza":["Rodos lavados e desinfetados","Esfregonas lavadas e desinfetadas","Vassouras em condicoes (limpeza humida, nunca a seco)"]
+"Equipamento de limpeza":["Rodos lavados e desinfetados","Esfregonas lavadas e desinfetadas","Vassouras em condições (limpeza húmida, nunca a seco)"]
 };
 const VERIFICACAO_FINAL=[
   "Bancadas limpas e higienizadas (cima e baixo) — todas",
@@ -167,7 +167,8 @@ const PROCEDIMENTOS_LIMPEZA={
 };
 
 function procedimentoPara(itemNome){
-  const n=itemNome.toLowerCase();
+  // Sem acentos: os nomes das zonas passaram a ter acentos (vácuo, loiça).
+  const n=itemNome.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   if(n.includes("rodo")||n.includes("esfregona")||n.includes("vassoura"))return PROCEDIMENTOS_LIMPEZA["equip_limpeza"];
   const chaves=Object.keys(PROCEDIMENTOS_LIMPEZA);
   for(const ch of chaves){if(n.includes(ch))return PROCEDIMENTOS_LIMPEZA[ch];}
@@ -278,9 +279,20 @@ function abrirFolhaImpressao(titulo,sub,corpo,legenda="",janela=null){
     table{border-collapse:collapse;width:100%;font-size:10px}
     th,td{border:1px solid #999 !important;padding:4px 6px !important;vertical-align:top}
     th{background:#e6f1f4 !important;color:#0c4a6e !important;font-weight:bold}
+    tbody tr:nth-child(even) td{background:#f6fafb}
+    td.nc{background:#fde8e6 !important;color:#9b1c1c;font-weight:bold}
+    td.ok{color:#166534}
+    h2{font-size:14px;margin:18px 0 6px;padding:4px 0 4px 9px;border-left:4px solid #0e7490;color:#0c4a6e;page-break-after:avoid}
+    h2 .n{font-weight:normal;color:#555;font-size:12px}
+    .resumo{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 6px}
+    .ca{border:1px solid #cfe3e8;border-radius:8px;padding:6px 10px;min-width:120px;background:#f6fafb}
+    .ca b{display:block;font-size:17px;color:#0e7490}
+    .ca.alerta{border-color:#f1b5ae;background:#fdf0ef}.ca.alerta b{color:#b42318}
+    .vazio{font-size:11px;color:#555;margin-top:12px;padding:6px 9px;background:#f4f4f4;border-radius:6px}
     tr{page-break-inside:avoid}
     thead{display:table-header-group}
     .leg{margin-top:8px;font-size:10px;color:#444}
+    .orig{margin-top:14px;font-size:9.5px;color:#333;border:1px solid #cfe3e8;background:#f6fafb;border-radius:6px;padding:6px 9px;line-height:1.4}
     .ass{display:flex;gap:40px;margin-top:28px;font-size:11px}
     .ass div{flex:1;border-top:1px solid #333;padding-top:4px}
     .bt{position:fixed;top:10px;right:10px;padding:10px 18px;background:#0e7490;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
@@ -291,6 +303,7 @@ function abrirFolhaImpressao(titulo,sub,corpo,legenda="",janela=null){
   <div class="imp">KitchenFlow ECL<br>Impresso em ${agora}</div></div>
   ${corpo}
   ${legenda?`<div class="leg">${escHTML(legenda)}</div>`:""}
+  <div class="orig"><b>Origem dos registos.</b> Registos feitos no momento, durante a aula, na aplicação KitchenFlow da Escola de Comércio de Lisboa, por quem está indicado em cada linha, com o dia e a hora em que foram feitos. Ficam guardados no ficheiro Google Sheets do KitchenFlow, que guarda o histórico de versões. Esta folha é uma cópia em papel desses registos, impressa em ${agora}, e é validada pelas assinaturas abaixo.</div>
   <div class="ass"><div>Verificado por (Professor/a)</div><div>Coordenação</div><div>Data</div></div>
   </body></html>`);
   w.document.close();
@@ -299,18 +312,32 @@ function abrirFolhaImpressao(titulo,sub,corpo,legenda="",janela=null){
 /** Uma tabela simples a partir de colunas e linhas (texto). */
 function tabelaHTML(colunas,linhas){
   return `<table><thead><tr>${colunas.map(c=>`<th>${escHTML(c)}</th>`).join("")}</tr></thead><tbody>${
-    linhas.length?linhas.map(l=>`<tr>${l.map(v=>`<td>${escHTML(v)}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${colunas.length}">Sem registos neste período.</td></tr>`
+    linhas.length?linhas.map(l=>`<tr>${l.map(v=>{const t=String(v??"");const c=/(^|\s)(NC|Não conforme|Fora do limite)(\s|$)/i.test(t)?' class="nc"':/(^|\s)(OK|Conforme)$/i.test(t)?' class="ok"':"";return `<td${c}>${escHTML(t)}</td>`;}).join("")}</tr>`).join(""):`<tr><td colspan="${colunas.length}">Sem registos neste período.</td></tr>`
   }</tbody></table>`;
 }
 
 
-/** Nome para as folhas: primeiro e último nome de quem registou. */
-function nomeCurto(db,v,nome){
-  let n=nome||(db.assinaturas&&v&&db.assinaturas[v])||"";
-  if(!n&&v){const m=String(v).match(/^(.+)-(\d+)$/);if(m){const a=(db.alunosList||[]).find(x=>x.turma===m[1]&&String(x.numero)===m[2]);if(a)n=a.nome;}}
-  if(!n)n=String(v||"");
-  const p=n.trim().split(/\s+/).filter(Boolean);
-  return p.length>1?p[0]+" "+p[p.length-1]:(p[0]||"");
+/** Nome para as folhas: primeiro e último nome de quem registou, com a turma ao lado.
+ *  Se houver outro aluno com o mesmo primeiro e último nome, junta os nomes do meio
+ *  (um de cada vez) até deixar de haver confusão (Rosa, out/2026). */
+const partesNome=n=>String(n||"").trim().split(/\s+/).filter(Boolean);
+const formaCurta=(p,k)=>p.length<=2?p.join(" "):[p[0],...p.slice(1,-1).slice(0,k),p[p.length-1]].join(" ");
+const semAcentos=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function nomeCurto(db,v,nome,turmaDica=""){
+  const lista=(db.alunosList||[]).filter(x=>x&&x.nome);
+  let a=null,turma="";
+  const m=v?String(v).match(/^(.+)-(\d+)$/):null;
+  if(m){turma=m[1];a=lista.find(x=>x.turma===m[1]&&String(x.numero)===m[2])||null;}
+  if(!a){const alvo=semAcentos(nome||v);let iguais=alvo?lista.filter(x=>semAcentos(x.nome)===alvo):[];if(iguais.length>1&&turmaDica)iguais=iguais.filter(x=>x.turma===turmaDica);if(iguais.length===1)a=iguais[0];}
+  if(!turma&&turmaDica)turma=turmaDica;
+  if(a&&a.turma)turma=a.turma;
+  const n=(a&&a.nome)||nome||(db.assinaturas&&v&&db.assinaturas[v])||String(v||"");
+  const p=partesNome(n);
+  if(!p.length)return "";
+  let k=0;
+  const outros=lista.filter(x=>x!==a&&semAcentos(x.nome)!==semAcentos(n)).map(x=>partesNome(x.nome));
+  while(k<p.length-2&&outros.some(o=>semAcentos(formaCurta(o,k))===semAcentos(formaCurta(p,k))))k++;
+  return formaCurta(p,k)+(turma?" ("+turma+")":"");
 }
 const MESES_PT=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 /** Folha oficial de um mês, com os registos de TODAS as turmas juntos, por data e hora
@@ -534,11 +561,14 @@ async function imprimirRelatorioCompleto(db,periodoEscolhido){
   if(!w){alert("O navegador bloqueou a janela de impressão. Permite janelas (pop-ups) para esta aplicação.");return;}
   w.document.write('<p style="font-family:Arial;padding:24px;font-size:16px">A preparar o relatório: a ler todos os registos…</p>');
   const partes=await Promise.all(ORDEM_RELATORIO.map(t=>dadosDaFolha(t,db,periodoEscolhido)));
-  const resumo=`<table><thead><tr><th>Registo</th><th>Nº de registos</th></tr></thead><tbody>${partes.map(p=>`<tr><td>${escHTML(p.titulo)}</td><td>${p.lin.length}</td></tr>`).join("")}</tbody></table>`;
-  const corpo=`<h2 style="font-size:14px;margin:4px 0 6px">Resumo</h2>${resumo}`+partes.map(p=>
-    `<h2 style="font-size:14px;margin:18px 0 6px;page-break-after:avoid">${escHTML(p.titulo)} <span style="font-weight:normal;color:#555">(${p.lin.length})</span></h2>`+
-    (p.lin.length?tabelaHTML(p.col,p.lin):`<div style="font-size:11px;color:#555">Sem registos neste período.</div>`)+(p.leg?`<div class="leg">${escHTML(p.leg)}</div>`:"")).join("");
-  abrirFolhaImpressao("Relatório completo de registos HACCP",periodoEscolhido.rotulo,corpo,"",w);
+  const comReg=partes.filter(p=>p.lin.length),semReg=partes.filter(p=>!p.lin.length);
+  const nNC=partes.reduce((a,p)=>a+p.lin.filter(l=>l.some(v=>/(^|\s)(NC|Não conforme)(\s|$)/i.test(String(v??"")))).length,0);
+  const resumo=`<div class="resumo">${comReg.map(p=>`<div class="ca"><b>${p.lin.length}</b>${escHTML(p.titulo)}</div>`).join("")}${nNC?`<div class="ca alerta"><b>${nNC}</b>Linhas com não conformidade</div>`:""}</div>`;
+  const legendas=[...new Set(comReg.flatMap(p=>String(p.leg||"").split(/ · |(?<=\.) /)).map(x=>x.trim()).filter(Boolean))];
+  const corpo=`<h2>Resumo do período</h2>${comReg.length?resumo:'<div class="vazio">Não há registos neste período.</div>'}`+comReg.map(p=>
+    `<h2>${escHTML(p.titulo)} <span class="n">(${p.lin.length} ${p.lin.length===1?"registo":"registos"})</span></h2>`+tabelaHTML(p.col,p.lin)).join("")+
+    (semReg.length?`<div class="vazio"><b>Sem registos neste período:</b> ${semReg.map(p=>escHTML(p.titulo)).join(", ")}.</div>`:"");
+  abrirFolhaImpressao("Relatório completo de registos HACCP",periodoEscolhido.rotulo,corpo,legendas.join(" · "),w);
 }
 /** As colunas e as linhas de uma folha, para o período. Lê do Sheets; sem ligação, usa o aparelho. */
 async function dadosDaFolha(tipo,db,periodoEscolhido){
@@ -627,8 +657,8 @@ async function dadosDaFolha(tipo,db,periodoEscolhido){
     Object.entries(db.higienizacao||{}).forEach(([k,hig])=>{
       const mm=k.match(/(\d{2}\/\d{2}\/\d{4})$/);
       if(!mm||!noMes(mm[1])||!hig)return;
-      Object.entries(hig.registos||{}).forEach(([it,r])=>lin.push([mm[1],r&&r.time||"",zonaDe(it),it,nomeCurto(db,"",r&&r.aluno)]));
-      ["inicio","final"].forEach(mo=>{const x=hig.panos&&hig.panos[mo];if(x)lin.push([mm[1],x.time||"","Panos e esponjas","Solução desinfetante — "+(mo==="inicio"?"início":"final")+" da aula",nomeCurto(db,"",x.aluno)]);});
+      Object.entries(hig.registos||{}).forEach(([it,r])=>lin.push([mm[1],r&&r.time||"",zonaDe(it),it,nomeCurto(db,"",r&&r.aluno,(r&&r.turma)||hig.turma||"")]));
+      ["inicio","final"].forEach(mo=>{const x=hig.panos&&hig.panos[mo];if(x)lin.push([mm[1],x.time||"","Panos e esponjas","Solução desinfetante — "+(mo==="inicio"?"início":"final")+" da aula",nomeCurto(db,"",x.aluno,x.turma||hig.turma||"")]);});
     });
   }
   if(FOLHAS_DO_SHEETS[tipo]){titulo=FOLHAS_DO_SHEETS[tipo].titulo;col=FOLHAS_DO_SHEETS[tipo].col;}
@@ -640,7 +670,7 @@ async function dadosDaFolha(tipo,db,periodoEscolhido){
 }
 
 const PC=[{id:"fog",lb:"Fogões OK"},{id:"for",lb:"Fornos OK"},{id:"arc",lb:"Ar cond. OK"},{id:"cop",lb:"Copa OK"},{id:"fri",lb:"Frio OK"},{id:"hig",lb:"Higieniz. OK"},{id:"lix",lb:"Lixos OK"},{id:"ali",lb:"Alimentos armazenados"},{id:"ute",lb:"Utensílios OK"},{id:"cha",lb:"Chão lavado"},{id:"eco",lb:"Economatos OK"},{id:"asp",lb:"Aspeto geral"}];
-const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção Matérias-Primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção Alimentos Cru"},{id:"producao",lb:"Prod. Confeccionados"},{id:"higienizacao",lb:"Higienização Equip. e Utensilios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
+const FOLHAS=[{id:"temperaturas",lb:"Temperaturas"},{id:"recepcao",lb:"Receção de matérias-primas"},{id:"testemunho",lb:"Amostras Testemunho"},{id:"desinfecao",lb:"Desinfeção de alimentos em cru"},{id:"producao",lb:"Produtos confecionados"},{id:"higienizacao",lb:"Higienização de equipamentos e utensílios"},{id:"manutencao",lb:"Manutenção, Avarias e Prevenção"},{id:"naoconf",lb:"Não Conformidades"},{id:"validacoes",lb:"Validações"}];
 const MODS_DIARIOS=[
   {id:"presenca",lb:"Presença",cor:"#0e7490"},
   {id:"higienePessoal",lb:"Higiene Pessoal",cor:"#0e7490"},
@@ -885,178 +915,217 @@ function Login({onLogin,db,setDb,showRanking,setShowRanking}){
   );
 }
 
-function DashAluno({user,db,setModule}){
+// ── Divisão do trabalho (Rosa, out/2026) ─────────────────────
+// O professor decide se, nesse dia, a turma divide os registos: um líder que
+// confirma tudo no fim e um responsável por cada parte. Se não decidir, é o
+// professor que organiza à sua maneira. Fica guardado na folha LIDERES_KF da
+// Avaliação ECL, para chegar a todos os telemóveis.
+const TAREFAS_DIVISAO=[
+  {id:"panos",lb:"Panos e esponjas",dica:"Solução desinfetante no início e no fim da aula."},
+  {id:"tempI",lb:"Temperaturas do início",dica:"Todos os frigoríficos e congeladores, no início da aula."},
+  {id:"tempF",lb:"Temperaturas do fim",dica:"Todos os frigoríficos e congeladores, no fim da aula."},
+  {id:"limpA",lb:"Limpeza: bancadas e equipamentos",dica:"Zonas «Bancadas» e «Equipamentos» da limpeza."},
+  {id:"limpB",lb:"Limpeza: frio e copa",dica:"Zonas «Frio» e «Copa» da limpeza."},
+  {id:"limpC",lb:"Limpeza: economatos, resíduos e carrinhos",dica:"As restantes zonas da limpeza."},
+];
+// A data local (e não a UTC): de madrugada, a UTC ainda é o dia anterior.
+const chaveDivisao=(turma,d=new Date())=>"kf-"+turma+"-"+d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+async function lerDivisao(turma){
+  try{
+    const r=await fetch(SHEETS_AVALIACAO_ECL_URL+"?tipo=get_lideres_kf&turmaId="+encodeURIComponent(turma));
+    const j=await r.json();
+    const lista=(j&&(j.lideres||j.dados))||[];
+    return lista.find(x=>x&&x.planoAulaId===chaveDivisao(turma)&&x.grupoId==="divisao")||null;
+  }catch{return null;}
+}
+function guardarDivisao(reg){
+  fetch(SHEETS_AVALIACAO_ECL_URL,{method:"POST",body:JSON.stringify({tipo:"lider_kf",...reg})}).catch(()=>{});
+}
+
+// ── O dia do aluno, passo a passo (Rosa, out/2026) ───────────
+// Igual para todos os anos. O aluno vê o que tem de fazer AGORA e, numa linha
+// do tempo, o início da aula, a produção e o fim da aula. Os registos que são
+// da turma mostram quem já os fez, para ninguém os repetir. A farda e as mãos
+// só saem daqui quando o aluno entra pela Avaliação ECL, que já as regista.
+function DashAluno({user,db,setDb,setModule}){
   const h=gD();
-  const [aba,setAba]=useState("modulos");
-  const ncs=(db.ncs||[]).filter(n=>n.turma===user.turma&&n.date===h).length;
+  const [verMais,setVerMais]=useState(false);
+  const vemDaAvaliacao=(()=>{try{return sessionStorage.getItem("kf_vem_avaliacao")==="1";}catch{return false;}})();
+  const nomeDe=(id)=>{
+    const a=(db.alunosList||[]).find(x=>x.id===id||String(x.turma+"-"+x.numero)===String(id));
+    const n=(a&&a.nome)||(db.assinaturas&&db.assinaturas[id])||String(id||"");
+    return n.split(" ")[0];
+  };
   const nomeAluno=db.assinaturas&&db.assinaturas[user.id];
   const nome=nomeAluno?(nomeAluno.split(" ")[0].charAt(0).toUpperCase()+nomeAluno.split(" ")[0].slice(1)):user.id;
 
-  const tempI=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-inicio"]);
-  const tempF=!!(db.temperaturas&&db.temperaturas["temp-"+user.turma+"-"+h+"-final"]);
-  const encerrado=!!(db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h]&&db.encerramento["enc-"+user.turma+"-"+h].emProgresso===false);
-  const higPessoal=!!(db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h]);
-  const presencaFeita=!!(db.presencas&&db.presencas["presenca-"+user.turma+"-"+h]&&db.presencas["presenca-"+user.turma+"-"+h][user.id]);
-  const higRegsCount=Object.keys((db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h]&&db.higienizacao["hig-"+user.turma+"-"+h].registos)||{}).length;
-  const higTotal=Object.values(ZONAS).flat().length;
-  const higienizacao=higRegsCount>0&&higRegsCount>=higTotal;
+  // A divisão do trabalho de hoje, se o professor a ativou.
+  const kDiv=chaveDivisao(user.turma);
+  const div=db.divisoes&&db.divisoes[kDiv];
+  useEffect(()=>{
+    let vivo=true;
+    const ir=()=>lerDivisao(user.turma).then(d=>{if(vivo&&d)setDb(p=>({...p,divisoes:{...(p.divisoes||{}),[kDiv]:d}}));});
+    ir();const t=setInterval(ir,90000);
+    return()=>{vivo=false;clearInterval(t);};
+  },[user.turma]);
+  const dividido=!!(div&&div.ativa);
+  const souLider=dividido&&div.alunoId===user.id;
+  const responsavel=(tid)=>dividido&&div.responsaveis?div.responsaveis[tid]:null;
+  const minhasTarefas=dividido?TAREFAS_DIVISAO.filter(t=>responsavel(t.id)===user.id):[];
 
-  const higK2="hig-"+user.turma+"-"+h;
-  const panosInicioD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["inicio"]);
-  const panosFinalD=!!(db.higienizacao&&db.higienizacao[higK2]&&db.higienizacao[higK2].panos&&db.higienizacao[higK2].panos["final"]);
-  const feitoMap={
-    presenca:presencaFeita,
-    higienePessoal:higPessoal,
-    temperaturas:tempI&&tempF,
-    higienizacao:higienizacao,
-    encerramento:encerrado,
+  // O que já está feito hoje.
+  const T=(k)=>db.temperaturas&&db.temperaturas[k];
+  const tempTurma=(m)=>T("temp-"+user.turma+"-"+h+"-"+m);
+  const tempOutra=(m)=>{const t=TURMAS_ECL.find(x=>x!==user.turma&&T("temp-"+x+"-"+h+"-"+m));return t?{turma:t,...T("temp-"+t+"-"+h+"-"+m)}:null;};
+  const hg=db.higienizacao&&db.higienizacao["hig-"+user.turma+"-"+h];
+  const panos=(hg&&hg.panos)||{};
+  const nZonas=Object.keys((hg&&hg.registos)||{}).length;
+  const totalZonas=Object.values(ZONAS).flat().length;
+  const enc=db.encerramento&&db.encerramento["enc-"+user.turma+"-"+h];
+  const higP=db.higPessoal&&db.higPessoal["hig-pessoal-"+user.id+"-"+h];
+  const pres=db.presencas&&db.presencas["presenca-"+user.turma+"-"+h]&&db.presencas["presenca-"+user.turma+"-"+h][user.id];
+
+  const feitoPor=(r,eu)=>{
+    if(!r)return "";
+    const quem=r.aluno===user.id||r.aluno===nomeAluno?"Feito por ti":"Feito por "+(r.nomeAluno?String(r.nomeAluno).split(" ")[0]:nomeDe(r.aluno));
+    return quem+(r.time?" às "+r.time:"")+(eu?"":". Não precisas de repetir.");
+  };
+  const tI=tempTurma("inicio"),tF=tempTurma("final"),oI=!tI&&tempOutra("inicio"),oF=!tF&&tempOutra("final");
+
+  const passos=[
+    ...(vemDaAvaliacao?[]:[
+      {id:"higP",fase:"inicio",lb:"Farda, mãos e adornos",dica:"Antes de entrares na cozinha: touca, farda completa, mãos lavadas, sem anéis, brincos ou relógio.",mod:"higienePessoal",feito:!!higP,sub:higP?"Feito por ti":"",meu:true},
+      {id:"pres",fase:"inicio",lb:"Presença",dica:"Regista que estás na aula, com o teu PIN.",mod:"presenca",feito:!!pres,sub:pres?"Feito por ti":"",meu:true},
+    ]),
+    {id:"panos",tarefa:"panos",fase:"inicio",lb:"Panos e esponjas",dica:"Põe os panos e as esponjas numa solução desinfetante nova.",mod:"higienizacao",feito:!!panos.inicio,sub:feitoPor(panos.inicio)},
+    {id:"tempI",tarefa:"tempI",fase:"inicio",lb:"Temperaturas",dica:"Lê a temperatura de cada frigorífico e congelador e regista-a.",mod:"temperaturas",feito:!!(tI||oI),sub:tI?feitoPor(tI):oI?"Já medidas pela "+oI.turma+(oI.time?" às "+oI.time:"")+". Não precisas de repetir.":""},
+    {id:"limp",tarefa:"limp",fase:"fim",lb:"Limpeza da cozinha",dica:"Limpa cada zona e marca-a como feita. Cada colega pode marcar as zonas que limpou.",mod:"higienizacao",feito:nZonas>0&&nZonas>=totalZonas,sub:nZonas?nZonas+" de "+totalZonas+" zonas feitas":""},
+    {id:"panosF",tarefa:"panos",fase:"fim",lb:"Panos e esponjas",dica:"Deixa os panos e as esponjas em solução desinfetante.",mod:"higienizacao",feito:!!panos.final,sub:feitoPor(panos.final)},
+    {id:"tempF",tarefa:"tempF",fase:"fim",lb:"Temperaturas",dica:"Lê outra vez a temperatura de cada frigorífico e congelador.",mod:"temperaturas",feito:!!(tF||oF),sub:tF?feitoPor(tF):oF?"Já medidas pela "+oF.turma+(oF.time?" às "+oF.time:"")+". Não precisas de repetir.":""},
+    {id:"enc",tarefa:"fecho",fase:"fim",lb:"Fechar a aula",dica:souLider||!dividido?"Verifica a cozinha toda e fecha a aula.":"O líder verifica a cozinha toda e fecha a aula.",mod:"encerramento",feito:!!(enc&&enc.emProgresso===false),sub:enc&&enc.emProgresso===false?feitoPor(enc):""},
+  ];
+  // Com a divisão do trabalho: quem é o responsável de cada passo.
+  const respDoPasso=(p)=>{
+    if(!dividido||p.meu)return null;
+    if(p.tarefa==="fecho")return div.alunoId;
+    if(p.tarefa==="limp")return null;
+    return responsavel(p.tarefa);
   };
 
-  const avisos=[];
-  if(!higPessoal)avisos.push({msg:"Verificar Higiene Pessoal antes de entrar!",mod:"higienePessoal",urgente:false});
-  // Check if temps already registered by any turma today
-  const todasTurmas=TURMAS_ECL;
-  const tempIQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-inicio"]);
-  const tempFQualquer=todasTurmas.find(t=>db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-final"]);
-  if(!tempI){
-    if(tempIQualquer&&tempIQualquer!==user.turma){
-      const regI=db.temperaturas["temp-"+tempIQualquer+"-"+h+"-inicio"];
-      avisos.push({msg:"Temperaturas início já registadas pela "+tempIQualquer+" às "+regI.time+" — "+regI.aluno,mod:"temperaturas",urgente:false,info:true});
-    } else {
-      avisos.push({msg:"Falta registo de temperaturas — Início de aula",mod:"temperaturas",urgente:false});
-    }
-  }
-  if(!tempF){
-    if(tempFQualquer&&tempFQualquer!==user.turma){
-      const regF=db.temperaturas["temp-"+tempFQualquer+"-"+h+"-final"];
-      avisos.push({msg:"Temperaturas final já registadas pela "+tempFQualquer+" às "+regF.time+" — "+regF.aluno,mod:"temperaturas",urgente:false,info:true});
-    } else {
-      avisos.push({msg:"Falta registo de temperaturas — Final de aula",mod:"temperaturas",urgente:false});
-    }
-  }
-  if(!encerrado){const now=new Date();if(now.getHours()>=14)avisos.push({msg:"Não esquecer o Encerramento da Aula!",mod:"encerramento",urgente:true});}
-  // Panos aviso - inicio de aula
-  const horaAtual=new Date().getHours();
+  // Que parte da aula é agora: o fim começa 45 minutos antes da hora de fim
+  // do plano (ou às 14h, sem plano).
+  const agora=new Date();
+  const minAgora=agora.getHours()*60+agora.getMinutes();
+  let minFim=14*60;
+  const pa=(window as any).__kf_plano_activo;
+  if(pa&&pa.horaFim){const [hf,mf]=String(pa.horaFim).split(":").map(Number);if(!isNaN(hf))minFim=hf*60+(mf||0)-45;}
+  const fimDaAula=minAgora>=minFim;
+  const pendentes=(f)=>passos.filter(p=>p.fase===f&&!p.feito);
+  // O passo de agora: primeiro os meus (se houver divisão), depois a ordem do dia.
+  const candidatos=fimDaAula?[...pendentes("inicio"),...pendentes("fim")]:pendentes("inicio");
+  const meus=candidatos.filter(p=>p.meu||respDoPasso(p)===user.id);
+  const passoAgora=dividido?(meus[0]||null):(candidatos[0]||null);
+  const inicioFeito=pendentes("inicio").length===0;
+  const feitos=passos.filter(p=>p.feito).length;
 
-  if(!panosInicioD&&horaAtual>=8&&horaAtual<14)avisos.push({msg:"🧽 Renovar solução desinfetante dos panos e esponjas — Início de aula!",mod:"higienizacao",urgente:true});
-  if(!panosFinalD&&horaAtual>=14)avisos.push({msg:"🧽 Colocar panos e esponjas em solução desinfetante — Final de aula!",mod:"higienizacao",urgente:true});
+  // Durante a produção: registos de cada aluno, quando acontecem.
+  const doDia=(lista)=>(lista||[]).filter(r=>r&&(r.date===h)&&(r.aluno===user.id||r.responsavel===user.id||r.alunoId===user.id)).length;
+  const PRODUCAO=[
+    {mod:"recepcao",q:"Chegaram produtos à cozinha?",lb:"Receção de matérias-primas",n:doDia(db.recepcao)},
+    {mod:"desinfecao",q:"Vais lavar legumes ou fruta para comer em cru?",lb:"Desinfeção de alimentos em cru",n:doDia(db.desinfecao)},
+    {mod:"producao",q:"Acabaste de confecionar um prato?",lb:"Produção: temperatura no fim da confeção",n:doDia(db.producao)},
+    {mod:"testemunho",q:"O prato vai ser servido?",lb:"Amostra testemunho",n:doDia(db.testemunho)},
+    {mod:"conservacao",q:"Vais guardar comida para outro dia?",lb:"Conservação e etiqueta",n:doDia(db.conservacaoProd)},
+    {mod:"naoConf",q:"Alguma coisa correu mal ou está estragada?",lb:"Não conformidade",n:0},
+  ];
+  const MAIS=[...MODS_ESPECIFICOS,...MODS_GESTAO].filter(m=>!PRODUCAO.some(x=>x.mod===m.id));
 
-  // Check amostra destruicao
-  const hoje=new Date();
-  const amostrasDestruir=(db.testemunho||[]).filter(t=>{
-    if(!t.dataDestruicao)return false;
-    const d=new Date(t.dataDestruicao);
-    return d.toDateString()===hoje.toDateString();
-  });
-  if(amostrasDestruir.length>0){
-    amostrasDestruir.forEach(a=>avisos.push({msg:"Destruir amostra testemunho hoje: "+a.prato,mod:"testemunho",urgente:true}));
-  }
+  const amostrasDestruir=(db.testemunho||[]).filter(t=>t.dataDestruicao&&new Date(t.dataDestruicao).toDateString()===agora.toDateString());
 
-  const diariosDone=MODS_DIARIOS.filter(m=>feitoMap[m.id]).length;
-  const pct=Math.round(diariosDone/MODS_DIARIOS.length*100);
-
-  const grpStyle=(cor,feito)=>({
-    background:feito?"#16a34a":W,
-    border:"none",
-    borderRadius:13,
-    padding:"13px 11px",
-    cursor:"pointer",
-    textAlign:"left",
-    boxShadow:"0 3px 10px rgba(0,0,0,.08)",
-    borderLeft:"4px solid "+(feito?"#16a34a":cor),
-  });
+  const corEstado=p=>p.feito?"#16a34a":p===passoAgora?"#eab308":"#cbd5e1";
+  const titulo=(txt,sub)=>(
+    <div style={{margin:"16px 0 8px"}}>
+      <div style={{fontSize:13,fontWeight:800,color:V,textTransform:"uppercase",letterSpacing:1}}>{txt}</div>
+      {sub&&<div style={{fontSize:13.5,color:GR,marginTop:2,lineHeight:1.4}}>{sub}</div>}
+    </div>
+  );
+  const linhaPasso=(p)=>{
+    const r=respDoPasso(p);
+    const sub=p.sub||(r?(r===user.id?"É a tua tarefa":"Responsável: "+nomeDe(r)):"Por fazer");
+    return(
+      <button key={p.id} onClick={()=>setModule(p.mod)} style={{width:"100%",display:"flex",alignItems:"center",gap:12,background:W,border:"1.5px solid "+(p===passoAgora?"#eab308":BE),borderRadius:12,padding:"11px 13px",marginBottom:7,cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>
+        <span style={{width:26,height:26,borderRadius:13,flexShrink:0,background:corEstado(p),color:W,fontWeight:800,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>{p.feito?"✓":""}</span>
+        <span style={{flex:1,minWidth:0}}>
+          <span style={{display:"block",fontSize:16,fontWeight:700,color:"#0c4a6e"}}>{p.lb}</span>
+          <span style={{display:"block",fontSize:13.5,color:p.feito?"#15803d":r===user.id?"#7c3aed":GR,marginTop:1}}>{sub}</span>
+        </span>
+        <span style={{fontSize:18,color:GR}}>›</span>
+      </button>
+    );
+  };
 
   return(
-    <div style={{padding:15}}>
-      {avisos.length>0&&<div style={{marginBottom:12}}>
-        {avisos.map((av,i)=>(
-          <div key={i} onClick={()=>setModule(av.mod)} style={{background:av.urgente?"#dc2626":av.info?"#e0f2fe":"#fdecea",border:"2px solid "+(av.urgente?"#b91c1c":av.info?"#0891b2":R),borderRadius:10,padding:"10px 13px",marginBottom:7,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:11,color:W,fontWeight:700,background:av.urgente?"#b91c1c":av.info?"#0891b2":R,borderRadius:6,padding:"2px 7px"}}>{av.info?"✓":"(!)"}</span>
-            <span style={{fontSize:12,fontWeight:600,color:av.urgente?W:av.info?"#0369a1":R,flex:1}}>{av.msg}</span>
-            {!av.info&&<span style={{fontSize:11,color:av.urgente?W:R}}>Registar</span>}
-          </div>
-        ))}
-      </div>}
+    <div style={{padding:15,textAlign:"left"}}>
+      {amostrasDestruir.map((a,i)=>(
+        <div key={i} onClick={()=>setModule("testemunho")} style={{background:"#dc2626",borderRadius:10,padding:"11px 13px",marginBottom:8,cursor:"pointer",color:W,fontSize:15,fontWeight:700}}>
+          Hoje é para deitar fora a amostra testemunho: {a.prato}.
+        </div>
+      ))}
 
-      <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:18,marginBottom:14,color:W}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:21,fontWeight:700}}>Olá, {nome}!</div>
-        <div style={{fontSize:12,opacity:.75,marginTop:2}}>{user.turma} — {h}</div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
-          <div style={{fontSize:11,opacity:.8}}>Registos diários: {diariosDone}/{MODS_DIARIOS.length}</div>
-          <div style={{fontSize:16,fontWeight:800,color:pct===100?"#bbf7d0":W}}>{pct}%</div>
-        </div>
-        <div style={{background:"rgba(255,255,255,.2)",borderRadius:6,height:6,marginTop:6}}>
-          <div style={{background:pct===100?"#16a34a":"#bae6fd",height:6,borderRadius:6,width:pct+"%",transition:"width .3s"}}/>
-        </div>
+      <div style={{background:"linear-gradient(135deg,"+V+","+V2+")",borderRadius:14,padding:"14px 16px",marginBottom:12,color:W}}>
+        <div style={{fontSize:22,fontWeight:700}}>Olá, {nome}!</div>
+        <div style={{fontSize:14,opacity:.85,marginTop:2}}>{user.turma} · {h} · Feito hoje: {feitos} de {passos.length}</div>
       </div>
 
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["modulos","Módulos"],["historico","Histórico do Dia"]].map(([id,lb])=>(
-          <button key={id} onClick={()=>setAba(id)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(aba===id?V:BE),background:aba===id?V:LC,color:aba===id?W:GR,fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{lb}</button>
+      {dividido&&(
+        <div style={{background:"#f5f3ff",border:"2px solid #7c3aed",borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#6d28d9",textTransform:"uppercase",letterSpacing:1}}>A tua tarefa hoje</div>
+          {souLider&&<div style={{fontSize:15.5,fontWeight:700,color:"#4c1d95",marginTop:4}}>És o líder da equipa: no fim, confirmas que está tudo feito e fechas a aula.</div>}
+          {minhasTarefas.map(t=><div key={t.id} style={{fontSize:15.5,color:"#4c1d95",marginTop:4}}><b>{t.lb}</b>: {t.dica}</div>)}
+          {!souLider&&!minhasTarefas.length&&<div style={{fontSize:15,color:"#4c1d95",marginTop:4}}>Hoje não tens nenhum registo da turma. Ajuda na limpeza e faz os registos da tua produção.</div>}
+          <div style={{fontSize:13,color:"#6d28d9",marginTop:6}}>Líder: {nomeDe(div.alunoId)}</div>
+        </div>
+      )}
+
+      {passoAgora?(
+        <div style={{background:"#fef9c3",border:"3px solid #eab308",borderRadius:16,padding:"14px 16px",marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#854d0e",textTransform:"uppercase",letterSpacing:1}}>Agora</div>
+          <div style={{fontSize:24,fontWeight:800,color:"#713f12",marginTop:2}}>{passoAgora.lb}</div>
+          <div style={{fontSize:16,color:"#713f12",margin:"4px 0 12px",lineHeight:1.4}}>{passoAgora.dica}</div>
+          <button onClick={()=>setModule(passoAgora.mod)} style={{background:"#eab308",border:"none",borderRadius:11,padding:"12px 22px",color:W,fontSize:17,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>Começar ›</button>
+        </div>
+      ):(
+        <div style={{background:"#dcfce7",border:"2px solid #16a34a",borderRadius:16,padding:"14px 16px",marginBottom:12}}>
+          <div style={{fontSize:18,fontWeight:800,color:"#14532d"}}>{fimDaAula?(passos.every(p=>p.feito)?"Está tudo registado. Bom trabalho!":"Os teus registos estão feitos."):"O início da aula está registado."}</div>
+          {!fimDaAula&&<div style={{fontSize:15,color:"#14532d",marginTop:4,lineHeight:1.4}}>Agora é a produção: regista o que for acontecendo (vê a lista abaixo).</div>}
+        </div>
+      )}
+
+      {titulo("1. Início da aula")}
+      {passos.filter(p=>p.fase==="inicio").map(linhaPasso)}
+
+      {titulo("2. Durante a produção","Cada um regista o que faz, quando acontece.")}
+      <div style={{background:inicioFeito&&!fimDaAula?"#f0fdf4":W,border:"1.5px solid "+BE,borderRadius:12,overflow:"hidden",marginBottom:7}}>
+        {PRODUCAO.map((x,i)=>(
+          <button key={x.mod} onClick={()=>setModule(x.mod)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,background:"transparent",border:"none",borderTop:i?"1px solid "+LC:"none",padding:"11px 13px",cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>
+            <span style={{flex:1}}>
+              <span style={{display:"block",fontSize:15,color:"#334155"}}>{x.q}</span>
+              <span style={{display:"block",fontSize:15.5,fontWeight:700,color:"#0c4a6e"}}>{x.lb}{x.n?" · já registaste "+x.n:""}</span>
+            </span>
+            <span style={{fontSize:18,color:GR}}>›</span>
+          </button>
         ))}
       </div>
 
-      {aba==="modulos"&&<div>
-        <div style={{fontSize:11,fontWeight:800,color:"#0e7490",textTransform:"uppercase",letterSpacing:1,marginBottom:8,borderLeft:"3px solid #0e7490",paddingLeft:8}}>Registos HACCP Obrigatórios Diários</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-          {MODS_DIARIOS.map(m=>{
-            const feito=!!feitoMap[m.id];
-            const fullWidth=m.id==="encerramento";
-            const bg=fullWidth?(feito?"#16a34a":"#0369a1"):(feito?"#16a34a":"#0e7490");
-            const shadow=fullWidth?"0 4px 12px rgba(3,105,161,.35)":"0 4px 12px rgba(14,116,144,.3)";
-            return(
-              <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:bg,border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:shadow}}>
-                {feito&&<div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.8)",textTransform:"uppercase",letterSpacing:.5,marginBottom:4,textAlign:fullWidth?"center":"left"}}>✓ Feito</div>}
-                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3,textAlign:fullWidth?"center":"left"}}>{m.lb}</div>
-              </button>
-            );
-          })}
-        </div>
+      {titulo("3. Fim da aula",fimDaAula?"":"Quando faltarem uns 45 minutos para acabar a aula.")}
+      {passos.filter(p=>p.fase==="fim").map(linhaPasso)}
 
-        <div style={{fontSize:11,fontWeight:800,color:"#db2777",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:8,borderLeft:"3px solid #db2777"}}>Registos HACCP Específicos / Quando Aplicável</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-          {MODS_ESPECIFICOS.map(m=>{
-            const fullWidth=m.id==="naoConf";
-            return(
-              <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:fullWidth?"#9d174d":"#db2777",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:fullWidth?"0 4px 12px rgba(157,23,77,.35)":"0 4px 12px rgba(219,39,119,.25)"}}>
-                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3,textAlign:fullWidth?"center":"left"}}>{m.lb}</div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{fontSize:11,fontWeight:800,color:"#d97706",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingLeft:8,borderLeft:"3px solid #d97706"}}>Gestão da Cozinha</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {MODS_GESTAO.map(m=>{
-            const fullWidth=m.id==="faltas";
-            return(
-              <button key={m.id} onClick={()=>setModule(m.id)} style={{gridColumn:fullWidth?"1 / -1":"auto",background:fullWidth?"#92400e":"#d97706",border:"none",borderRadius:13,padding:"16px 12px",cursor:"pointer",textAlign:"left",boxShadow:fullWidth?"0 4px 12px rgba(146,64,14,.35)":"0 4px 12px rgba(217,119,6,.25)"}}>
-                <div style={{fontSize:12,fontWeight:700,color:W,lineHeight:1.4,textTransform:"uppercase",letterSpacing:.3,textAlign:fullWidth?"center":"left"}}>{m.lb}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>}
-
-      {aba==="historico"&&<div>
-        <div style={{fontFamily:"Georgia,serif",fontSize:16,fontWeight:700,color:V,marginBottom:12}}>Histórico — {h}</div>
-        <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-            <span style={{fontSize:12,fontWeight:600,color:V}}>Registos diários</span>
-            <span style={{fontSize:12,fontWeight:700,color:diariosDone===MODS_DIARIOS.length?V:CA}}>{diariosDone}/{MODS_DIARIOS.length}</span>
-          </div>
-          <Pg val={diariosDone} max={MODS_DIARIOS.length}/>
-        </div>
-        {MODS_DIARIOS.map(m=>(
-          <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid "+LC}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:22,height:22,borderRadius:6,background:feitoMap[m.id]?"#16a34a":"transparent",border:"2px solid "+(feitoMap[m.id]?"#16a34a":BE),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                {feitoMap[m.id]&&<span style={{color:W,fontSize:11,fontWeight:700}}>v</span>}
-              </div>
-              <div style={{fontSize:13,fontWeight:feitoMap[m.id]?600:400,color:feitoMap[m.id]?"#16a34a":GR}}>{m.lb}</div>
-            </div>
-            <span style={{fontSize:12,fontWeight:700,color:feitoMap[m.id]?"#16a34a":R}}>{feitoMap[m.id]?"OK":"Por fazer"}</span>
-          </div>
+      <button onClick={()=>setVerMais(v=>!v)} style={{width:"100%",marginTop:12,padding:"12px",borderRadius:12,border:"1.5px dashed "+BE,background:"transparent",color:GR,fontSize:15,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+        {verMais?"Esconder os outros registos":"Outros registos (quando o professor pedir)"}
+      </button>
+      {verMais&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
+        {MAIS.map(m=>(
+          <button key={m.id} onClick={()=>setModule(m.id)} style={{background:W,border:"1.5px solid "+BE,borderRadius:11,padding:"12px 10px",cursor:"pointer",textAlign:"left",fontSize:14.5,fontWeight:600,color:"#0c4a6e",fontFamily:"inherit"}}>{m.lb}</button>
         ))}
       </div>}
     </div>
@@ -1161,6 +1230,15 @@ function Temperaturas({user,db,setDb,showToast}){
   return(
     <div style={{padding:15}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700}}>Temperaturas</div><InfoBtn modId="temperaturas"/></div>
+      {/* Registo da turma já feito por um colega ou por outra turma: não se repete (Rosa, out/2026). */}
+      {(()=>{
+        const nomeDe=r=>(r.nomeAluno||(db.assinaturas&&db.assinaturas[r.aluno])||String(r.aluno||"")).split(" ")[0];
+        const outra=!sv&&TURMAS_ECL.find(t=>t!==user.turma&&db.temperaturas&&db.temperaturas["temp-"+t+"-"+h+"-"+momento]);
+        const ro=outra&&db.temperaturas["temp-"+outra+"-"+h+"-"+momento];
+        const txt=sv&&sv.aluno!==user.id?"Estas temperaturas já foram registadas por "+nomeDe(sv)+(sv.time?" às "+sv.time:"")+". Não precisas de repetir."
+          :ro?"As temperaturas "+(momento==="inicio"?"do início":"do fim")+" já foram medidas hoje pela "+outra+(ro.time?" às "+ro.time:"")+". Não precisas de repetir.":"";
+        return txt?<div style={{background:"#dcfce7",border:"2px solid #16a34a",borderRadius:12,padding:"11px 13px",marginBottom:12,fontSize:15,fontWeight:600,color:"#14532d"}}>✓ {txt}</div>:null;
+      })()}
       <div style={{display:"flex",gap:8,marginBottom:14}}>
         {["inicio","final"].map(m=>{
           const feito=m==="inicio"?!!svI:!!svF;
@@ -1291,7 +1369,7 @@ function Recepcao({user,db,setDb,showToast}){
   const [np,setNp]=useState({categoria:"",nome:"",quantidade:"",lote:"",validade:"",conforme:"conforme",temperatura:""});
   const lista=(db.recepcao||[]).filter(r=>r.turma===user.turma).slice(-10).reverse();
   // Refrigerados e congelados: a temperatura mede-se à chegada e é obrigatória.
-  const pedeTemp=["Carne","Peixe","Laticinios","Congelados"].includes(np.categoria);
+  const pedeTemp=["Carne","Peixe","Laticínios","Congelados"].includes(np.categoria);
   const addP=()=>{if(!np.categoria||!np.nome)return;if(pedeTemp&&String(np.temperatura).trim()===""){showToast("Mede e escreve a temperatura do produto.");return;}setProds(p=>[...p,{...np,temperatura:pedeTemp||String(np.temperatura).trim()?np.temperatura:"",id:Date.now()}]);setNp({categoria:"",nome:"",quantidade:"",lote:"",validade:"",conforme:"conforme",temperatura:""});};
   const save=()=>{
     if(!form.fornecedor||!form.fatura)return;
@@ -1363,17 +1441,17 @@ function Recepcao({user,db,setDb,showToast}){
 const TABELA_ALIMENTOS={
   "Carnes":[
     {prod:"Carne bovina crua",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-5 dias",frig_vacuo:"30-40 dias",cong_normal:"6 meses",cong_vacuo:"2-3 anos"},
-    {prod:"Carne bovina confeccionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Carne bovina confecionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"2-3 anos"},
     {prod:"Carne suína crua",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-5 dias",frig_vacuo:"15 dias",cong_normal:"4-6 meses",cong_vacuo:"18 meses"},
-    {prod:"Carne suína confeccionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"15 meses"},
+    {prod:"Carne suína confecionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"15 meses"},
     {prod:"Carne picada crua",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-5 dias",cong_normal:"4 meses",cong_vacuo:"1 ano"},
     {prod:"Hambúrguer cru",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-6 dias",cong_normal:"3-4 meses",cong_vacuo:"1 ano"},
-    {prod:"Hambúrguer confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"1 ano"},
+    {prod:"Hambúrguer confecionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"1 ano"},
   ],
   "Aves":[
     {prod:"Frango/Peru inteiro cru",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"6-9 dias",cong_normal:"1 ano",cong_vacuo:"2-3 anos"},
     {prod:"Frango/Peru peças cruas",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"6-9 dias",cong_normal:"9 meses",cong_vacuo:"2 anos"},
-    {prod:"Frango/Peru confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"6-9 dias",cong_normal:"4-6 meses",cong_vacuo:"2-3 anos"},
+    {prod:"Frango/Peru confecionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"6-9 dias",cong_normal:"4-6 meses",cong_vacuo:"2-3 anos"},
     {prod:"Frango frito",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4 meses",cong_vacuo:"1-2 anos"},
   ],
   "Carnes Frias e Enchidos":[
@@ -1387,10 +1465,10 @@ const TABELA_ALIMENTOS={
   "Peixe e Marisco":[
     {prod:"Peixe magro cru (bacalhau, pescada)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"7-8 dias",cong_normal:"6 meses",cong_vacuo:"10-12 meses"},
     {prod:"Peixe gordo cru (salmão, atum)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-6 dias",cong_normal:"6 meses",cong_vacuo:"10-12 meses"},
-    {prod:"Peixe confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4-6 meses",cong_vacuo:"1-2 anos"},
+    {prod:"Peixe confecionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"4-6 meses",cong_vacuo:"1-2 anos"},
     {prod:"Peixe fumado (vácuo)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"14 dias",frig_vacuo:"21 dias",cong_normal:"2 meses",cong_vacuo:"6 meses"},
     {prod:"Camarão/Marisco cru",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"1-2 dias",frig_vacuo:"4-5 dias",cong_normal:"3-6 meses",cong_vacuo:"10-12 meses"},
-    {prod:"Camarão/Marisco confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"3 meses",cong_vacuo:"9 meses"},
+    {prod:"Camarão/Marisco confecionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"3 meses",cong_vacuo:"9 meses"},
   ],
   "Laticínios":[
     {prod:"Leite",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"7 dias",frig_vacuo:"21 dias",cong_normal:"3 meses",cong_vacuo:"6 meses"},
@@ -1411,14 +1489,14 @@ const TABELA_ALIMENTOS={
     {prod:"Maionese — após abertura",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"2 meses",frig_vacuo:"6 meses",cong_normal:"-",cong_vacuo:"-"},
   ],
   "Preparações e Sopas":[
-    {prod:"Sopa/Caldo confeccionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"6 meses"},
+    {prod:"Sopa/Caldo confecionado",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"2-3 meses",cong_vacuo:"6 meses"},
     {prod:"Arroz seco (cru)",estado:"cru",amb_normal:"1 ano",amb_vacuo:"2-3 anos",frig_normal:"-",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
     {prod:"Arroz cozido",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"6-8 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
     {prod:"Massa seca (crua)",estado:"cru",amb_normal:"1 ano",amb_vacuo:"2-3 anos",frig_normal:"-",frig_vacuo:"-",cong_normal:"-",cong_vacuo:"-"},
     {prod:"Massa cozida",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
     {prod:"Massa fresca (crua)",estado:"cru",amb_normal:"-",amb_vacuo:"-",frig_normal:"2-3 dias",frig_vacuo:"15-30 dias",cong_normal:"2-3 meses",cong_vacuo:"8 meses"},
     {prod:"Lasanha/Massa com molho",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"10-15 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
-    {prod:"Pizza confeccionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"10-20 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
+    {prod:"Pizza confecionada",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"10-20 dias",cong_normal:"1-2 meses",cong_vacuo:"6 meses"},
     {prod:"Risoto cozido",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-12 dias",cong_normal:"1-2 meses",cong_vacuo:"4-6 meses"},
     {prod:"Pratos de molho (estufados)",estado:"confeccionado",amb_normal:"-",amb_vacuo:"-",frig_normal:"3-4 dias",frig_vacuo:"8-10 dias",cong_normal:"2-3 meses",cong_vacuo:"12 meses"},
   ],
@@ -1588,7 +1666,7 @@ function Producao({user,db,setDb,showToast}){
   const save=()=>{if(!form.nome||!form.dataLimite)return;const prod={...form,lote:nL,aluno:user.id,turma:user.turma,date:gD(),time:gT(),id:Date.now()};setDb(p=>({...p,producao:[...(p.producao||[]),prod]}));setShow(false);enviar("Produção",[gD(),user.turma,user.id,form.nome,nL,form.conservacao,form.dataProducao,form.dataLimite,form.local,form.professor,gT(),(db.assinaturas&&db.assinaturas[user.id])||""]);showToast("Produto registado! Lote: "+nL);};
   return(
     <div style={{padding:15}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Prod. Confeccionados e Conservação</div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,marginBottom:14}}>Produtos confecionados e Conservação</div>
       <B lb="+ Registar Produto" onClick={()=>setShow(!show)}/>
       {show&&<Cd st={{marginTop:10}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><span style={{fontWeight:600,color:CA}}>Novo Produto</span><span style={{background:CA,color:W,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:600}}>Lote {nL}</span></div>
@@ -2195,6 +2273,56 @@ function enviarDecisaoNC(nc,novoEstado,medida,quem){
   enviar("NãoConformidades",[gD(),gT(),nc.turma||"",nc.responsavel,nc.nomeAluno||"",nc.zona,prefixo+nc.descricao,medida||nc.medidaCorretiva||"",novoEstado,quem]);
 }
 
+// O professor decide se a turma divide o trabalho hoje (Rosa, out/2026).
+function DivisaoDoTrabalho({turma,db,setDb,user,showToast}){
+  const k=chaveDivisao(turma);
+  const atual=(db.divisoes&&db.divisoes[k])||null;
+  const [ativa,setAtiva]=useState(!!(atual&&atual.ativa));
+  const [lider,setLider]=useState((atual&&atual.alunoId)||"");
+  const [resp,setResp]=useState((atual&&atual.responsaveis)||{});
+  useEffect(()=>{const a=(db.divisoes&&db.divisoes[k])||null;setAtiva(!!(a&&a.ativa));setLider((a&&a.alunoId)||"");setResp((a&&a.responsaveis)||{});},[turma]);
+  useEffect(()=>{lerDivisao(turma).then(d=>{if(d){setDb(p=>({...p,divisoes:{...(p.divisoes||{}),[k]:d}}));setAtiva(!!d.ativa);setLider(d.alunoId||"");setResp(d.responsaveis||{});}});},[turma]);
+  const alunos=(db.alunosList||[]).filter(a=>a.turma===turma&&a.estado!=="inativo").sort((a,b)=>Number(a.numero)-Number(b.numero));
+  const guardar=(sim)=>{
+    if(sim&&!lider){showToast("Escolha o líder da equipa.");return;}
+    const reg={planoAulaId:k,grupoId:"divisao",alunoId:sim?lider:"",turmaId:turma,definidoPor:user.id,definidoEm:new Date().toISOString(),ativa:sim,responsaveis:sim?resp:{}};
+    setDb(p=>({...p,divisoes:{...(p.divisoes||{}),[k]:reg}}));
+    guardarDivisao(reg);
+    setAtiva(sim);
+    showToast(sim?"Divisão do trabalho guardada. Os alunos veem-na no KitchenFlow.":"Sem divisão do trabalho: o professor organiza.");
+  };
+  const sel=(val,on)=>(
+    <select value={val||""} onChange={e=>on(e.target.value)} style={{width:"100%",padding:"9px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:"#0c4a6e",fontFamily:"inherit"}}>
+      <option value="">— Escolher aluno —</option>
+      {alunos.map(a=><option key={a.id} value={a.id}>{a.numero}. {a.nome}</option>)}
+    </select>
+  );
+  return(
+    <Cd st={{borderLeft:"4px solid #7c3aed",textAlign:"left"}}>
+      <div style={{fontWeight:800,fontSize:15,color:"#6d28d9"}}>Divisão do trabalho hoje — {turma}</div>
+      <div style={{fontSize:13,color:GR,margin:"4px 0 10px",lineHeight:1.5}}>
+        Se dividir, a turma tem um líder, que confirma tudo no fim e fecha a aula, e um responsável por cada registo da turma.
+        Se não dividir, organiza o trabalho à sua maneira.
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:ativa?10:0}}>
+        <button onClick={()=>{if(ativa)guardar(false);}} style={{flex:1,padding:9,borderRadius:9,border:"2px solid "+(!ativa?"#6d28d9":BE),background:!ativa?"#6d28d9":W,color:!ativa?W:"#6d28d9",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Não dividir</button>
+        <button onClick={()=>setAtiva(true)} style={{flex:1,padding:9,borderRadius:9,border:"2px solid "+(ativa?"#6d28d9":BE),background:ativa?"#6d28d9":W,color:ativa?W:"#6d28d9",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Dividir o trabalho</button>
+      </div>
+      {ativa&&<>
+        <div style={{fontSize:12.5,fontWeight:700,color:"#6d28d9",margin:"6px 0 4px"}}>Líder da equipa</div>
+        {sel(lider,setLider)}
+        {TAREFAS_DIVISAO.map(t=>(
+          <div key={t.id} style={{marginTop:8}}>
+            <div style={{fontSize:12.5,fontWeight:700,color:"#6d28d9",marginBottom:4}}>{t.lb}</div>
+            {sel(resp[t.id],v=>setResp(r=>({...r,[t.id]:v})))}
+          </div>
+        ))}
+        <div style={{marginTop:12}}><B lb="Guardar e avisar a turma" onClick={()=>guardar(true)} cor="#6d28d9"/></div>
+      </>}
+    </Cd>
+  );
+}
+
 function Professor({user,db,setDb,showToast}){
   const [turma,setT]=useState(()=>{const pf=PROFESSORES_ECL.find(x=>x.nome===user.id);return (pf&&pf.turmas[0])||TURMAS_ECL[0];});
   const [obs,setObs]=useState("");
@@ -2270,6 +2398,7 @@ function Professor({user,db,setDb,showToast}){
       )}
       <div>
         <div style={{display:"flex",gap:7,marginBottom:13}}>{TURMAS_ECL.map(t=><button key={t} onClick={()=>setT(t)} style={{flex:1,padding:10,borderRadius:9,border:"2px solid "+(turma===t?V:BE),background:turma===t?V:W,color:turma===t?W:V,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>)}</div>
+        <DivisaoDoTrabalho turma={turma} db={db} setDb={setDb} user={user} showToast={showToast}/>
         <div style={{background:W,borderRadius:11,padding:"9px 13px",marginBottom:13}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,fontWeight:600,color:V}}>Verificados</span><span style={{fontSize:12,fontWeight:700,color:ok?V:CA}}>{tot}/{PC.length}</span></div><Pg val={tot} max={PC.length}/></div>
         <Cd>{PC.map(item=>{const v=ver[item.id];return(<div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid "+LC}}><div style={{flex:1,fontSize:13,color:V}}>{item.lb}{v&&<span style={{fontSize:10,color:v.conf?V:"#d35400",marginLeft:6}}>{v.conf?"OK":"NC"} {v.time}</span>}</div><div style={{display:"flex",gap:4}}><button onClick={()=>mk(item.id,false)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&!v.conf?"#d35400":BE),background:v&&!v.conf?"#fff3e0":"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:"#d35400"}}>NC</button><button onClick={()=>mk(item.id,true)} style={{padding:"5px 9px",borderRadius:6,border:"1.5px solid "+(v&&v.conf?V:BE),background:v&&v.conf?V:"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",color:v&&v.conf?W:V}}>OK</button></div></div>);})}</Cd>
         {ncs.length>0&&<Cd st={{borderLeft:"4px solid "+R}}>
@@ -3355,8 +3484,8 @@ function Coordenadora({user,db,setDb,showToast}){
 const EQUIP_LISTA=[
   {id:"cong_vert",nome:"Arca Congeladora Vertical",tipo:"Frio",icone:"C",desc:"Arcas congeladoras verticais (x3)"},
   {id:"cong_horiz",nome:"Arca Congeladora Horizontal",tipo:"Frio",icone:"C",desc:"Arcas congeladoras horizontais"},
-  {id:"frig_vert",nome:"Frigorifico Vertical",tipo:"Frio",icone:"F",desc:"Frigorificos verticais (x4)"},
-  {id:"frig_banc",nome:"Frigorifico de Bancada",tipo:"Frio",icone:"F",desc:"Frigorificos de bancada (x5)"},
+  {id:"frig_vert",nome:"Frigorífico Vertical",tipo:"Frio",icone:"F",desc:"Frigoríficos verticais (x4)"},
+  {id:"frig_banc",nome:"Frigorífico de Bancada",tipo:"Frio",icone:"F",desc:"Frigoríficos de bancada (x5)"},
   {id:"abatedor",nome:"Abatedor de Temperatura",tipo:"Frio",icone:"A",desc:"Abatedores (x2)"},
   {id:"forno",nome:"Forno",tipo:"Calor",icone:"F",desc:"Fornos (x2)"},
   {id:"vacuo",nome:"Maquina de Vacuo",tipo:"Preparacao",icone:"V",desc:"Maquinas de vacuo (x2)"},
@@ -3391,10 +3520,10 @@ const PLANO_HIG={
     "Cuba e ralos — limpar e desinfetar",
     "Caixotes do lixo — esvaziar, lavar e desinfetar",
     "Copa — maquinas de lavagem, loica e bancadas",
-    "Frigorifico — verificar temperaturas e limpeza exterior",
+    "Frigorífico — verificar temperaturas e limpeza exterior",
   ],
   semanal:[
-    "Frigorificos — limpeza interior completa",
+    "Frigoríficos — limpeza interior completa",
     "Congeladores — verificar acumulacao de gelo",
     "Prateleiras e armarios — limpeza completa",
     "Paredes e azulejos — limpeza e desinfecao",
@@ -4308,9 +4437,9 @@ function ConservacaoProd({user,db,setDb,showToast}){
 
         {step===1&&<Cd>
           <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 1 — Estado do produto</div>
-          <div style={{fontSize:11,color:GR,marginBottom:14}}>O produto está cru/fresco ou já foi confeccionado?</div>
+          <div style={{fontSize:11,color:GR,marginBottom:14}}>O produto está cru/fresco ou já foi confecionado?</div>
           {btnStep("🥬  Cru / Fresco (não processado)",()=>{setForm(p=>({...p,estado:"cru"}));setStep(2);})}
-          {btnStep("🍳  Confeccionado (cozido, assado, frito, etc.)",()=>{setForm(p=>({...p,estado:"confeccionado"}));setStep(2);})}
+          {btnStep("🍳  Confecionado (cozido, assado, frito, etc.)",()=>{setForm(p=>({...p,estado:"confeccionado"}));setStep(2);})}
           <div style={{background:"#fef3c7",borderRadius:9,padding:"10px 12px",marginTop:4,fontSize:11,color:"#92400e",borderLeft:"3px solid #d97706"}}>
             ♨️ Para registar <strong>Regeneração</strong> (reaquecimento), usa o módulo específico <strong>"Regeneração"</strong> no menu principal.
           </div>
@@ -4327,17 +4456,17 @@ function ConservacaoProd({user,db,setDb,showToast}){
         {stepBar}
         {step===2&&<Cd>
           <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 2 — Temperatura de conservação</div>
-          <div style={{fontSize:11,color:GR,marginBottom:14}}>Estado: <strong>{form.estado==="cru"?"Cru/Fresco":"Confeccionado"}</strong></div>
+          <div style={{fontSize:11,color:GR,marginBottom:14}}>Estado: <strong>{form.estado==="cru"?"Cru/Fresco":"Confecionado"}</strong></div>
           {form.estado==="cru"&&btnStep("🌡️  Temperatura ambiente — Economato",()=>{setForm(p=>({...p,temperatura:"ambiente"}));setStep(3);},"🌡️")}
           {btnStep("❄️  Frigorífico (0°C a 4°C)",()=>{setForm(p=>({...p,temperatura:"frigorifico"}));setStep(3);})}
           {btnStep("🧊  Congelador (≤ -18°C)",()=>{setForm(p=>({...p,temperatura:"congelador"}));setStep(3);})}
-          {form.estado==="confeccionado"&&<div style={{background:"#fef3c7",borderRadius:8,padding:"8px 12px",marginTop:4,fontSize:11,color:"#92400e"}}>Produtos confeccionados devem sempre ir para frigorífico ou congelador — nunca temperatura ambiente!</div>}
+          {form.estado==="confeccionado"&&<div style={{background:"#fef3c7",borderRadius:8,padding:"8px 12px",marginTop:4,fontSize:11,color:"#92400e"}}>Produtos confecionados devem sempre ir para frigorífico ou congelador — nunca temperatura ambiente!</div>}
           <button onClick={()=>setStep(1)} style={{width:"100%",padding:10,borderRadius:9,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:12,cursor:"pointer",fontFamily:"inherit",marginTop:8}}>← Voltar</button>
         </Cd>}
 
         {step===3&&<Cd>
           <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 3 — Embalagem</div>
-          <div style={{fontSize:11,color:GR,marginBottom:14}}>{form.estado==="cru"?"Cru":"Confeccionado"} • {form.temperatura==="ambiente"?"Temperatura ambiente":form.temperatura==="frigorifico"?"Frigorífico":"Congelador"}</div>
+          <div style={{fontSize:11,color:GR,marginBottom:14}}>{form.estado==="cru"?"Cru":"Confecionado"} • {form.temperatura==="ambiente"?"Temperatura ambiente":form.temperatura==="frigorifico"?"Frigorífico":"Congelador"}</div>
           {btnStep("🔵  Com Vácuo (sem ar) — prazo muito superior",()=>{setForm(p=>({...p,embalagem:"vacuo"}));setStep(4);})}
           {btnStep("⬜  Sem Vácuo — embalagem normal",()=>{setForm(p=>({...p,embalagem:"normal"}));setStep(4);})}
           <div style={{background:"#e0f2fe",borderRadius:8,padding:"8px 12px",marginTop:4,fontSize:11,color:"#0369a1"}}>Com vácuo o prazo é aproximadamente <strong>5× superior</strong> ao prazo sem vácuo!</div>
@@ -4346,7 +4475,7 @@ function ConservacaoProd({user,db,setDb,showToast}){
 
         {step===4&&<Cd>
           <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 4 — Produto</div>
-          <div style={{fontSize:11,color:GR,marginBottom:12}}>{form.estado==="cru"?"Cru":"Confeccionado"} • {form.temperatura} • {form.embalagem==="vacuo"?"Com vácuo":"Sem vácuo"}</div>
+          <div style={{fontSize:11,color:GR,marginBottom:12}}>{form.estado==="cru"?"Cru":"Confecionado"} • {form.temperatura} • {form.embalagem==="vacuo"?"Com vácuo":"Sem vácuo"}</div>
           {!form.categoria?(
             <div>
               <div style={{fontSize:12,color:GR,marginBottom:8}}>Escolhe a categoria:</div>
@@ -4440,7 +4569,7 @@ function ConservacaoProd({user,db,setDb,showToast}){
         ))}
         <div style={{fontSize:10,color:GR,marginTop:8,lineHeight:1.6}}>
           V = Com Vácuo | Amb = Temperatura Ambiente | Frig = Frigorífico | Cong = Congelador<br/>
-          Fonte: FDA, USDA, Hamilton Beach, MR Vácuo — valores após abertura ou produto fresco/confeccionado<br/>
+          Fonte: FDA, USDA, Hamilton Beach, MR Vácuo — valores após abertura ou produto fresco/confecionado<br/>
           Para produtos não listados: prazo com vácuo = prazo sem vácuo ×5
         </div>
       </div>}
@@ -4927,7 +5056,7 @@ function Regeneracao({user,db,setDb,showToast}){
       {step===1&&<div>
         <Cd>
           <div style={{fontSize:16,fontWeight:700,color:"#0c4a6e",marginBottom:6}}>Passo 1 — O produto está dentro do prazo?</div>
-          <div style={{fontSize:12,color:GR,marginBottom:14}}>Indica quando foi confeccionado e como foi guardado</div>
+          <div style={{fontSize:12,color:GR,marginBottom:14}}>Indica quando foi confecionado e como foi guardado</div>
           <Ip lb="Data de confeção" type="date" val={form.dataConfeacao} onChange={v=>setForm(p=>({...p,dataConfeacao:v}))}/>
           <div style={{display:"flex",gap:8,marginBottom:10}}>
             {["refrigerado","congelado"].map(v=>(
@@ -5099,6 +5228,9 @@ export default function App(){
       return;
     }
     // Login aluno — guardar parâmetros para usar depois do fetch da Sheet
+    // Entrou pela Avaliação ECL: a farda, as mãos e a presença já lá ficam
+    // registadas, por isso não se repetem aqui (Rosa, out/2026).
+    if(turmaParam&&numParam&&pinParam&&tipoParam==='aluno'){try{sessionStorage.setItem("kf_vem_avaliacao","1");}catch{}}
     if(turmaParam&&numParam&&pinParam&&tipoParam==='aluno'){
       window.__kf_login_params={turma:turmaParam,numero:numParam,pin:pinParam};
     }
@@ -5141,14 +5273,14 @@ export default function App(){
   const showToast=useCallback(msg=>setToast(msg),[]);
   useEffect(()=>{try{localStorage.setItem("kf_db",JSON.stringify(db));}catch{}},[db]);
   // Os registos dos outros telemóveis: ao entrar e depois de tempos a tempos,
-  // só com a aplicação à vista. Aluno: os de hoje, de 3 em 3 min; professor,
+  // só com a aplicação à vista. Aluno: os de hoje, de minuto e meio em minuto e meio; professor,
   // coordenadora e auxiliar: tudo, de minuto a minuto.
   useEffect(()=>{
     if(!user)return;
     const soDia=user.tipo==="aluno";
     const ir=()=>{if(document.visibilityState!=="hidden")sincronizarKF(setDb,soDia).catch(()=>{});};
     ir();
-    const t=setInterval(ir,soDia?180000:60000);
+    const t=setInterval(ir,soDia?90000:60000);
     return()=>clearInterval(t);
   },[user]);
   const logout=()=>{setUser(null);setMod(null);};
