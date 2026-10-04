@@ -1049,8 +1049,15 @@ async function lerDivisao(turma){
     return lista.find(x=>x&&x.planoAulaId===chaveDivisao(turma)&&x.grupoId==="divisao")||null;
   }catch{return null;}
 }
-function guardarDivisao(reg){
-  fetch(SHEETS_AVALIACAO_ECL_URL,{method:"POST",body:JSON.stringify({tipo:"lider_kf",...reg})}).catch(()=>{});
+/** Guarda a divisão e confirma que chegou (lê de volta); se não chegou, tenta outra vez (até 4 vezes). */
+async function guardarDivisao(reg){
+  for(let i=0;i<4;i++){
+    try{await fetch(SHEETS_AVALIACAO_ECL_URL,{method:"POST",body:JSON.stringify({tipo:"lider_kf",...reg})});}catch{}
+    await new Promise(r=>setTimeout(r,4000+i*6000));
+    const lida=await lerDivisao(reg.turmaId);
+    if(lida&&JSON.stringify(lida.responsaveis||{})===JSON.stringify(reg.responsaveis||{})&&!!lida.ativa===!!reg.ativa)return true;
+  }
+  return false;
 }
 
 // ── O dia do aluno, passo a passo (Rosa, out/2026) ───────────
@@ -2398,9 +2405,9 @@ function DivisaoDoTrabalho({turma,db,setDb,user,showToast}){
     if(sim&&!lider){showToast("Escolha o líder da equipa.");return;}
     const reg={planoAulaId:k,grupoId:"divisao",alunoId:sim?lider:"",turmaId:turma,definidoPor:user.id,definidoEm:new Date().toISOString(),ativa:sim,responsaveis:sim?resp:{}};
     setDb(p=>({...p,divisoes:{...(p.divisoes||{}),[k]:reg}}));
-    guardarDivisao(reg);
     setAtiva(sim);
-    showToast(sim?"Divisão do trabalho guardada. Os alunos veem-na no KitchenFlow.":"Sem divisão do trabalho: o professor organiza.");
+    showToast("A guardar… pode continuar a trabalhar.");
+    guardarDivisao(reg).then(ok=>showToast(!ok?"⚠️ A divisão ainda não chegou aos alunos (sem rede?). Carregue outra vez em «Guardar e avisar a turma» daqui a pouco.":sim?"Divisão do trabalho guardada. Os alunos veem-na no KitchenFlow.":"Sem divisão do trabalho: o professor organiza."));
   };
   const sel=(val,on)=>(
     <select value={val||""} onChange={e=>on(e.target.value)} style={{width:"100%",padding:"9px 10px",borderRadius:8,border:"1.5px solid "+BE,fontSize:14,background:LC,color:"#0c4a6e",fontFamily:"inherit"}}>
