@@ -41,7 +41,15 @@ function postarKF(corpo){
   // (13/out/2026) E logo na base de dados: chega aos outros telemóveis num segundo.
   // O Sheets continua a ser o registo oficial (a fila acima não muda).
   if(corpo&&corpo.tabela&&Array.isArray(corpo.linha))gravarRegistoNaBase(id,corpo.tabela,corpo.linha).catch(()=>{});
+  if(corpo&&corpo.tabela&&Array.isArray(corpo.linha)){try{window.dispatchEvent(new CustomEvent("kf-registo",{detail:{tabela:corpo.tabela,linha:corpo.linha}}));}catch{}}
 }
+// ── Veio de um passo da ficha técnica (Rosa, 13/out/2026) ─────
+// «Os alunos não percebem o que têm de fazer quando carregam»: o registo abre
+// já nas perguntas, com o prato preenchido; o topo diz de onde vem, o que a
+// ficha pede e se alguém da turma já o registou hoje; no fim, «Voltar à ficha».
+const TABELA_DO_MODULO={testemunho:"Amostra Testemunho",conservacao:"Conservação Produtos",regeneracao:"Regeneração",servico:"Temperatura Serviço",desinfecao:"Desinfeção",oleos:"Controlo Óleos"};
+function daFicha(modulo?:string){const f=typeof window!=="undefined"&&(window as any).__kf_da_ficha;return f&&(!modulo||f.modulo===modulo)?f:null;}
+const semAc=t=>String(t??"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const enviar=(t,d)=>postarKF(typeof d==="object"&&d&&!Array.isArray(d)&&d.linha?{tabela:t,...d}:{tabela:t,linha:d});
 function agendarFila(ms){if(filaTimer)clearTimeout(filaTimer);filaTimer=setTimeout(()=>{filaTimer=null;despacharFila();},ms);}
 async function despacharFila(){
@@ -1835,8 +1843,8 @@ function Producao({user,db,setDb,showToast}){
 }
 
 function Testemunho({user,db,setDb,showToast}){
-  const [form,setForm]=useState({prato:"",dataRefeicao:new Date().toISOString().split("T")[0],horaRefeicao:gT(),tipoRefeicao:"almoço",pesoAmostra:"150",localArmazenamento:"Frig. Vert. 1"});
-  const [aberto,setAberto]=useState(false);
+  const [form,setForm]=useState({prato:(daFicha("testemunho")||{}).prato||"",dataRefeicao:new Date().toISOString().split("T")[0],horaRefeicao:gT(),tipoRefeicao:"almoço",pesoAmostra:"150",localArmazenamento:"Frig. Vert. 1"});
+  const [aberto,setAberto]=useState(()=>!!daFicha("testemunho"));
   const lista=(db.testemunho||[]).filter(t=>t.turma===user.turma).slice(-5).reverse();
   const cD=d=>{if(!d)return"";const x=new Date(d);x.setDate(x.getDate()+3);return x.toISOString().split("T")[0];};
   const save=()=>{
@@ -1895,7 +1903,7 @@ function Testemunho({user,db,setDb,showToast}){
 
 function Desinfecao({user,db,setDb,showToast}){
   const [form,setForm]=useState({alimento:"",quantidade:"",produto:"",concentracao:"",tempoContacto:"5",temperatura:""});
-  const [aberto,setAberto]=useState(false);
+  const [aberto,setAberto]=useState(()=>!!daFicha("desinfecao"));
   const lista=(db.desinfecao||[]).filter(d=>d.turma===user.turma).slice(-5).reverse();
   const save=()=>{if(!form.alimento||!form.produto)return;const nomeD=(db.assinaturas&&db.assinaturas[user.id])||"";setDb(p=>({...p,desinfecao:[...(p.desinfecao||[]),{...form,responsavel:user.id,nomeAluno:nomeD,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));enviar("Desinfeção",[gD(),gT(),user.turma,user.id,nomeD,form.alimento,form.quantidade,form.produto,form.concentracao,form.tempoContacto,form.temperatura]);showToast("Desinfeção registada!");};
   return(
@@ -4293,7 +4301,7 @@ function HigienePessoal({user,db,setDb,showToast}){
 
 function Oleos({user,db,setDb,showToast}){
   const [form,setForm]=useState({equipamento:"Fritadeira 1",temperatura:"",cor:"normal",espuma:"nao",cheiro:"normal",teste:"ok",acao:"continua"});
-  const [aberto,setAberto]=useState(false);
+  const [aberto,setAberto]=useState(()=>!!daFicha("oleos"));
   const lista=(db.oleos||[]).filter(o=>o.turma===user.turma).slice(-10).reverse();
   const save=()=>{
     if(!form.temperatura)return;
@@ -4343,8 +4351,8 @@ function Oleos({user,db,setDb,showToast}){
 }
 
 function Servico({user,db,setDb,showToast}){
-  const [form,setForm]=useState({prato:"",tipo:"quente",tempInicio:gT(),temperatura:"",equipamento:""});
-  const [aberto,setAberto]=useState(false);
+  const [form,setForm]=useState({prato:(daFicha("servico")||{}).prato||"",tipo:"quente",tempInicio:gT(),temperatura:"",equipamento:""});
+  const [aberto,setAberto]=useState(()=>!!daFicha("servico"));
   const lista=(db.servico||[]).filter(s=>s.turma===user.turma&&s.date===gD()).slice(-8).reverse();
   const save=()=>{
     if(!form.prato||!form.temperatura)return;
@@ -4472,7 +4480,112 @@ function EtiquetaConservacao({produto,tipoProd,metodo,dataProducao,dataLimite,no
 }
 
 
-function ConservacaoProd({user,db,setDb,showToast}){
+function ConservacaoProd(props){
+  // Vindo da ficha técnica: o caminho curto (o produto já se sabe). «Fazer de outra
+  // maneira» volta ao registo de sempre.
+  const [normal,setNormal]=useState(false);
+  const f=daFicha("conservacao");
+  if(f&&!normal)return <ConservacaoDaFicha {...props} ficha={f} onNormal={()=>setNormal(true)}/>;
+  return <ConservacaoProdNormal {...props}/>;
+}
+/** Os produtos da tabela de prazos mais parecidos com o prato da ficha. */
+function produtosParecidos(prato){
+  const pal=w=>semAc(w).split(/[^a-z0-9]+/).filter(x=>x.length>=3).map(x=>x.replace(/s$/,""));
+  const p=new Set(pal(prato));
+  const PISTAS:[RegExp,string[]][]=[[/bolo|bolacha|tarte|sobremesa|mousse|pudim|doce|semifrio|torta|cheesecake/,["Bolos","Creme de pasteleiro"]],[/creme/,["Creme de pasteleiro"]],
+    [/arroz/,["Arroz cozido"]],[/risot/,["Risoto cozido"]],[/massa|esparguete|lasanha/,["Massa cozida","Lasanha/Massa com molho"]],[/sopa|caldo|veloute/,["Sopa/Caldo confecionado"]],
+    [/frango|peru|pato|aves/,["Frango/Peru confecionado"]],[/vitela|novilho|bovin|bife/,["Carne bovina confecionada"]],[/porco|suin|lombo/,["Carne suína confecionada"]],
+    [/estufad|guisad|caril|molho/,["Pratos de molho (estufados)"]],[/quiche/,["Quiche"]],[/pizza/,["Pizza confecionada"]],[/hamburg/,["Hambúrguer confecionado"]]];
+  const todos=Object.entries(TABELA_ALIMENTOS).flatMap(([cat,l])=>(l as any[]).filter(x=>x.estado==="confeccionado").map(x=>({...x,cat})));
+  const sp=semAc(prato);
+  return todos.map(x=>{let n=pal(x.prod).filter(w=>p.has(w)).length*2;PISTAS.forEach(([re,prods])=>{if(re.test(sp)&&prods.includes(x.prod))n+=3;});return {...x,n};})
+    .filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,3);
+}
+function ConservacaoDaFicha({user,db,setDb,showToast,ficha,onNormal}){
+  const prato=ficha.prato||"o produto";
+  const ondeFicha=ficha.onde==="congelador"?"congelador":ficha.onde==="abatedor"?"abatedor":"frigorifico";
+  const [passo,setPasso]=useState(1);
+  const [item,setItem]=useState(null);
+  const [dias,setDias]=useState("");
+  const [onde,setOnde]=useState(ondeFicha);
+  const [temp,setTemp]=useState("");
+  const [emb,setEmb]=useState("normal");
+  const [nc,setNc]=useState(false);
+  const parecidos=produtosParecidos(prato);
+  const nomeAluno=(db.assinaturas&&db.assinaturas[user.id])||user.id;
+  const nomeSitio={frigorifico:"frigorífico",abatedor:"abatedor",congelador:"congelador"}[onde];
+  const limite=onde==="congelador"?-18:4;
+  const tv=parseFloat(String(temp).replace(",","."));
+  const tempOk=!isNaN(tv)&&tv<=limite;
+  const limiteTxt=onde==="congelador"?"a −18 °C ou menos":"a 4 °C ou menos";
+  const dataLimite=()=>{
+    const hoje=new Date();
+    if(item===null){const n=parseInt(dias);if(isNaN(n))return "";hoje.setDate(hoje.getDate()+n);return hoje.toISOString().split("T")[0];}
+    const chave=(onde==="congelador"?"cong_":"frig_")+(emb==="vacuo"?"vacuo":"normal");
+    const prazo=String(item[chave]||"");const num=parseInt(prazo.split(/[- ×]/)[0]);if(!prazo||prazo==="-"||isNaN(num))return "";
+    const l=prazo.toLowerCase();
+    if(l.includes("ano"))hoje.setFullYear(hoje.getFullYear()+num);else if(l.includes("mes")||l.includes("mês"))hoje.setMonth(hoje.getMonth()+num);
+    else if(l.includes("semana"))hoje.setDate(hoje.getDate()+num*7);else hoje.setDate(hoje.getDate()+num);
+    return hoje.toISOString().split("T")[0];
+  };
+  const registarProblema=()=>{
+    const desc=(nomeSitio.charAt(0).toUpperCase()+nomeSitio.slice(1))+" a "+temp+" °C ao guardar «"+prato+"» (tem de estar "+limiteTxt+"). Não se guardou.";
+    setDb(p=>({...p,ncs:[...(p.ncs||[]),{id:Date.now()+Math.random(),date:gD(),time:gT(),zona:nomeSitio,descricao:desc,acaoCorretiva:"",responsavel:user.id,turma:user.turma,estado:"aberta",professor:""}]}));
+    enviar("NãoConformidades",[gD(),gT(),user.turma||"",user.id,nomeAluno,nomeSitio,desc,"","aberta"]);
+    setNc(true);setTemp("");
+    showToast("Problema registado. O professor vai ver.");
+  };
+  const guardar=()=>{
+    const dl=dataLimite();
+    const lote=String((db.conservacaoProd||[]).length+1).padStart(3,"0");
+    const temperatura=onde==="congelador"?"congelador":"frigorifico";
+    const notas="Da ficha"+(ficha.passo?" (passo "+ficha.passo+")":"")+". "+nomeSitio+" a "+temp+" °C."+(item?" Prazo como: "+item.prod+".":" Prazo dado pelo aluno: "+dias+" dias.");
+    const metodo=emb==="vacuo"?(temperatura==="congelador"?"vacuo_cong":"vacuo_frig"):(temperatura==="congelador"?"congelacao":"refrigeracao");
+    const dataProducao=new Date().toISOString().split("T")[0];
+    setDb(p=>({...p,conservacaoProd:[...(p.conservacaoProd||[]),{estado:"confeccionado",temperatura,embalagem:emb,categoria:item?item.cat:"manual",produto:prato,notas,dataProducao,metodo,dataLimite:dl,lote,aluno:user.id,nomeAluno,turma:user.turma,date:gD(),time:gT(),id:Date.now()}]}));
+    enviar("Conservação Produtos",[gD(),gT(),user.turma,user.id,nomeAluno,"confeccionado",prato,item?item.cat:"manual",temperatura,emb,notas,dataProducao,dl,lote]);
+  };
+  const Op=({sel,onClick,children,tag=""})=><button onClick={onClick} style={{width:"100%",textAlign:"left",padding:"13px 14px",marginTop:8,borderRadius:11,border:"2px solid "+(sel?"#0e7490":"#bae6fd"),background:sel?"#e0f2fe":"#f0f9ff",color:"#0c4a6e",fontSize:15,fontWeight:sel?800:600,cursor:"pointer",fontFamily:"inherit"}}>{children}{tag&&<span style={{float:"right",fontSize:11,fontWeight:800,color:"#0e7490"}}>{tag}</span>}</button>;
+  const Q=({n,titulo,ex="",children})=><Cd st={{}}><div style={{fontSize:12,color:GR,fontWeight:700}}>{n} de 4 · {prato}</div><div style={{fontSize:19,fontWeight:800,color:"#0c4a6e",margin:"3px 0 4px"}}>{titulo}</div>{ex&&<div style={{fontSize:13,color:"#475569"}}>{ex}</div>}{children}</Cd>;
+  const seguinte=(pode,ir)=><button disabled={!pode} onClick={ir} style={{width:"100%",minHeight:50,borderRadius:12,border:"none",background:pode?"#0e7490":"#cbd5e1",color:W,fontSize:17,fontWeight:800,cursor:pode?"pointer":"default",fontFamily:"inherit"}}>Seguinte</button>;
+  return(
+    <div style={{padding:15}}>
+      {passo===1&&<Q n={1} titulo="Para saber o prazo, qual é o mais parecido?">
+        {parecidos.map((x,i)=><Op key={x.prod} sel={item&&item.prod===x.prod} onClick={()=>setItem(x)} tag={i===0?"SUGERIDO":""}>{x.prod}</Op>)}
+        <Op sel={item===null&&dias!==""} onClick={()=>{setItem(null);if(dias==="")setDias(" ");}}>Nenhum destes</Op>
+        {item===null&&dias!==""&&<div style={{marginTop:10}}><div style={{fontSize:13,color:"#475569",marginBottom:6}}>Quantos dias se pode guardar? Pergunta ao professor.</div>
+          <input inputMode="numeric" value={dias.trim()} onChange={e=>setDias(e.target.value.replace(/[^0-9]/g,""))} style={{width:"100%",padding:12,fontSize:18,borderRadius:10,border:"2px solid #0e7490",boxSizing:"border-box"}} placeholder="Ex.: 3"/></div>}
+      </Q>}
+      {passo===1&&seguinte(!!item||parseInt(dias)>0,()=>setPasso(2))}
+      {passo===2&&<Q n={2} titulo="Onde fica guardado?">
+        {[["frigorifico","Frigorífico"],["abatedor","Abatedor"],["congelador","Congelador"]].map(([v,lb])=><Op key={v} sel={onde===v} onClick={()=>{setOnde(v);setNc(false);}} tag={v===ondeFicha?"DA FICHA":""}>{lb}</Op>)}
+      </Q>}
+      {passo===2&&seguinte(true,()=>setPasso(3))}
+      {passo===3&&<Q n={3} titulo="Que temperatura mostra o visor?" ex={"Tem de estar "+limiteTxt+"."}>
+        {nc&&<div style={{marginTop:8,fontSize:13,color:"#065f46",background:"#d1fae5",borderRadius:9,padding:"8px 10px"}}>O problema ficou registado. Escolhe outro {nomeSitio} (volta atrás) e mede outra vez.</div>}
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          {onde==="congelador"&&<button onClick={()=>setTemp(t=>String(t).startsWith("-")?String(t).slice(1):"-"+t)} style={{width:64,borderRadius:10,border:"2px solid #bae6fd",background:"#fff",fontSize:22,fontWeight:800,cursor:"pointer"}}>−</button>}
+          <input inputMode="decimal" value={temp} onChange={e=>setTemp(e.target.value.replace(/[^0-9,.-]/g,""))} placeholder={onde==="congelador"?"-18":"3"} style={{flex:1,padding:12,fontSize:22,borderRadius:10,border:"2px solid #0e7490",boxSizing:"border-box"}}/>
+        </div>
+        {temp!==""&&!isNaN(tv)&&(tempOk
+          ?<div style={{marginTop:8,fontSize:14,fontWeight:800,color:"#3e7a31"}}>✓ Pode guardar.</div>
+          :<div style={{marginTop:8,fontSize:14,color:"#a2382c",background:"#fdecea",borderRadius:9,padding:"9px 10px"}}><b>Não guardes aqui. Avisa o professor.</b> O {nomeSitio} tem de estar {limiteTxt}.
+            <button onClick={registarProblema} style={{display:"block",width:"100%",marginTop:8,padding:"10px",borderRadius:9,border:"none",background:"#c0392b",color:W,fontWeight:800,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Registar o problema para o professor</button></div>)}
+      </Q>}
+      {passo===3&&seguinte(tempOk,()=>setPasso(4))}
+      {passo===4&&<Q n={4} titulo="Como está embalado?">
+        <Op sel={emb==="normal"} onClick={()=>setEmb("normal")}>Tapado / caixa fechada</Op>
+        <Op sel={emb==="vacuo"} onClick={()=>setEmb("vacuo")}>Em vácuo</Op>
+      </Q>}
+      {passo===4&&<button onClick={guardar} style={{width:"100%",minHeight:52,borderRadius:12,border:"none",background:"#0e7490",color:W,fontSize:17,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>Guardar</button>}
+      <div style={{display:"flex",gap:8,marginTop:10}}>
+        {passo>1&&<button onClick={()=>setPasso(passo-1)} style={{flex:1,padding:10,borderRadius:10,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← Voltar</button>}
+        <button onClick={onNormal} style={{flex:1,padding:10,borderRadius:10,border:"1.5px solid #bae6fd",background:"transparent",color:GR,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Registar de outra maneira</button>
+      </div>
+    </div>
+  );
+}
+function ConservacaoProdNormal({user,db,setDb,showToast}){
   const [aba,setAba]=useState("registo");
   const [step,setStep]=useState(1);
   const [form,setForm]=useState({estado:"",temperatura:"",embalagem:"",categoria:"",produto:"",produtoManual:"",prazoManual:"",notas:"",dataProducao:new Date().toISOString().split("T")[0]});
@@ -4583,9 +4696,9 @@ function ConservacaoProd({user,db,setDb,showToast}){
 
         {step===1&&<Cd>
           <div style={{fontSize:15,fontWeight:700,color:"#0c4a6e",marginBottom:4}}>Passo 1 — Estado do produto</div>
-          <div style={{fontSize:11,color:GR,marginBottom:14}}>O produto está cru/fresco ou já foi confecionado?</div>
-          {btnStep("🥬  Cru / Fresco (não processado)",()=>{setForm(p=>({...p,estado:"cru"}));setStep(2);})}
-          {btnStep("🍳  Confecionado (cozido, assado, frito, etc.)",()=>{setForm(p=>({...p,estado:"confeccionado"}));setStep(2);})}
+          <div style={{fontSize:11,color:GR,marginBottom:14}}>É uma matéria-prima ou uma coisa preparada na aula?</div>
+          {btnStep("🥬  Matéria-prima, como chegou (cru ou embalado)",()=>{setForm(p=>({...p,estado:"cru"}));setStep(2);})}
+          {btnStep("🍳  Preparado na aula (cozinhado ou montado)",()=>{setForm(p=>({...p,estado:"confeccionado"}));setStep(2);})}
           <div style={{background:"#fef3c7",borderRadius:9,padding:"10px 12px",marginTop:4,fontSize:11,color:"#92400e",borderLeft:"3px solid #d97706"}}>
             ♨️ Para registar <strong>Regeneração</strong> (reaquecimento), usa o módulo específico <strong>"Regeneração"</strong> no menu principal.
           </div>
@@ -5123,9 +5236,9 @@ function InfoBtn({modId}){
 
 function Regeneracao({user,db,setDb,showToast}){
   const [step,setStep]=useState(1);
-  const [aberto,setAberto]=useState(false);
+  const [aberto,setAberto]=useState(()=>!!daFicha("regeneracao"));
   const [form,setForm]=useState({
-    prato:"",tipoProd:"",
+    prato:(daFicha("regeneracao")||{}).prato||"",tipoProd:"",
     horaInicio:gT(),horaFim:"",
     tempFinal:"",tempServico:"",
     equipamento:"",obs:"",
@@ -5332,6 +5445,68 @@ function Regeneracao({user,db,setDb,showToast}){
 }
 
 /** Aviso discreto: registos deste aparelho que ainda não chegaram ao Sheets. */
+const GUIA_DA_FICHA={
+  conservacao:f=>({t:"Registar "+(f.prato||"o produto")+" no "+(f.onde==="congelador"?"congelador":f.onde==="abatedor"?"abatedor":"frigorífico"),d:"São 4 perguntas. No fim tens o prazo e o lote para a etiqueta."}),
+  testemunho:()=>({t:"Registar a amostra testemunho",d:"O prato já vem preenchido: confirma as respostas e guarda."}),
+  regeneracao:()=>({t:"Registar a regeneração",d:"Escreve a temperatura que mediste no centro (75 °C ou mais)."}),
+  servico:()=>({t:"Registar a temperatura de serviço",d:"Escreve a temperatura que mediste com a sonda."}),
+  desinfecao:()=>({t:"Registar a desinfeção",d:"Diz o alimento, o produto, a dose e o tempo."}),
+  oleos:()=>({t:"Registar o óleo de fritura",d:"Diz a temperatura da fritadeira e como está o óleo."}),
+};
+/** Alguém da turma já registou hoje este prato neste registo? (a base de dados diz logo) */
+function jaRegistadoHoje(mod,user){
+  const f=daFicha(mod);if(!f||!user)return null;
+  const prato=semAc(f.prato);
+  if(!prato||["desinfecao","oleos"].includes(mod))return null;
+  return linhasDeHojeDaBase(TABELA_DO_MODULO[mod]).find(l=>String(l[2])===String(user.turma)&&semAc(l.slice(5).join(" ")).includes(prato))||null;
+}
+/** À frente de tudo (também das perguntas, que ocupam o ecrã): já está feito. */
+function JaFeitoAviso({ja,prato,onRegistar}){
+  const [fechou,setFechou]=useState(false);
+  return(<div style={{position:"fixed",inset:0,background:"rgba(12,74,110,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9998,padding:16}}>
+    <div style={{background:"#fff",borderRadius:16,padding:"20px 18px",maxWidth:380,width:"100%",textAlign:"center"}}>
+      <div style={{fontSize:38}}>👍</div>
+      <div style={{fontSize:19,fontWeight:800,color:"#0c4a6e",margin:"4px 0 8px"}}>Já está registado</div>
+      <div style={{fontSize:15,color:"#334155",lineHeight:1.5}}><b>{String(ja[4]||ja[3])}</b> registou hoje «{prato}» às {horaDaLinhaSheets(ja[1])}. Se é o mesmo prato do teu grupo, não precisas de repetir.</div>
+      <button onClick={()=>{try{window.close();}catch{}setTimeout(()=>setFechou(true),400);}} style={{width:"100%",minHeight:50,marginTop:14,borderRadius:12,border:"none",background:"#0e7490",color:W,fontSize:17,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>Voltar à ficha</button>
+      {fechou&&<div style={{fontSize:13,color:"#475569",marginTop:6}}>Fecha este separador e volta à aplicação da Avaliação.</div>}
+      <button onClick={onRegistar} style={{width:"100%",minHeight:44,marginTop:8,borderRadius:12,border:"1.5px solid #cbd5e1",background:"#fff",color:"#334155",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>É outro prato: registar na mesma</button>
+    </div>
+  </div>);
+}
+function GuiaDaFicha({mod,user}){
+  const f=daFicha(mod);const g=f&&GUIA_DA_FICHA[mod];
+  if(!g)return null;
+  const {t,d}=g(f);
+  const ja=jaRegistadoHoje(mod,user);
+  return(<div style={{margin:"10px 12px 0",borderRadius:12,background:"#e0f2fe",border:"2px solid #0369a1",padding:"10px 12px",color:"#0c4a6e",fontSize:14,lineHeight:1.45}}>
+    <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",opacity:.8}}>Vieste da ficha · {f.prato||"prato"}{f.passo?" · passo "+f.passo:""}</div>
+    <div style={{fontSize:17,fontWeight:800,margin:"2px 0 3px"}}>{t}</div>
+    <div>{d}</div>
+    {f.texto&&<div style={{fontSize:12.5,marginTop:4,opacity:.85}}>A ficha diz: «{f.texto.replace(/^PCC:\s*/i,"")}»</div>}
+    {ja&&<div style={{marginTop:8,background:"#fff7e6",border:"1px solid #f3d19e",borderRadius:9,padding:"8px 10px",color:"#7a4a00",fontSize:13.5}}>
+      ⚠️ Já registado hoje por <b>{String(ja[4]||ja[3])}</b> às {horaDaLinhaSheets(ja[1])}. Se é o mesmo prato do teu grupo, não precisas de repetir.</div>}
+  </div>);
+}
+function FeitoDaFicha({feito,onOutra}){
+  const [fechou,setFechou]=useState(false);
+  const l=feito.linha||[];
+  const conserv=feito.tabela==="Conservação Produtos";
+  const voltar=()=>{try{window.close();}catch{}setTimeout(()=>setFechou(true),400);};
+  return(<div style={{position:"fixed",inset:0,background:"rgba(12,74,110,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+    <div style={{background:"#fff",borderRadius:16,padding:"22px 18px",maxWidth:380,width:"100%",textAlign:"center"}}>
+      <div style={{fontSize:42}}>✅</div>
+      <div style={{fontSize:21,fontWeight:800,color:"#0c4a6e",margin:"4px 0 8px"}}>Registado às {horaDaLinhaSheets(l[1])}</div>
+      {conserv&&<div style={{margin:"10px 0",border:"2px dashed #0e7490",borderRadius:12,padding:10,textAlign:"left",fontSize:14.5,lineHeight:1.5}}>
+        Escreve na etiqueta:<br/><b>{l[6]}</b><br/>Lote <b>{l[13]}</b> · feito a {String(l[0]).slice(0,5)}<br/>Usar até <b>{l[12]?fD(l[12]):"—"}</b> · {l[8]==="congelador"?"congelador":"frigorífico"}</div>}
+      {feito.tabela==="Amostra Testemunho"&&l[10]&&<div style={{fontSize:14.5,margin:"8px 0"}}>Guarda a amostra até <b>{l[10]}</b>. Depois deita-a fora.</div>}
+      <div style={{fontSize:13.5,color:"#334155"}}>Ficou no registo da turma: o teu grupo já não precisa de o fazer.</div>
+      <button onClick={voltar} style={{width:"100%",minHeight:50,marginTop:14,borderRadius:12,border:"none",background:"#0e7490",color:W,fontSize:17,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>Voltar à ficha</button>
+      {fechou&&<div style={{fontSize:13,color:"#475569",marginTop:6}}>Fecha este separador e volta à aplicação da Avaliação.</div>}
+      <button onClick={onOutra} style={{width:"100%",minHeight:44,marginTop:8,borderRadius:12,border:"1.5px solid #cbd5e1",background:"#fff",color:"#334155",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Registar outra coisa</button>
+    </div>
+  </div>);
+}
 function AvisoFila(){
   const [n,setN]=useState(()=>porEnviar());
   useEffect(()=>{const fn=x=>setN(x);ouvintesFila.add(fn);const t=setInterval(()=>setN(porEnviar()),5000);return()=>{ouvintesFila.delete(fn);clearInterval(t);};},[]);
@@ -5362,6 +5537,8 @@ export default function App(){
     // A ficha técnica pode abrir logo o registo certo (um PCC: temperatura, testemunho…).
     const moduloParam=params.get('modulo')||params.get('mod')||'';
     if(moduloParam)(window as any).__kf_modulo=moduloParam;
+    if(moduloParam&&params.get('origem')==='ficha')(window as any).__kf_da_ficha={modulo:moduloParam,prato:(pratosParam.split('|')[0]||'').trim(),
+      passo:params.get('passo')||'',texto:params.get('pcc')||'',temp:params.get('tempFicha')||'',onde:params.get('onde')||''};
     if(ucParam||ucNomeParam||pratosParam){
       setContextoAula({uc:ucParam,ucNome:ucNomeParam,pratos:pratosParam.split('|').filter(Boolean)});
     }
@@ -5459,6 +5636,13 @@ export default function App(){
     const t=setInterval(ir,soDia?90000:60000);
     return()=>clearInterval(t);
   },[user]);
+  // O registo pedido pela ficha ficou feito: «Registado» e «Voltar à ficha».
+  const [feitoFicha,setFeitoFicha]=useState(null);
+  const [jaDispensado,setJaDispensado]=useState(false);
+  useEffect(()=>{
+    const fn=e=>{const d=e.detail||{};if(mod&&daFicha(mod)&&TABELA_DO_MODULO[mod]===d.tabela)setFeitoFicha(d);};
+    window.addEventListener("kf-registo",fn);return()=>window.removeEventListener("kf-registo",fn);
+  },[mod]);
   const logout=()=>{setUser(null);setMod(null);};
   const back=()=>setMod(null);
   if(!user)return <Login onLogin={u=>{setUser(u);setMod(null);}} db={db} showRanking={showRanking} setShowRanking={setShowRanking}/>;
@@ -5526,6 +5710,9 @@ export default function App(){
       <Hd user={user} onOut={logout} onRanking={()=>setMod("ranking")}/>
       <BannerContexto/>
       <AvisoFila/>
+      {mod&&<GuiaDaFicha mod={mod} user={user}/>}
+      {mod&&!feitoFicha&&!jaDispensado&&jaRegistadoHoje(mod,user)&&<JaFeitoAviso ja={jaRegistadoHoje(mod,user)} prato={daFicha(mod).prato} onRegistar={()=>setJaDispensado(true)}/>}
+      {feitoFicha&&<FeitoDaFicha feito={feitoFicha} onOutra={()=>{(window as any).__kf_da_ficha=null;setFeitoFicha(null);setMod(null);}}/>}
       <div style={{paddingBottom:36}}>
         {mod&&<div style={{padding:"11px 15px 3px"}}><button onClick={back} style={{background:"none",border:"1.5px solid "+BE,color:V,fontSize:13,fontWeight:600,cursor:"pointer",borderRadius:7,padding:"5px 13px",fontFamily:"inherit"}}>Voltar</button></div>}
         {page}
