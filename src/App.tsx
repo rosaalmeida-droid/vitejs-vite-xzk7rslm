@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { TURMAS_ECL, PROFESSORES_ECL, ALUNOS_ECL, SHEETS_AVALIACAO_ECL_URL } from "./alunosECL";
 import { LOGO_ECL } from "./logo_ecl";
+import { gravarRegistoNaBase, ouvirRegistosDeHoje, linhasDeHojeNaBase } from "./baseKF";
 
 // Load Barlow Condensed font
 const fontLink = document.createElement("link");
@@ -37,6 +38,9 @@ function postarKF(corpo){
   const id=idEnvio();
   const f=lerLS(FILA_KEY);f.push({id,corpo:{...corpo,idEnvio:id},tent:0,criado:Date.now()});gravarLS(FILA_KEY,f);
   despacharFila();
+  // (13/out/2026) E logo na base de dados: chega aos outros telemóveis num segundo.
+  // O Sheets continua a ser o registo oficial (a fila acima não muda).
+  if(corpo&&corpo.tabela&&Array.isArray(corpo.linha))gravarRegistoNaBase(id,corpo.tabela,corpo.linha).catch(()=>{});
 }
 const enviar=(t,d)=>postarKF(typeof d==="object"&&d&&!Array.isArray(d)&&d.linha?{tabela:t,...d}:{tabela:t,linha:d});
 function agendarFila(ms){if(filaTimer)clearTimeout(filaTimer);filaTimer=setTimeout(()=>{filaTimer=null;despacharFila();},ms);}
@@ -517,9 +521,27 @@ function tarefaPeriodicaDoItem(item){
 // no aparelho nunca é substituído — só se acrescenta o que falta.
 const SINC_DO_DIA=["Temperaturas","Higienização","Panos Solução","Encerramento","Presenças","Higiene Pessoal","NãoConformidades"];
 const SINC_TUDO=[...SINC_DO_DIA,"Receção Matérias-Primas","Amostra Testemunho","Desinfeção","Produção","Faltas e Necessidades","Manutenção, Avarias e Prevenção"];
+/** As linhas de hoje que já estão na base de dados (no formato das do Sheets). */
+function linhasDeHojeDaBase(tabela){
+  return linhasDeHojeNaBase(tabela).map(l=>[dataDaLinhaSheets(l[0])||String(l[0]??""),...l.slice(1)]);
+}
+/** Junta às linhas do Sheets as de hoje que estão na base e ainda não chegaram ao Sheets. */
+function juntarComABase(tabela,doSheets){
+  const daBase=linhasDeHojeDaBase(tabela);
+  if(!daBase.length)return doSheets;
+  const sh=doSheets||[];
+  const faltam=daBase.filter(l=>!linhaChegou(l,sh));
+  return faltam.length?[...sh,...faltam]:sh;
+}
+/** As linhas de uma folha: as do Sheets e, de hoje, as que estão na base de dados e
+ *  ainda não chegaram ao Sheets. null se o Sheets falhar (quem chama usa o aparelho). */
+async function linhasDaTabela(tabela){
+  const x=await linhasDoSheets(tabela);
+  return x?juntarComABase(tabela,x):null;
+}
 async function lerDoSheetsParaJuntar(tabelas){
   const out={};
-  await Promise.all(tabelas.map(async t=>{const x=await linhasDoSheets(t);if(x)out[t]=x;}));
+  await Promise.all(tabelas.map(async t=>{const x=await linhasDoSheets(t);const y=x?juntarComABase(t,x):linhasDeHojeDaBase(t);if(x||y.length)out[t]=y;}));
   return out;
 }
 function juntarDoSheets(p,dados,soDia){
@@ -693,7 +715,7 @@ async function dadosDaFolha(tipo,db,periodoEscolhido){
   const doSheets=async()=>{
     // Linhas exatamente iguais (um reenvio depois de uma falha de rede) aparecem uma só vez.
     // Na Higienização não, porque marcar, desmarcar e voltar a marcar tem de ficar pela ordem.
-    const L=async t=>{const x=await linhasDoSheets(t);if(!x)return x;const vistas=new Set();
+    const L=async t=>{const x=await linhasDaTabela(t);if(!x)return x;const vistas=new Set();
       return x.filter(l=>noMes(l[0])).filter(l=>{if(t==="Higienização")return true;const k=JSON.stringify(l);if(vistas.has(k))return false;vistas.add(k);return true;});};
     if(FOLHAS_DO_SHEETS[tipo]){const f=FOLHAS_DO_SHEETS[tipo];const x=await L(f.tabela);return x&&x.map(l=>f.map(l,nomeDe));}
     if(tipo==="temperaturas"){const x=await L("Temperaturas");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),l[5]==="final"?"Final":l[5]==="inicio"?"Início":String(l[5]||""),nomeDe(l[3],l[4]),...FRIOS.map((_,i)=>{const v=l[6+2*i],e=l[7+2*i];if(v===""||v==null)return "";return e==="N/A"?String(v):v+" °C "+(e==="---"?"":e);})]);}
@@ -702,7 +724,7 @@ async function dadosDaFolha(tipo,db,periodoEscolhido){
     if(tipo==="producao"){const x=await L("Produção");return x&&x.map(l=>[l[0],l[10]?horaDaLinhaSheets(l[10]):"",l[3],l[4],l[5],fD(dataDaLinhaSheets(l[6])||String(l[6]||"")),fD(dataDaLinhaSheets(l[7])||String(l[7]||"")),l[8],nomeDe(l[2],l[11]||""),l[9]||""]);}
     if(tipo==="auxiliares"){const x=await L("VerificacaoFinalAuxiliares");return x&&x.map(l=>[l[0],horaDaLinhaSheets(l[1]),nomeCurto(db,"",l[3]),l[4],l[5]||"",l[6]||""]);}
     if(tipo==="naoconf"){
-      const x=await linhasDoSheets("NãoConformidades");if(!x)return null;
+      const x=await linhasDaTabela("NãoConformidades");if(!x)return null;
       // Cada NC numa linha, com a decisão mais recente (medida corretiva, estado, quem decidiu).
       const orig=[];
       x.forEach(l=>{const d=String(l[6]||"");const pref=d.startsWith("[ESCALADA AO COORDENADOR] ")?"[ESCALADA AO COORDENADOR] ":d.startsWith("[DECISÃO] ")?"[DECISÃO] ":"";
@@ -3179,7 +3201,7 @@ function PainelNCs({db,turma,setDb,user,showToast}){
 function AtividadeAuxiliares({db,periodo}){
   const [linhas,setLinhas]=useState(null);
   useEffect(()=>{let vivo=true;setLinhas(null);
-    linhasDoSheets("VerificacaoFinalAuxiliares").then(x=>{if(!vivo)return;
+    linhasDaTabela("VerificacaoFinalAuxiliares").then(x=>{if(!vivo)return;
       setLinhas(x?x.filter(l=>{const d=nD(l[0]);return d>=periodo.inicio&&d<=periodo.fim;}).sort((a,b)=>nD(b[0]).localeCompare(nD(a[0]))||String(horaDaLinhaSheets(b[1])).localeCompare(String(horaDaLinhaSheets(a[1])))):[]);});
     return()=>{vivo=false;};},[periodo.inicio,periodo.fim]);
   if(!linhas)return <Cd><div style={{fontSize:13,color:GR}}>A ler o que as auxiliares registaram…</div></Cd>;
@@ -5408,10 +5430,31 @@ export default function App(){
   // Os registos dos outros telemóveis: ao entrar e depois de tempos a tempos,
   // só com a aplicação à vista. Aluno: os de hoje, de minuto e meio em minuto e meio; professor,
   // coordenadora e auxiliar: tudo, de minuto a minuto.
+  // (13/out/2026) Os de hoje chegam pela base de dados, na hora: o aluno ouve a
+  // sua turma, o professor, a coordenadora e a auxiliar todas. Com a base a
+  // responder, o Sheets só se lê de 5 em 5 minutos (era de minuto a minuto,
+  // e as leituras atrasavam as gravações de toda a gente).
+  const ouveABase=useRef(false);
+  useEffect(()=>{
+    if(!user)return;
+    const turma=user.tipo==="aluno"?user.turma||null:null;
+    return ouvirRegistosDeHoje(turma,porTabela=>{
+      ouveABase.current=true;
+      const dados={};
+      Object.keys(porTabela).forEach(t=>{dados[t]=linhasDeHojeDaBase(t);});
+      if(Object.keys(dados).length)setDb(p=>juntarDoSheets(p,dados,true));
+    });
+  },[user]);
   useEffect(()=>{
     if(!user)return;
     const soDia=user.tipo==="aluno";
-    const ir=()=>{if(document.visibilityState!=="hidden")sincronizarKF(setDb,soDia).catch(()=>{});};
+    let ultima=0;
+    const ir=()=>{
+      if(document.visibilityState==="hidden")return;
+      if(ouveABase.current&&Date.now()-ultima<5*60000)return;
+      ultima=Date.now();
+      sincronizarKF(setDb,soDia).catch(()=>{});
+    };
     ir();
     const t=setInterval(ir,soDia?90000:60000);
     return()=>clearInterval(t);
